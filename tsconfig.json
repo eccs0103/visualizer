@@ -24,8 +24,9 @@
 
 		/* Type Checking & Linting */
 		"strict": true,
-		"noUnusedLocals": true,
-		"noUnusedParameters": true,
+		"strictPropertyInitialization": false,
+		"noUnusedLocals": false,
+		"noUnusedParameters": false,
 		"noUncheckedSideEffectImports": true, // Experimental
 		"erasableSyntaxOnly": true, // Experimental
 

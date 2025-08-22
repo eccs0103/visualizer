@@ -1,42 +1,27 @@
 "use strict";
 
-import { } from "./dom/extensions.js";
-import { Vector2D } from "./core/measures.js";
-import { Color } from "./core/palette.js";
-import { Visualizer } from "./structure.js";
+import { Color, Vector2D } from "adaptive-extender/web";
+import { Visualizer } from "./visualizer.js";
 
 const { min, max, split, sin, cos, PI, exp, abs, trunc, sqrt, SQRT1_2, asin, meanGeometric } = Math;
 
 //#region Spectrogram
-Visualizer.attach(`Spectrogram`, new class extends Visualizer.Visualization {
+Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	//#region Rebuild preparation
-	/** @type {number} */
-	#normShadowAnchor = 0.8;
-	/** @type {number} */
-	#deltaRotation;
-	/** @type {Color} */
-	#colorGrid;
-	/**
-	 * @param {number} value 
-	 * @returns {number}
-	 */
-	#interpolate(value) {
+	#normShadowAnchor: number = 0.8;
+	#deltaRotation: number;
+	#colorGrid: Color;
+	#interpolate(value: number): number {
 		const alpha = 0.2;
 		return value * (1 - alpha) + 0.5 * alpha;
 	}
-	/**
-	 * @returns {void}
-	 */
-	#runMetadataRebuild() {
+	#runMetadataRebuild(): void {
 		this.#deltaRotation = 360 / 6;
 
-		const colorGrid = this.#colorGrid = Color.parse(getComputedStyle(document.documentElement).getPropertyValue(`--color-background`));
+		const colorGrid = this.#colorGrid = Color.parse(getComputedStyle(document.documentElement).getPropertyValue("--color-background"));
 		colorGrid.lightness = this.#interpolate(colorGrid.lightness / 100) * 100;
 	}
-	/**
-	 * @returns {void}
-	 */
-	#runContextRebuild() {
+	#runContextRebuild(): void {
 		const { context } = this;
 		const { width, height } = context.canvas;
 
@@ -46,19 +31,13 @@ Visualizer.attach(`Spectrogram`, new class extends Visualizer.Visualization {
 	}
 	//#endregion
 
-	/**
-	 * @returns {void}
-	 */
-	rebuild() {
+	rebuild(): void {
 		this.#runMetadataRebuild();
 		this.#runContextRebuild();
 	}
 
 	//#region Update preparation
-	/**
-	 * @returns {void}
-	 */
-	#runContextUpdate() {
+	#runContextUpdate(): void {
 		const { audioset, context } = this;
 		const { normVolume, normAmplitude } = audioset;
 		const { width, height } = context.canvas;
@@ -71,10 +50,7 @@ Visualizer.attach(`Spectrogram`, new class extends Visualizer.Visualization {
 	}
 	//#endregion
 	//#region Grid
-	/**
-	 * @returns {void}
-	 */
-	#runGridDrawing() {
+	#runGridDrawing(): void {
 		const colorGrid = this.#colorGrid;
 		const { context } = this;
 		const { width, height } = context.canvas;
@@ -92,18 +68,14 @@ Visualizer.attach(`Spectrogram`, new class extends Visualizer.Visualization {
 			context.moveTo(position.x, position.y);
 			context.lineTo(position.x + width, position.y);
 		}
-		context.globalCompositeOperation = `source-over`;
+		context.globalCompositeOperation = "source-over";
 		context.strokeStyle = colorGrid.toString();
 		context.stroke();
 	}
 	//#endregion
 	//#region Spectrum
-	/** @type {Color} */
-	#colorSpectrumSeed = Color.viaHSL(0, 100, 50);
-	/**
-	 * @returns {void}
-	 */
-	#runSpectrumDrawing() {
+	#colorSpectrumSeed: Color = Color.fromHSL(0, 100, 50);
+	#runSpectrumDrawing(): void {
 		const normShadowAnchor = this.#normShadowAnchor;
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
 		const deltaRotation = this.#deltaRotation;
@@ -130,16 +102,12 @@ Visualizer.attach(`Spectrogram`, new class extends Visualizer.Visualization {
 			context.lineTo(position.x, position.y);
 		}
 		context.closePath();
-		context.globalCompositeOperation = `source-in`;
+		context.globalCompositeOperation = "source-in";
 		context.fillStyle = gradientSpectrum;
 		context.fill();
 	}
-	/** @type {number} */
-	#offsetSpectrumRotation = 0;
-	/**
-	 * @returns {void}
-	 */
-	#runSpectrumRotation() {
+	#offsetSpectrumRotation: number = 0;
+	#runSpectrumRotation(): void {
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
 		const deltaRotation = this.#deltaRotation;
 		const { audioset, delta } = this;
@@ -152,12 +120,8 @@ Visualizer.attach(`Spectrogram`, new class extends Visualizer.Visualization {
 	}
 	//#endregion
 	//#region Shadow
-	/** @type {Color} */
-	#colorShadow = Color.newBlack;
-	/**
-	 * @returns {void}
-	 */
-	#runShadowDrawing() {
+	#colorShadow: Color = Color.newBlack;
+	#runShadowDrawing(): void {
 		const normShadowAnchor = this.#normShadowAnchor;
 		const normTopAnchor = normShadowAnchor * 2 / 3;
 		const normBottomAnchor = normTopAnchor + 1 / 3;
@@ -178,10 +142,7 @@ Visualizer.attach(`Spectrogram`, new class extends Visualizer.Visualization {
 	}
 	//#endregion
 
-	/**
-	 * @returns {void}
-	 */
-	update() {
+	update(): void {
 		this.#runContextUpdate();
 
 		this.#runGridDrawing();
@@ -195,27 +156,19 @@ Visualizer.attach(`Spectrogram`, new class extends Visualizer.Visualization {
 //#endregion
 
 //#region Pulsar
-Visualizer.attach(`Pulsar`, new class extends Visualizer.Visualization {
+Visualizer.attach("Pulsar", new class extends Visualizer.Visualization {
 	//#region Rebuild preparation
-	/** @type {number} */
-	#radius;
-	/** @type {Color} */
-	#colorBackground;
-	/**
-	 * @returns {void}
-	 */
-	#runMetadataRebuild() {
+	#radius: number;
+	#colorBackground: Color;
+	#runMetadataRebuild(): void {
 		const { context } = this;
 		const { width, height } = context.canvas;
 
 		const radius = this.#radius = min(width, height) / 2;
 
-		const colorBackground = this.#colorBackground = Color.parse(getComputedStyle(document.documentElement).getPropertyValue(`--color-background`));
+		const colorBackground = this.#colorBackground = Color.parse(getComputedStyle(document.documentElement).getPropertyValue("--color-background"));
 	}
-	/**
-	 * @returns {void}
-	 */
-	#runContextRebuild() {
+	#runContextRebuild(): void {
 		const { context } = this;
 		const { width, height } = context.canvas;
 		const radius = this.#radius;
@@ -226,19 +179,13 @@ Visualizer.attach(`Pulsar`, new class extends Visualizer.Visualization {
 	}
 	//#endregion
 
-	/**
-	 * @returns {void}
-	 */
-	rebuild() {
+	rebuild(): void {
 		this.#runMetadataRebuild();
 		this.#runContextRebuild();
 	}
 
 	//#region Update preparation
-	/**
-	 * @returns {void}
-	 */
-	#runContextUpdate() {
+	#runContextUpdate(): void {
 		const { context } = this;
 		const { width, height } = context.canvas;
 
@@ -249,16 +196,10 @@ Visualizer.attach(`Pulsar`, new class extends Visualizer.Visualization {
 	}
 	//#endregion
 	//#region Halo
-	/** @type {Color} */
-	#colorHaloOuter = Color.viaHSL(0, 100, 50);
-	/** @type {Color} */
-	#colorHaloInner = Color.newBlack;
-	/** @type {CanvasGradient} */
-	#gradientHalo;
-	/**
-	 * @returns {void}
-	 */
-	#runHaloDrawing() {
+	#colorHaloOuter: Color = Color.fromHSL(0, 100, 50);
+	#colorHaloInner: Color = Color.newBlack;
+	#gradientHalo: CanvasGradient;
+	#runHaloDrawing(): void {
 		const radius = this.#radius;
 		const colorHaloOuter = this.#colorHaloOuter;
 		const colorHaloInner = this.#colorHaloInner;
@@ -288,18 +229,14 @@ Visualizer.attach(`Pulsar`, new class extends Visualizer.Visualization {
 			context.lineTo(position.x, position.y);
 		}
 		context.closePath();
-		context.globalCompositeOperation = `source-over`;
+		context.globalCompositeOperation = "source-over";
 		context.fillStyle = colorHaloInner.toString();
 		context.fill();
 		context.strokeStyle = gradientHalo;
 		context.stroke();
 	}
-	/** @type {number} */
-	#offsetHaloRotation = 0;
-	/**
-	 * @returns {void}
-	 */
-	#runHaloRotation() {
+	#offsetHaloRotation: number = 0;
+	#runHaloRotation(): void {
 		const colorHalo = this.#colorHaloOuter;
 		const duration = 6;
 		const { audioset, delta } = this;
@@ -312,10 +249,7 @@ Visualizer.attach(`Pulsar`, new class extends Visualizer.Visualization {
 	}
 	//#endregion
 	//#region Wave
-	/**
-	 * @returns {void}
-	 */
-	#runWaveDrawing() {
+	#runWaveDrawing(): void {
 		const radius = this.#radius;
 		const gradientHalo = this.#gradientHalo;
 		const { context, audioset } = this;
@@ -335,7 +269,7 @@ Visualizer.attach(`Pulsar`, new class extends Visualizer.Visualization {
 			context.lineTo(position.x, position.y);
 		}
 		context.lineTo(width / 2, 0);
-		context.globalCompositeOperation = `source-atop`;
+		context.globalCompositeOperation = "source-atop";
 		context.fillStyle = gradientHalo;
 		context.fill();
 		context.strokeStyle = gradientHalo;
@@ -343,12 +277,8 @@ Visualizer.attach(`Pulsar`, new class extends Visualizer.Visualization {
 	}
 	//#endregion
 	//#region Shadow
-	/** @type {Color} */
-	#colorShadow = Color.newBlack;
-	/**
-	 * @returns {void}
-	 */
-	#runShadowDrawing() {
+	#colorShadow: Color = Color.newBlack;
+	#runShadowDrawing(): void {
 		const radius = this.#radius;
 		const colorShadow = this.#colorShadow;
 		const { context } = this;
@@ -357,31 +287,25 @@ Visualizer.attach(`Pulsar`, new class extends Visualizer.Visualization {
 		gradientShadow.addColorStop(0, colorShadow.pass(1).toString());
 		gradientShadow.addColorStop(0.5, colorShadow.pass(SQRT1_2).toString());
 		gradientShadow.addColorStop(1, colorShadow.pass(0).toString());
-		context.globalCompositeOperation = `source-over`;
+		context.globalCompositeOperation = "source-over";
 		context.fillStyle = gradientShadow;
 		context.fill();
 	}
 	//#endregion
 	//#region Background
-	/**
-	 * @returns {void}
-	 */
-	#runBackgroundDrawing() {
+	#runBackgroundDrawing(): void {
 		const colorBackground = this.#colorBackground;
 		const { context } = this;
 		const { a, d, e, f } = context.getTransform();
 		const { width, height } = context.canvas;
 
-		context.globalCompositeOperation = `destination-atop`;
+		context.globalCompositeOperation = "destination-atop";
 		context.fillStyle = colorBackground.toString();
 		context.fillRect(-e / a, -f / d, width / a, height / d);
 	}
 	//#endregion
 
-	/**
-	 * @returns {void}
-	 */
-	update() {
+	update(): void {
 		this.#runContextUpdate();
 
 		this.#runHaloDrawing();
