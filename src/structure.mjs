@@ -1,13 +1,13 @@
 "use strict";
 
-import { DataPair } from "./core/extensions.mjs";
-// import { } from "./core/generators.mjs";
-// import { } from "./core/measures.mjs";
-// import { } from "./core/palette.mjs";
+import { DataPair } from "./core/extensions.js";
+// import { } from "./core/generators.js";
+// import { } from "./core/measures.js";
+// import { } from "./core/palette.js";
 
-import { } from "./workers/extensions.mjs";
-import { Engine, FastEngine } from "./workers/generators.mjs";
-// import { } from "./workers/measures.mjs";
+import { } from "./workers/extensions.js";
+import { Engine, FastEngine } from "./workers/generators.js";
+// import { } from "./workers/measures.js";
 
 const { sqrt, sqpw, pow, abs, log2, round } = Math;
 

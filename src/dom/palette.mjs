@@ -1,8 +1,8 @@
 "use strict";
 
-import { Matrix, Vector2D } from "../core/measures.mjs";
-import { Color } from "../core/palette.mjs";
-import { } from "../workers/extensions.mjs";
+import { Matrix, Vector2D } from "../core/measures.js";
+import { Color } from "../core/palette.js";
+import { } from "../workers/extensions.js";
 
 const { trunc } = Math;
 

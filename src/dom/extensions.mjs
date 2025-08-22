@@ -2,9 +2,9 @@
 
 "use strict";
 
-import { } from "../workers/extensions.mjs";
-import { bSubtitle, dialogLoader } from "./loader.mjs";
-import { buttonConfirmAccept, buttonConfirmDecline, buttonPromptAccept, dialogAlert, dialogConfirm, dialogPrompt, divAlertCoontainer, divConfirmContainer, divPromptContainer, inputPrompt } from "./popup.mjs";
+import { } from "../workers/extensions.js";
+import { bSubtitle, dialogLoader } from "./loader.js";
+import { buttonConfirmAccept, buttonConfirmDecline, buttonPromptAccept, dialogAlert, dialogConfirm, dialogPrompt, divAlertCoontainer, divConfirmContainer, divPromptContainer, inputPrompt } from "./popup.js";
 
 //#region Parent node
 /**

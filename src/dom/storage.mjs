@@ -1,6 +1,6 @@
 "use strict";
 
-import { DataPair } from "../core/extensions.mjs";
+import { DataPair } from "../core/extensions.js";
 
 //#region Archive
 /**

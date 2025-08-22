@@ -8,7 +8,7 @@ Upload any song to visualize it.
 
 The system supports custom visualizations, which can be implemented by extending the `Visualizer.Visualization` class. These visualizations allow for creative and dynamic interactions, such as audio-responsive effects or graphical animations.
 
-All visualization code is located in the [`./scripts/visualizations.mjs`](./scripts/visualizations.mjs) file. This script serves both as a reference for studying the structure of built-in visualizations and as a place to define your own.
+All visualization code is located in the [`./scripts/visualizations.js`](./scripts/visualizations.js) file. This script serves both as a reference for studying the structure of built-in visualizations and as a place to define your own.
 
 Below is an example of how to create and attach a custom visualization:
 

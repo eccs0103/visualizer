@@ -1,6 +1,6 @@
 "use strict";
 
-import { ImplementationError } from "../core/extensions.mjs";
+import { ImplementationError } from "../core/extensions.js";
 
 const { trunc } = Math;
 

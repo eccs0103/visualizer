@@ -14,15 +14,15 @@
 	<meta name="language" content="English">
 	<meta name="revisit-after" content="0 days">
 	<title>Studio - Visualizer</title>
-	<link rel="shortcut icon" href="../resources/shortcuts/equalizer.png" media="(prefers-color-scheme: light)">
-	<link rel="shortcut icon" href="../resources/shortcuts/equalizer-inverted.png" media="(prefers-color-scheme: dark)">
-	<link rel="preload" as="image" href="../resources/loading.gif">
+	<link rel="shortcut icon" href="../public/shortcuts/equalizer.png" media="(prefers-color-scheme: light)">
+	<link rel="shortcut icon" href="../public/shortcuts/equalizer-inverted.png" media="(prefers-color-scheme: dark)">
+	<link rel="preload" as="image" href="../public/loading.gif">
 	<link rel="stylesheet" href="../styles/global.css">
 	<link rel="stylesheet" href="../styles/themes/material.css">
-	<link rel="preload" as="image" href="../resources/icons/pause.svg">
-	<link rel="preload" as="image" href="../resources/icons/eject.svg">
+	<link rel="preload" as="image" href="../public/icons/pause.svg">
+	<link rel="preload" as="image" href="../public/icons/eject.svg">
 	<link rel="stylesheet" href="./style.css">
-	<script type="module" src="./script.mjs"></script>
+	<script type="module" src="../src/studio.js"></script>
 </head>
 
 <body>
@@ -33,16 +33,16 @@
 	<div id="interface">
 		<div id="audio-control" class="with-padding large-padding flex">
 			<button id="audio-drive" type="button" class="flex secondary-centered with-gap">
-				<img src="../resources/icons/upload.svg" alt="Audio drive" class="icon">
+				<img src="../public/icons/upload.svg" alt="Audio drive" class="icon">
 			</button>
 		</div>
 		<div id="audio-auxiliary" class="with-padding large-padding flex reversed">
 			<button id="open-configurator" type="button" class="flex secondary-centered with-gap">
-				<img src="../resources/icons/tune.svg" alt="Open configurator" class="icon">
+				<img src="../public/icons/tune.svg" alt="Open configurator" class="icon">
 			</button>
 		</div>
 		<div id="playback-control" class="with-inline-padding large-padding flex">
-			<img src="../resources/icons/play.svg" alt="Status" class="icon">
+			<img src="../public/icons/play.svg" alt="Status" class="icon">
 		</div>
 		<div id="playback-auxiliary" class="with-inline-padding large-padding flex reversed">
 			<b id="playback-time">00:00</b>
@@ -53,7 +53,7 @@
 	<dialog id="configurator" class="layer rounded with-padding large-padding flex column with-gap">
 		<div class="flex reversed">
 			<button id="close-configurator" type="button" class="flex secondary-centered with-gap">
-				<img src="../resources/icons/close.svg" alt="Close configurator" class="icon">
+				<img src="../public/icons/close.svg" alt="Close configurator" class="icon">
 			</button>
 		</div>
 		<h2>Visualizer</h2>

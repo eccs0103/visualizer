@@ -1,6 +1,6 @@
 "use strict";
 
-import { FastEngine } from "./generators.mjs";
+import { FastEngine } from "./generators.js";
 
 //#region Timer
 /**

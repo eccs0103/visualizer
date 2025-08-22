@@ -1,4 +1,4 @@
-/// <reference path="./extensions.mjs" />
+/// <reference path="./extensions.js" />
 
 interface PromiseConstructor {
 	/**

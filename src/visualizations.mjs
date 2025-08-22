@@ -1,9 +1,9 @@
 "use strict";
 
-import { } from "./dom/extensions.mjs";
-import { Vector2D } from "./core/measures.mjs";
-import { Color } from "./core/palette.mjs";
-import { Visualizer } from "./structure.mjs";
+import { } from "./dom/extensions.js";
+import { Vector2D } from "./core/measures.js";
+import { Color } from "./core/palette.js";
+import { Visualizer } from "./structure.js";
 
 const { min, max, split, sin, cos, PI, exp, abs, trunc, sqrt, SQRT1_2, asin, meanGeometric } = Math;
 
