@@ -1,7 +1,7 @@
 "use strict";
 
-import { DataPair } from "./core/extensions.js";
-import { Engine, FastEngine } from "./workers/generators.js";
+import "adaptive-extender/web";
+import { Engine, FastEngine } from "adaptive-extender/web";
 
 //#region Visualization configuration
 interface VisualizationConfigurationNotation {
@@ -365,4 +365,4 @@ class Settings {
 }
 //#endregion
 
-export { Visualizer, Settings };
+export { Settings };

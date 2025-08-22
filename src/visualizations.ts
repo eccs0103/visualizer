@@ -1,5 +1,6 @@
 "use strict";
 
+import "adaptive-extender/web";
 import { Color, Vector2D } from "adaptive-extender/web";
 import { Visualizer } from "./visualizer.js";
 
@@ -156,7 +157,7 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 //#endregion
 
 //#region Pulsar
-Visualizer.attach("Pulsar", new class extends Visualizer.Visualization {
+Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 	//#region Rebuild preparation
 	#radius: number;
 	#colorBackground: Color;
