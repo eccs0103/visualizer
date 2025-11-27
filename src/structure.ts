@@ -1,7 +1,8 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Engine, FastEngine } from "adaptive-extender/web";
+import { type Engine, FastEngine } from "adaptive-extender/web";
+import { Audioset } from "../studio/models/audioset.js";
 
 //#region Visualization configuration
 interface VisualizationConfigurationNotation {
@@ -12,11 +13,47 @@ interface VisualizationConfigurationNotation {
 }
 
 class VisualizationConfiguration {
-	/**
-	 * @param {any} source 
-	 * @param {string} name 
-	 * @returns {VisualizationConfiguration}
-	 */
+	#quality: number = 10;
+	#smoothing: number = 0.7;
+	#focus: number = -65;
+	#spread: number = 35;
+
+	get quality(): number {
+		return this.#quality;
+	}
+
+	set quality(value: number) {
+		if (!Audioset.Manager.checkQuality(value)) throw new Error("Invalid value '${value}' for quality");
+		this.#quality = value;
+	}
+	
+	get smoothing(): number {
+		return this.#smoothing;
+	}
+
+	set smoothing(value: number) {
+		if (!Audioset.Manager.checkSmoothing(value)) throw new Error("Invalid value '${value}' for smoothing");
+		this.#smoothing = value;
+	}
+	
+	get focus(): number {
+		return this.#focus;
+	}
+
+	set focus(value: number) {
+		if (!Audioset.Manager.checkFocus(value)) throw new Error("Invalid value '${value}' for focus");
+		this.#focus = value;
+	}
+	
+	get spread(): number {
+		return this.#spread;
+	}
+	
+	set spread(value: number) {
+		if (!Audioset.Manager.checkSpread(value)) throw new Error("Invalid value '${value}' for spread");
+		this.#spread = value;
+	}
+
 	static import(source: any, name: string = "source"): VisualizationConfiguration {
 		try {
 			const shell = Object.import(source);
@@ -42,9 +79,7 @@ class VisualizationConfiguration {
 			throw new TypeError("Unable to import ${(name)} due its ${typename(source)} type", { cause });
 		}
 	}
-	/**
-	 * @returns {VisualizationConfigurationNotation}
-	 */
+
 	export(): VisualizationConfigurationNotation {
 		return {
 			quality: this.#quality,
@@ -53,81 +88,12 @@ class VisualizationConfiguration {
 			spread: this.#spread,
 		};
 	}
-	/** @type {number} */
-	#quality: number = 10;
-	/**
-	 * @returns {number}
-	 */
-	get quality(): number {
-		return this.#quality;
-	}
-	/**
-	 * @param {number} value 
-	 * @returns {void}
-	 */
-	set quality(value: number): void {
-		if (!Audioset.Manager.checkQuality(value)) throw new Error("Invalid value '${value}' for quality");
-		this.#quality = value;
-	}
-	/** @type {number} */
-	#smoothing: number = 0.7;
-	/**
-	 * @returns {number}
-	 */
-	get smoothing(): number {
-		return this.#smoothing;
-	}
-	/**
-	 * @param {number} value 
-	 * @returns {void}
-	 */
-	set smoothing(value: number): void {
-		if (!Audioset.Manager.checkSmoothing(value)) throw new Error("Invalid value '${value}' for smoothing");
-		this.#smoothing = value;
-	}
-	/** @type {number} */
-	#focus: number = -65;
-	/**
-	 * @returns {number}
-	 */
-	get focus(): number {
-		return this.#focus;
-	}
-	/**
-	 * @param {number} value 
-	 * @returns {void}
-	 */
-	set focus(value: number): void {
-		if (!Audioset.Manager.checkFocus(value)) throw new Error("Invalid value '${value}' for focus");
-		this.#focus = value;
-	}
-	/** @type {number} */
-	#spread: number = 35;
-	/**
-	 * @returns {number}
-	 */
-	get spread(): number {
-		return this.#spread;
-	}
-	/**
-	 * @param {number} value 
-	 * @returns {void}
-	 */
-	set spread(value: number): void {
-		if (!Audioset.Manager.checkSpread(value)) throw new Error("Invalid value '${value}' for spread");
-		this.#spread = value;
-	}
 }
 //#endregion
 //#region Visualization attachment
 type VisualizationAttachmentNotation = [string, VisualizationConfigurationNotation];
 
 class VisualizationAttachment {
-	/**
-	 * @param {any} source 
-	 * @param {string} name 
-	 * @returns {VisualizationAttachment}
-	 */
 	static import(source: any, name: string = "source"): VisualizationAttachment {
 		try {
 			const shell = Array.import(source);
@@ -138,52 +104,28 @@ class VisualizationAttachment {
 			throw new TypeError("Unable to import ${(name)} due its ${typename(source)} type", { cause });
 		}
 	}
-	/**
-	 * @returns {VisualizationAttachmentNotation}
-	 */
 	export(): VisualizationAttachmentNotation {
 		return [
 			this.#name,
 			this.#configuration.export()
 		];
 	}
-	/**
-	 * @param {Readonly<[string, VisualizationConfiguration]>} source 
-	 * @returns {VisualizationAttachment}
-	 */
 	static fromArray(source: Readonly<[string, VisualizationConfiguration]>): VisualizationAttachment {
 		const [name, configuration] = source;
 		return new VisualizationAttachment(name, configuration);
 	}
-	/**
-	 * @returns {[string, VisualizationConfiguration]}
-	 */
 	toArray(): [string, VisualizationConfiguration] {
 		return [this.#name, this.#configuration];
 	}
-	/**
-	 * @param {string} name 
-	 * @param {VisualizationConfiguration} configuration 
-	 */
 	constructor(name: string, configuration: VisualizationConfiguration) {
 		this.#name = name;
 		this.#configuration = configuration;
 	}
-	/** @type {string} */
 	#name: string;
-	/**
-	 * @readonly
-	 * @returns {string}
-	 */
 	get name(): string {
 		return this.#name;
 	}
-	/** @type {VisualizationConfiguration} */
 	#configuration: VisualizationConfiguration;
-	/**
-	 * @readonly
-	 * @returns {VisualizationConfiguration}
-	 */
 	get configuration(): VisualizationConfiguration {
 		return this.#configuration;
 	}
@@ -198,11 +140,6 @@ interface VisualizerConfigurationNotation {
 }
 
 class VisualizerConfiguration {
-	/**
-	 * @param {any} source 
-	 * @param {string} name 
-	 * @returns {VisualizerConfiguration}
-	 */
 	static import(source: any, name: string = "source"): VisualizerConfiguration {
 		try {
 			const shell = Object.import(source);
@@ -229,9 +166,6 @@ class VisualizerConfiguration {
 			throw new TypeError("Unable to import ${(name)} due its ${typename(source)} type", { cause });
 		}
 	}
-	/**
-	 * @returns {VisualizerConfigurationNotation}
-	 */
 	export(): VisualizerConfigurationNotation {
 		return {
 			rate: this.#rate,
@@ -240,59 +174,30 @@ class VisualizerConfiguration {
 			attachments: Array.from(this.#mapping).map(attachment => VisualizationAttachment.fromArray(attachment).export())
 		};
 	};
-	/** @type {number} */
 	#rate: number = 120;
-	/**
-	 * @returns {number}
-	 */
 	get rate(): number {
 		return this.#rate;
 	}
-	/**
-	 * @param {number} value 
-	 * @returns {void}
-	 */
-	set rate(value: number): void {
+	set rate(value: number) {
 		if (!Visualizer.checkRate(value)) throw new Error("Invalid value '${value}' for rate");
 		this.#rate = value;
 	}
-	/** @type {boolean} */
 	#autocorrect: boolean = false;
-	/**
-	 * @returns {boolean}
-	 */
 	get autocorrect(): boolean {
 		return this.#autocorrect;
 	}
-	/**
-	 * @param {boolean} value 
-	 * @returns {void}
-	 */
-	set autocorrect(value: boolean): void {
+	set autocorrect(value: boolean) {
 		this.#autocorrect = value;
 	}
-	/** @type {string} */
 	#visualization: string = Visualizer.defaultVisualization;
-	/**
-	 * @returns {string}
-	 */
 	get visualization(): string {
 		return this.#visualization;
 	}
-	/**
-	 * @param {string} value 
-	 * @returns {void}
-	 */
-	set visualization(value: string): void {
+	set visualization(value: string) {
 		if (!Visualizer.visualizations.includes(value)) throw new Error("Invalid value '${value}' for visualization");
 		this.#visualization = value;
 	}
-	/** @type {Map<string, VisualizationConfiguration>} */
 	#mapping: Map<string, VisualizationConfiguration> = new Map(Visualizer.visualizations.map(name => [name, new VisualizationConfiguration()]));
-	/**
-	 * @readonly
-	 * @returns {VisualizationConfiguration}
-	 */
 	get configuration(): VisualizationConfiguration {
 		const configuration = this.#mapping.get(this.#visualization);
 		if (configuration === undefined) throw new Error("Unable to find configuration for visualization '${this.#visualization}'");
@@ -307,11 +212,6 @@ interface SettingsNotation {
 }
 
 class Settings {
-	/**
-	 * @param {any} source 
-	 * @param {string} name 
-	 * @returns {Settings}
-	 */
 	static import(source: any, name: string = "source"): Settings {
 		try {
 			const shell = Object.import(source);
@@ -329,36 +229,20 @@ class Settings {
 			throw new TypeError("Unable to import ${(name)} due its ${typename(source)} type", { cause });
 		}
 	}
-	/**
-	 * @returns {SettingsNotation}
-	 */
 	export(): SettingsNotation {
 		return {
 			isOpenedConfigurator: this.#isOpenedConfigurator,
 			visualizer: this.#visualizer.export(),
 		};
 	}
-	/** @type {boolean} */
 	#isOpenedConfigurator: boolean = false;
-	/**
-	 * @returns {boolean}
-	 */
 	get isOpenedConfigurator(): boolean {
 		return this.#isOpenedConfigurator;
 	}
-	/**
-	 * @param {boolean} value 
-	 * @returns {void}
-	 */
-	set isOpenedConfigurator(value: boolean): void {
+	set isOpenedConfigurator(value: boolean) {
 		this.#isOpenedConfigurator = value;
 	}
-	/** @type {VisualizerConfiguration} */
 	#visualizer: VisualizerConfiguration = new VisualizerConfiguration();
-	/**
-	 * @readonly
-	 * @returns {VisualizerConfiguration}
-	 */
 	get visualizer(): VisualizerConfiguration {
 		return this.#visualizer;
 	}

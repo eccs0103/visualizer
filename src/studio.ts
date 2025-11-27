@@ -11,12 +11,7 @@ import { Visualizer } from "./visualizer.js";
  */
 class Controller {
 	//#region Internal
-	/** @type {boolean} */
 	static #locked: boolean = true;
-	/**
-	 * @param {any} reason
-	 * @returns {Promise<void>}
-	 */
 	static async #catch(reason: any): Promise<void> {
 		const error = Error.from(reason);
 		let message = String(error);
@@ -24,10 +19,6 @@ class Controller {
 		if (await window.confirmAsync(message)) location.reload();
 		throw reason;
 	}
-	/**
-	 * Starts the main application flow.
-	 * @returns {Promise<void>}
-	 */
 	static async build(): Promise<void> {
 		Controller.#locked = false;
 		const self = new Controller();
@@ -44,9 +35,6 @@ class Controller {
 	}
 	//#endregion
 	//#region Model
-	/**
-	 * @returns {Promise<void>}
-	 */
 	async #buildModel(): Promise<void> {
 		await Promise.withSignal((signal, resolve, reject) => {
 			const scriptVisualizations = document.head.appendChild(document.createElement("script"));
@@ -56,16 +44,11 @@ class Controller {
 			scriptVisualizations.src = "../scripts/visualizations.js";
 		});
 
-		const settings = this.#settings = (await ArchiveManager.construct("${navigator.dataPath}.Settings", Settings)).content;
-		const storeAudiolist = this.#storeAudiolist = await Database.Store.open("${navigator.dataPath}", "Audiolist");
+		const settings = this.#settings = (await ArchiveManager.construct(`${navigator.dataPath}.Settings`, Settings)).content;
+		const storeAudiolist = this.#storeAudiolist = await Database.Store.open(`${navigator.dataPath}`, "Audiolist");
 	}
-	/** @type {Settings} */
 	#settings: Settings;
-	/** @type {DatabaseStore} */
 	#storeAudiolist: DatabaseStore;
-	/**
-	 * @returns {Promise<File?>}
-	 */
 	async #getRecentAudio(): Promise<File | null> {
 		const storeAudiolist = this.#storeAudiolist;
 		try {
@@ -78,10 +61,6 @@ class Controller {
 			return null;
 		}
 	}
-	/**
-	 * @param {File?} file
-	 * @returns {Promise<boolean>}
-	 */
 	async #setRecentAudio(file: File | null): Promise<boolean> {
 		const storeAudiolist = this.#storeAudiolist;
 		try {
@@ -95,9 +74,6 @@ class Controller {
 	}
 	//#endregion
 	//#region View
-	/**
-	 * @returns {Promise<void>}
-	 */
 	async #buildView(): Promise<void> {
 		const { body } = document;
 
@@ -122,72 +98,41 @@ class Controller {
 		const inputVisualizationSpread = this.#inputVisualizationSpread = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-spread");
 		const inputVisualizationFocus = this.#inputVisualizationFocus = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-focus");
 	}
-	/** @type {HTMLAudioElement} */
 	#audioPlayer: HTMLAudioElement;
-	/**
-	 * @returns {boolean}
-	 */
 	get markAudioReady(): boolean {
 		const { dataset } = this.#audioPlayer;
 		return (dataset["ready"] !== undefined);
 	}
-	/**
-	 * @param {boolean} value
-	 * @returns {void}
-	 */
-	set markAudioReady(value: boolean): void {
+	set markAudioReady(value: boolean) {
 		const { dataset } = this.#audioPlayer;
 		if (value) dataset["ready"] = String.empty;
 		else delete dataset["ready"];
 	}
-	/**
-	 * @returns {boolean}
-	 */
 	get markAudioPlaying(): boolean {
 		const { dataset } = this.#audioPlayer;
 		return (dataset["playing"] !== undefined);
 	}
-	/**
-	 * @param {boolean} value
-	 * @returns {void}
-	 */
-	set markAudioPlaying(value: boolean): void {
+	set markAudioPlaying(value: boolean) {
 		if (!this.markAudioReady) return;
 		const { dataset } = this.#audioPlayer;
 		if (value) dataset["playing"] = String.empty;
 		else delete dataset["playing"];
 	}
-	/**
-	 * @param {boolean} value
-	 * @returns {Promise<void>}
-	 */
 	async #toggleAudioState(value: boolean): Promise<void> {
 		const audioPlayer = this.#audioPlayer;
 		if (value) await audioPlayer.play();
 		else audioPlayer.pause();
 	}
-	/**
-	 * @param {number} seconds
-	 * @returns {string}
-	 */
 	static #toPlaytimeString(seconds: number): string {
-		const time = Timespan.viaTime(false, 0, 0, seconds);
-		return "${(time.hours * 60 + time.minutes).toString().padStart(2, "0")}:${(time.seconds).toString().padStart(2, "0")}";
+		const time = Timespan.fromComponents(0, 0, seconds);
+		return `${(time.hours * 60 + time.minutes).toString().padStart(2, "0")}:${(time.seconds).toString().padStart(2, "0")}`;
 	}
-	/**
-	 * @param {number} seconds
-	 * @returns {string}
-	 */
 	#toPlaytimeInformation(seconds: number): string {
 		const audioPlayer = this.#audioPlayer;
 		const current = Controller.#toPlaytimeString(seconds);
 		if (Number.isNaN(audioPlayer.duration)) return current;
-		return "${current} • ${Controller.#toPlaytimeString(audioPlayer.duration)}";
+		return `${current} • ${Controller.#toPlaytimeString(audioPlayer.duration)}`;
 	}
-	/**
-	 * @param {File} file
-	 * @returns {Promise<void>}
-	 */
 	async #insertAudioFile(file: File): Promise<void> {
 		const audioPlayer = this.#audioPlayer;
 		await window.load(Promise.withSignal((signal, resolve, reject) => {
@@ -196,66 +141,36 @@ class Controller {
 			audioPlayer.src = URL.createObjectURL(file);
 		}));
 	}
-	/**
-	 * @returns {void}
-	 */
 	#ejectAudioFile(): void {
 		const audioPlayer = this.#audioPlayer;
 		audioPlayer.removeAttribute("src");
 		audioPlayer.srcObject = null;
 	}
-	/**
-	 * @returns {Promise<void>}
-	 */
 	async #loadRecentAudio(): Promise<void> {
 		let file = await this.#getRecentAudio();
 		if (file === null) return;
 		await this.#insertAudioFile(file);
 	}
-	/**
-	 * @param {File?} file
-	 * @returns {Promise<void>}
-	 */
 	async #saveRecentAudio(file: File | null): Promise<void> {
 		if (file === null) this.#ejectAudioFile();
 		else await this.#insertAudioFile(file);
 		await this.#setRecentAudio(file);
 	}
-	/** @type {HTMLInputElement} */
 	#inputAudioLoader: HTMLInputElement;
-	/** @type {Visualizer} */
 	#visualizer: Visualizer;
-	/** @type {HTMLDivElement} */
 	#divInterface: HTMLDivElement;
-	/** @type {HTMLButtonElement} */
 	#buttonAudioDrive: HTMLButtonElement;
-	/** @type {HTMLButtonElement} */
 	#buttonOpenConfigurator: HTMLButtonElement;
-	/** @type {HTMLElement} */
 	#bPlaybackTime: HTMLElement;
-	/** @type {HTMLInputElement} */
 	#inputPlaybackTrack: HTMLInputElement;
-	/**
-	 * @returns {number}
-	 */
 	#getPlaybackFactor(): number {
 		const { value, min, max } = this.#inputPlaybackTrack;
-		return Number(value).interpolate(Number(min), Number(max));
+		return Number(value).lerp(Number(min), Number(max));
 	}
-	/** @type {HTMLDialogElement} */
 	#dialogConfigurator: HTMLDialogElement;
-	/**
-	 * @param {string} opacity
-	 * @param {string} easing
-	 * @returns {Keyframe}
-	 */
 	static #createAppearanceKeyframe(opacity: string, easing: string): Keyframe {
 		return { opacity, easing };
 	}
-	/**
-	 * @param {boolean} value
-	 * @returns {Promise<void>}
-	 */
 	async #setConfiguratorActivity(value: boolean): Promise<void> {
 		const dialogConfigurator = this.#dialogConfigurator;
 		const appear = Controller.#createAppearanceKeyframe("1", "ease-in"), disappear = Controller.#createAppearanceKeyframe("0", "ease-out");
@@ -269,17 +184,10 @@ class Controller {
 			dialogConfigurator.close();
 		}
 	}
-	/** @type {HTMLButtonElement} */
 	#buttonCloseConfigurator: HTMLButtonElement;
-	/** @type {HTMLInputElement} */
 	#inputVisualizerRate: HTMLInputElement;
-	/** @type {HTMLInputElement} */
 	#inputAutocorrect: HTMLInputElement;
-	/** @type {HTMLSelectElement} */
 	#selectVisualizerVisualization: HTMLSelectElement;
-	/**
-	 * @returns {void}
-	 */
 	#applyVisualizationSelection(): void {
 		const settings = this.#settings;
 
@@ -306,17 +214,10 @@ class Controller {
 		visualizer.spread = settings.visualizer.configuration.spread;
 		inputVisualizationSpread.value = String(visualizer.spread);
 	}
-	/** @type {HTMLInputElement} */
 	#inputVisualizationQuality: HTMLInputElement;
-	/** @type {HTMLInputElement} */
 	#inputVisualizationSmoothing: HTMLInputElement;
-	/** @type {HTMLInputElement} */
 	#inputVisualizationSpread: HTMLInputElement;
-	/** @type {HTMLInputElement} */
 	#inputVisualizationFocus: HTMLInputElement;
-	/**
-	 * @returns {Promise<void>}
-	 */
 	async #runViewInitialization(): Promise<void> {
 		const settings = this.#settings;
 
@@ -366,7 +267,7 @@ class Controller {
 		await this.#loadRecentAudio();
 		inputAudioLoader.addEventListener("input", async (event) => {
 			try {
-				const files = Object.suppress(inputAudioLoader.files, "files list");
+				const files = ReferenceError.suppress(inputAudioLoader.files, "files list");
 				const file = files.item(0);
 				if (file === null) return;
 				await this.#saveRecentAudio(file);
@@ -400,24 +301,24 @@ class Controller {
 
 		audioPlayer.addEventListener("timeupdate", (event) => {
 			if (document.activeElement === inputPlaybackTrack) return;
-			const factor = (audioPlayer.currentTime / audioPlayer.duration).orDefault(0);
-			inputPlaybackTrack.value = "${factor * 100}";
-			inputPlaybackTrack.style.setProperty("--track-value", "${factor * 100}%");
+			const factor = (audioPlayer.currentTime / audioPlayer.duration).insteadNaN(0);
+			inputPlaybackTrack.value = `${factor * 100}`;
+			inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
 			bPlaybackTime.innerText = this.#toPlaytimeInformation(audioPlayer.currentTime);
 		});
 		inputPlaybackTrack.addEventListener("pointerup", event => inputPlaybackTrack.blur());
 		inputPlaybackTrack.addEventListener("input", (event) => {
 			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
 			const factor = this.#getPlaybackFactor();
-			inputPlaybackTrack.style.setProperty("--track-value", "${factor * 100}%");
-			const time = (audioPlayer.duration * factor).orDefault(0);
+			inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
+			const time = (audioPlayer.duration * factor).insteadNaN(0);
 			bPlaybackTime.innerText = this.#toPlaytimeInformation(time);
 		});
 		inputPlaybackTrack.addEventListener("change", (event) => {
 			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
 			const factor = this.#getPlaybackFactor();
-			inputPlaybackTrack.style.setProperty("--track-value", "${factor * 100}%");
-			const time = (audioPlayer.duration * factor).orDefault(0);
+			inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
+			const time = (audioPlayer.duration * factor).insteadNaN(0);
 			bPlaybackTime.innerText = this.#toPlaytimeInformation(time);
 			audioPlayer.currentTime = time;
 		});
@@ -500,9 +401,6 @@ class Controller {
 			settings.visualizer.autocorrect = visualizer.autocorrect;
 		});
 	}
-	/**
-	 * @returns {Promise<void>}
-	 */
 	async #runViewKeybindings(): Promise<void> {
 		const settings = this.#settings;
 		const audioPlayer = this.#audioPlayer;
@@ -531,9 +429,6 @@ class Controller {
 	}
 	//#endregion
 
-	/**
-	 * @returns {Promise<void>}
-	 */
 	async #main(): Promise<void> {
 		await this.#buildModel();
 

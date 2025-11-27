@@ -90,7 +90,7 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 		const length = trunc(width / max(width, height) * audioset.length);
 		for (let offset = 0.5 - length; offset < length; offset++) {
 			const index = trunc(abs(offset));
-			const normProgress = index.interpolate(0, length);
+			const normProgress = index.lerp(0, length);
 			const normDatumFrequency = normsDataFrequency[trunc(index * 0.7)];
 			const normScale = meanGeometric(normDatumFrequency, normDatumFrequency, normVolume);
 			position.x = width * (normProgress - 0.5);
@@ -213,8 +213,8 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 		context.beginPath();
 		const position = Vector2D.newNaN;
 		for (let index = 0; index < length; index++) {
-			const normProgress = index.interpolate(0, length);
-			const normOffset = abs(index - semiLength).interpolate(0, semiLength + 1);
+			const normProgress = index.lerp(0, length);
+			const normOffset = abs(index - semiLength).lerp(0, semiLength + 1);
 			gradientHalo.addColorStop(normProgress, new Color(colorHaloOuter)
 				.rotate(180 * normOffset)
 				.illuminate(0.1 + 0.9 * normVolume)
@@ -262,7 +262,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 		context.moveTo(-width / 2, 0);
 		const position = Vector2D.newNaN;
 		for (let index = 0; index < length; index++) {
-			const normProgress = index.interpolate(0, length);
+			const normProgress = index.lerp(0, length);
 			const normDatumTemporal = normsDataTemporal[trunc(normProgress * length)] * 2 - 1;
 			const normScale = normDatumTemporal * normAmplitude;
 			position.x = width * (normProgress - 0.5);

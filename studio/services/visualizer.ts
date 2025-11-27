@@ -2,7 +2,7 @@
 
 import "adaptive-extender/web";
 import { type Engine, FastEngine } from "adaptive-extender/web";
-import { Audioset, type AudiosetManager } from "./audioset.js";
+import { Audioset, type AudiosetManager } from "../models/audioset.js";
 
 const { round } = Math;
 
@@ -78,7 +78,7 @@ class Visualizer extends EventTarget {
 	#canvas: HTMLCanvasElement;
 	#context: CanvasRenderingContext2D;
 	#manager: AudiosetManager;
-	#bundles: Map<string, VisualizationBundle>;
+	#bundles: Map<string, VisualizationBundle> = new Map();
 	#selection: [string, VisualizationBundle];
 
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement) {
