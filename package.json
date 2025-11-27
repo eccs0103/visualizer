@@ -1,18 +1,20 @@
 {
-	"name": "visualizer",
 	"private": true,
+	"name": "visualizer",
+	"author": "eccs0103",
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc && vite build",
+		"build": "vite build",
 		"preview": "vite preview"
 	},
 	"devDependencies": {
+		"@types/node": "^24.10.1",
 		"typescript": "~5.8.3",
 		"vite": "^7.1.2"
 	},
 	"dependencies": {
-		"adaptive-extender": "^0.2.14"
+		"adaptive-extender": "^0.8.0"
 	}
 }

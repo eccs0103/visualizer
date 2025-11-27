@@ -9,7 +9,6 @@
 		/* Module Resolution / Bundler */
 		"moduleResolution": "bundler",
 		"moduleDetection": "force",
-		"allowImportingTsExtensions": true,
 		"verbatimModuleSyntax": true,
 
 		/* Interop & Compatibility */
@@ -18,7 +17,6 @@
 		"skipLibCheck": false,
 
 		/* Emit & Declarations */
-		"noEmit": true,
 		"declaration": true,
 		"sourceMap": true,
 
@@ -27,11 +25,9 @@
 		"strictPropertyInitialization": false,
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
-		"noUncheckedSideEffectImports": true, // Experimental
-		"erasableSyntaxOnly": true, // Experimental
 
 		/* Miscellaneous */
-		"forceConsistentCasingInFileNames": true
+		"forceConsistentCasingInFileNames": true,
 	},
 	"include": [ "src" ]
 }

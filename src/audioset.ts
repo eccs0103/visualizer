@@ -33,9 +33,14 @@ class Audioset {
 	static #Manager: AudiosetManagerConstructor = class Manager implements AudiosetManager {
 		#context: AudioContext;
 		#analyser: AnalyserNode;
+		#autocorrect: boolean = false;
+		#audioset: Audioset;
+		#dataTemporary: Uint8Array<ArrayBuffer>;
+
 		get quality(): number {
 			return log2(this.#analyser.fftSize);
 		}
+
 		set quality(value: number) {
 			if (!Manager.checkQuality(value)) return;
 			const analyser = this.#analyser;
@@ -47,17 +52,21 @@ class Audioset {
 			audioset.#normsDataTemporal = new Float32Array(length);
 			this.#dataTemporary = new Uint8Array(length);
 		}
+
 		get smoothing(): number {
 			return this.#analyser.smoothingTimeConstant;
 		}
+
 		set smoothing(value: number) {
 			if (!Manager.checkSmoothing(value)) return;
 			this.#analyser.smoothingTimeConstant = value;
 		}
+
 		get focus(): number {
 			const { minDecibels, maxDecibels } = this.#analyser;
 			return (minDecibels + maxDecibels) / 2;
 		}
+
 		set focus(value: number) {
 			if (!Manager.checkFocus(value)) return;
 			const { spread } = this;
@@ -65,28 +74,31 @@ class Audioset {
 			analyser.minDecibels = value - spread;
 			analyser.maxDecibels = value + spread;
 		}
+
 		get spread(): number {
 			const { minDecibels, maxDecibels } = this.#analyser;
 			return (maxDecibels - minDecibels) / 2;
 		}
+
 		set spread(value: number) {
 			if (!Manager.checkSpread(value)) return;
 			const analyser = this.#analyser, { focus } = this;
 			analyser.minDecibels = focus - value;
 			analyser.maxDecibels = focus + value;
 		}
-		#autocorrect: boolean = false;
+
 		get autocorrect(): boolean {
 			return this.#autocorrect;
 		}
+
 		set autocorrect(value: boolean) {
 			this.#autocorrect = value;
 		}
-		#audioset: Audioset;
+
 		get audioset(): Audioset {
 			return this.#audioset;
 		}
-		#dataTemporary: Uint8Array<ArrayBuffer>;
+
 		constructor(media: HTMLMediaElement) {
 			const context = this.#context = new AudioContext();
 			media.addEventListener("play", async event => await context.resume());
@@ -100,25 +112,30 @@ class Audioset {
 			this.#audioset = Audioset.#construct(length);
 			this.#dataTemporary = new Uint8Array(length);
 		}
+
 		static checkQuality(value: number): boolean {
 			if (!Number.isInteger(value)) return false;
 			if (5 > value || value > 15) return false;
 			return true;
 		}
+
 		static checkSmoothing(value: number): boolean {
 			if (!Number.isFinite(value)) return false;
 			if (0 > value || value > 1) return false;
 			return true;
 		}
+
 		static checkFocus(value: number): boolean {
 			if (!Number.isFinite(value)) return false;
 			return true;
 		}
+
 		static checkSpread(value: number): boolean {
 			if (!Number.isFinite(value)) return false;
 			if (0 >= value) return false;
 			return true;
 		}
+
 		refresh(): void {
 			const analyser = this.#analyser;
 			const { minDecibels } = analyser;
@@ -165,27 +182,32 @@ class Audioset {
 	}
 	//#endregion
 
+	static #lock: boolean = true;
 	#length: number;
+	#normsDataFrequency: Float32Array;
+	#normsDataTemporal: Float32Array;
+	#normVolume: number;
+	#normAmplitude: number;
 	get length(): number {
 		return this.#length;
 	}
-	#normsDataFrequency: Float32Array;
+
 	get normsDataFrequency(): Float32Array {
 		return this.#normsDataFrequency;
 	}
-	#normsDataTemporal: Float32Array;
+
 	get normsDataTemporal(): Float32Array {
 		return this.#normsDataTemporal;
 	}
-	#normVolume: number;
+
 	get normVolume(): number {
 		return this.#normVolume;
 	}
-	#normAmplitude: number;
+
 	get normAmplitude(): number {
 		return this.#normAmplitude;
 	}
-	static #lock: boolean = true;
+
 	constructor(length: number) {
 		if (Audioset.#lock) throw new TypeError("Illegal constructor");
 		this.#length = length;
@@ -194,6 +216,7 @@ class Audioset {
 		this.#normVolume = 0;
 		this.#normAmplitude = 0;
 	}
+
 	static #construct(length: number): Audioset {
 		Audioset.#lock = false;
 		const self = new Audioset(length);
@@ -203,5 +226,5 @@ class Audioset {
 }
 //#endregion
 
-export type { AudiosetManager, AudiosetManagerConstructor };
+export { type AudiosetManager, type AudiosetManagerConstructor };
 export { Audioset };
