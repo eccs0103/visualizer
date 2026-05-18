@@ -3,7 +3,6 @@
 		/* Language & Environment */
 		"target": "ES2022",
 		"module": "ESNext",
-		"lib": [ "ES2022", "DOM", "DOM.Iterable" ],
 		"useDefineForClassFields": true,
 
 		/* Module Resolution / Bundler */
@@ -29,5 +28,6 @@
 		/* Miscellaneous */
 		"forceConsistentCasingInFileNames": true,
 	},
-	"include": [ "src" ]
+	"include": [ "**/*.ts" ],
+	"exclude": [ "*.test.ts" ]
 }

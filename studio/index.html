@@ -14,15 +14,15 @@
 	<meta name="language" content="English">
 	<meta name="revisit-after" content="0 days">
 	<title>Studio - Visualizer</title>
-	<link rel="shortcut icon" href="../public/shortcuts/equalizer.png" media="(prefers-color-scheme: light)">
-	<link rel="shortcut icon" href="../public/shortcuts/equalizer-inverted.png" media="(prefers-color-scheme: dark)">
-	<link rel="preload" as="image" href="../public/loading.gif">
+	<link rel="shortcut icon" href="../assets/icons/equalizer.png" media="(prefers-color-scheme: light)">
+	<link rel="shortcut icon" href="../assets/icons/equalizer-inverted.png" media="(prefers-color-scheme: dark)">
+	<link rel="preload" as="image" href="../assets/icons/loading.gif">
 	<link rel="stylesheet" href="../styles/global.css">
 	<link rel="stylesheet" href="../styles/themes/material.css">
-	<link rel="preload" as="image" href="../public/icons/pause.svg">
-	<link rel="preload" as="image" href="../public/icons/eject.svg">
-	<link rel="stylesheet" href="./style.css">
-	<script type="module" src="../src/studio.js"></script>
+	<link rel="preload" as="image" href="../assets/icons/pause.svg">
+	<link rel="preload" as="image" href="../assets/icons/eject.svg">
+	<link rel="stylesheet" href="./view/style.css">
+	<script type="module" src="./controllers/studio.js"></script>
 </head>
 
 <body>
@@ -33,16 +33,16 @@
 	<div id="interface">
 		<div id="audio-control" class="with-padding large-padding flex">
 			<button id="audio-drive" type="button" class="flex secondary-centered with-gap">
-				<img src="../public/icons/upload.svg" alt="Audio drive" class="icon">
+				<img src="../assets/icons/upload.svg" alt="Audio drive" class="icon">
 			</button>
 		</div>
 		<div id="audio-auxiliary" class="with-padding large-padding flex reversed">
 			<button id="open-configurator" type="button" class="flex secondary-centered with-gap">
-				<img src="../public/icons/tune.svg" alt="Open configurator" class="icon">
+				<img src="../assets/icons/tune.svg" alt="Open configurator" class="icon">
 			</button>
 		</div>
 		<div id="playback-control" class="with-inline-padding large-padding flex">
-			<img src="../public/icons/play.svg" alt="Status" class="icon">
+			<img src="../assets/icons/play.svg" alt="Status" class="icon">
 		</div>
 		<div id="playback-auxiliary" class="with-inline-padding large-padding flex reversed">
 			<b id="playback-time">00:00</b>
@@ -53,7 +53,7 @@
 	<dialog id="configurator" class="layer rounded with-padding large-padding flex column with-gap">
 		<div class="flex reversed">
 			<button id="close-configurator" type="button" class="flex secondary-centered with-gap">
-				<img src="../public/icons/close.svg" alt="Close configurator" class="icon">
+				<img src="../assets/icons/close.svg" alt="Close configurator" class="icon">
 			</button>
 		</div>
 		<h2>Visualizer</h2>
@@ -63,10 +63,10 @@
 			<input id="visualizer-rate" type="number" min="30" max="300" step="30" class="value rounded depth with-padding">
 		</section>
 		<section class="option">
-			<h4 class="title">Autocorrect <span class="invalid">[Experimental]</span></h4>
-			<span class="definition">Automatically adjusts focus and spread for optimal visualization<!--  using AI -->.</span>
-			<input id="autocorrect" type="checkbox" hidden>
-			<label for="autocorrect" role="checkbox" class="value depth toggle">
+			<h4 class="title">AI autocorrect</h4>
+			<span class="definition">Uses AI scene detection to smoothly adjust the dB range. Beat and Drop widen the range; Silence and Speech make it more sensitive.</span>
+			<input id="autocorrect-toggle" type="checkbox" hidden>
+			<label for="autocorrect-toggle" role="checkbox" class="value depth toggle">
 				<span class="layer knob"></span>
 			</label>
 		</section>
@@ -96,6 +96,48 @@
 			<h4 class="title">Spread</h4>
 			<span class="definition">The volume range for analysis, expanding or contracting the area around the central focus value.</span>
 			<input id="visualization-spread" type="range" min="1" max="100" step="1" class="value depth rounded">
+		</section>
+		<hr class="depth">
+		<h2>AI core</h2>
+		<section class="option">
+			<h4 class="title">Current scene</h4>
+			<span class="definition">What the AI detects right now. Confidence in brackets.</span>
+			<span id="current-scene-label" class="value scene-label">—</span>
+		</section>
+		<section class="option">
+			<h4 class="title">Manual labels</h4>
+			<span class="definition">Optional fine-tuning. Press when you hear something the AI labels wrong. Uses a higher learning rate than auto-training.</span>
+			<div class="grid-line flex with-gap train-buttons">
+				<button id="train-scene-0" type="button" class="rounded depth with-padding">Silence</button>
+				<button id="train-scene-1" type="button" class="rounded depth with-padding">Speech</button>
+				<button id="train-scene-2" type="button" class="rounded depth with-padding">Ambient</button>
+				<button id="train-scene-3" type="button" class="rounded depth with-padding">Buildup</button>
+				<button id="train-scene-4" type="button" class="rounded depth with-padding">Beat</button>
+				<button id="train-scene-5" type="button" class="rounded depth with-padding">Drop</button>
+			</div>
+		</section>
+		<section class="option">
+			<h4 class="title">Auto-training <span class="warn">[Recommended]</span></h4>
+			<span class="definition">The AI labels itself using DSP rules while music plays. Just hit play and wait ~30 seconds. Weights are saved automatically every 300 samples.</span>
+			<input id="auto-train-toggle" type="checkbox" hidden>
+			<label for="auto-train-toggle" role="checkbox" class="value depth toggle">
+				<span class="layer knob"></span>
+			</label>
+		</section>
+		<section class="option">
+			<h4 class="title">Samples collected</h4>
+			<span class="definition">Auto-training progress. ~300 samples is already well-trained. Persists across sessions.</span>
+			<span id="auto-train-count" class="value scene-label">0</span>
+		</section>
+		<section class="option">
+			<h4 class="title">Reset model</h4>
+			<span class="definition">Wipes learned weights and restarts training from scratch. Useful if the model behaved incorrectly for too long.</span>
+			<button id="reset-model" type="button" class="value rounded depth with-padding">Reset</button>
+		</section>
+		<section class="option">
+			<h4 class="title">Export weights</h4>
+			<span class="definition">Downloads the trained model as nn-weights.json. Place it in resources/data/ to share your trained model on GitHub Pages.</span>
+			<button id="export-model" type="button" class="value rounded depth with-padding">Export</button>
 		</section>
 	</dialog>
 </body>

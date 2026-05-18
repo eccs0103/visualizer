@@ -3,18 +3,21 @@
 import "adaptive-extender/web";
 import { type Engine, FastEngine } from "adaptive-extender/web";
 import { Audioset, type AudiosetManager } from "../models/audioset.js";
+import { AudioAnalyzer } from "./audio-analyzer.js";
+import { type AudioFeatures } from "../models/audio-features.js";
 
 const { round } = Math;
 
 //#region Visualizer
-interface VisualizerEventMap {
+export interface VisualizerEventMap {
 	"update": Event;
 	"rebuild": Event;
 }
 
-interface VisualizationBundle {
+export interface VisualizationBundle {
 	get context(): CanvasRenderingContext2D;
 	get audioset(): Audioset;
+	get features(): AudioFeatures;
 	get isLaunched(): boolean;
 	get delta(): number;
 	get fps(): number;
@@ -22,11 +25,11 @@ interface VisualizationBundle {
 	update(): void;
 }
 
-interface VisualizationDescriptor {
+export interface VisualizationDescriptor {
 	new(): VisualizationBundle;
 }
 
-class Visualizer extends EventTarget {
+export class Visualizer extends EventTarget {
 	//#region Visualization
 	static #Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
 		#visualizer: Visualizer;
@@ -37,25 +40,12 @@ class Visualizer extends EventTarget {
 			this.#visualizer = Visualizer.#ownerVisualization;
 		}
 
-		get context(): CanvasRenderingContext2D {
-			return this.#visualizer.#context;
-		}
-
-		get audioset(): Audioset {
-			return this.#visualizer.#manager.audioset;
-		}
-
-		get isLaunched(): boolean {
-			return this.#visualizer.#engine.launched;
-		}
-
-		get delta(): number {
-			return this.#visualizer.#engine.delta;
-		}
-
-		get fps(): number {
-			return this.#visualizer.#engine.fps;
-		}
+		get context(): CanvasRenderingContext2D { return this.#visualizer.#context; }
+		get audioset(): Audioset { return this.#visualizer.#manager.audioset; }
+		get features(): AudioFeatures { return this.#visualizer.#analyzer.features; }
+		get isLaunched(): boolean { return this.#visualizer.#engine.launched; }
+		get delta(): number { return this.#visualizer.#engine.delta; }
+		get fps(): number { return this.#visualizer.#engine.fps; }
 
 		rebuild(): void {
 			return;
@@ -65,19 +55,28 @@ class Visualizer extends EventTarget {
 			return;
 		}
 	};
-	static get Visualization(): VisualizationDescriptor {
-		return this.#Visualization;
-	}
+
+	static get Visualization(): VisualizationDescriptor { return this.#Visualization; }
 
 	static #ownerVisualization: Visualizer | null = null;
 	//#endregion
 
 	static #descriptors: Map<string, VisualizationDescriptor> = new Map();
 	static #instances: Visualizer[] = [];
+	static #targets: [number, number][] = [
+		[-80, 20], // SILENCE
+		[-60, 25], // SPEECH
+		[-55, 30], // AMBIENT
+		[-50, 35], // BUILDUP
+		[-45, 35], // BEAT
+		[-38, 40], // DROP
+	];
+
 	#engine: Engine;
 	#canvas: HTMLCanvasElement;
 	#context: CanvasRenderingContext2D;
 	#manager: AudiosetManager;
+	#analyzer: AudioAnalyzer;
 	#bundles: Map<string, VisualizationBundle> = new Map();
 	#selection: [string, VisualizationBundle];
 
@@ -91,15 +90,16 @@ class Visualizer extends EventTarget {
 		}
 		Visualizer.#instances.push(this);
 
-		const engine = this.#engine = new FastEngine();
+		const engine = this.#engine = new FastEngine({ launch: !document.hidden });
 		document.addEventListener("visibilitychange", event => engine.launched = !document.hidden);
 
 		this.#canvas = canvas;
 		this.#fixCanvasSize();
 		window.addEventListener("resize", event => this.#fixCanvasSize());
-		this.#context = ReferenceError.suppress(canvas.getContext("2d"));
+		this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
 
 		const manager = this.#manager = new Audioset.Manager(media);
+		this.#analyzer = new AudioAnalyzer(manager.rate);
 		engine.addEventListener("trigger", event => manager.refresh());
 
 		this.#selection = Array.from(this.#bundles)[0];
@@ -133,45 +133,16 @@ class Visualizer extends EventTarget {
 		this.#engine.limit = round(value);
 	}
 
-	get autocorrect(): boolean {
-		return this.#manager.autocorrect;
-	}
-
-	set autocorrect(value: boolean) {
-		this.#manager.autocorrect = value;
-	}
-
-	get quality(): number {
-		return this.#manager.quality;
-	}
-
-	set quality(value: number) {
-		this.#manager.quality = value;
-	}
-
-	get smoothing(): number {
-		return this.#manager.smoothing;
-	}
-
-	set smoothing(value: number) {
-		this.#manager.smoothing = value;
-	}
-
-	get focus(): number {
-		return this.#manager.focus;
-	}
-
-	set focus(value: number) {
-		this.#manager.focus = value;
-	}
-
-	get spread(): number {
-		return this.#manager.spread;
-	}
-
-	set spread(value: number) {
-		this.#manager.spread = value;
-	}
+	get autocorrect(): boolean { return this.#manager.autocorrect; }
+	set autocorrect(value: boolean) { this.#manager.autocorrect = value; }
+	get quality(): number { return this.#manager.quality; }
+	set quality(value: number) { this.#manager.quality = value; }
+	get smoothing(): number { return this.#manager.smoothing; }
+	set smoothing(value: number) { this.#manager.smoothing = value; }
+	get focus(): number { return this.#manager.focus; }
+	set focus(value: number) { this.#manager.focus = value; }
+	get spread(): number { return this.#manager.spread; }
+	set spread(value: number) { this.#manager.spread = value; }
 
 	get visualization(): string {
 		const [name] = this.#selection;
@@ -179,11 +150,13 @@ class Visualizer extends EventTarget {
 	}
 
 	set visualization(value: string) {
-		const visualization = ReferenceError.suppress(this.#bundles.get(value), `Visualization with name '${value}' doesn't attached`);
+		const visualization = ReferenceError.suppress(this.#bundles.get(value), `Visualization with name '${value}' is not attached`);
 		this.#selection = [value, visualization];
 		this.#clear();
 		this.#rebuild();
 	}
+
+	get analyzer(): AudioAnalyzer { return this.#analyzer; }
 
 	static attach(name: string, visualization: VisualizationDescriptor): void {
 		const descriptors = Visualizer.#descriptors;
@@ -222,6 +195,15 @@ class Visualizer extends EventTarget {
 	}
 
 	#update(): void {
+		const analyzer = this.#analyzer;
+		const manager = this.#manager;
+		const { dspScene } = analyzer.features;
+		analyzer.analyze(manager.audioset);
+		if (manager.autocorrect && dspScene >= 0) {
+			const [focus, spread] = Visualizer.#targets[dspScene];
+			manager.focus += (focus - manager.focus) * 0.04;
+			manager.spread += (spread - manager.spread) * 0.04;
+		}
 		const [, visualization] = this.#selection;
 		visualization.update();
 		this.dispatchEvent(new Event("update"));
@@ -235,6 +217,3 @@ class Visualizer extends EventTarget {
 	}
 }
 //#endregion
-
-export { type VisualizerEventMap, type VisualizationBundle, type VisualizationDescriptor };
-export { Visualizer };

@@ -2,7 +2,7 @@
 
 import "adaptive-extender/web";
 import { Color, Vector2D } from "adaptive-extender/web";
-import { Visualizer } from "./visualizer.js";
+import { Visualizer } from "../services/visualizer.js";
 
 const { min, max, split, sin, cos, PI, exp, abs, trunc, sqrt, SQRT1_2, asin, meanGeometric } = Math;
 
@@ -12,16 +12,19 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	#normShadowAnchor: number = 0.8;
 	#deltaRotation: number;
 	#colorGrid: Color;
+
 	#interpolate(value: number): number {
 		const alpha = 0.2;
 		return value * (1 - alpha) + 0.5 * alpha;
 	}
+
 	#runMetadataRebuild(): void {
 		this.#deltaRotation = 360 / 6;
 
 		const colorGrid = this.#colorGrid = Color.parse(getComputedStyle(document.documentElement).getPropertyValue("--color-background"));
 		colorGrid.lightness = this.#interpolate(colorGrid.lightness / 100) * 100;
 	}
+
 	#runContextRebuild(): void {
 		const { context } = this;
 		const { width, height } = context.canvas;
@@ -60,6 +63,7 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 		const position = Vector2D.newNaN;
 		position.y = -height / 2;
 		context.beginPath();
+		// Grid render loop optimization
 		for (position.x = -trunc(width / step) * step / 2; position.x < width; position.x += step) {
 			context.moveTo(position.x, position.y);
 			context.lineTo(position.x, position.y + height);
@@ -76,6 +80,7 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	//#endregion
 	//#region Spectrum
 	#colorSpectrumSeed: Color = Color.fromHSL(0, 100, 50);
+
 	#runSpectrumDrawing(): void {
 		const normShadowAnchor = this.#normShadowAnchor;
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
@@ -107,7 +112,9 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 		context.fillStyle = gradientSpectrum;
 		context.fill();
 	}
+
 	#offsetSpectrumRotation: number = 0;
+
 	#runSpectrumRotation(): void {
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
 		const deltaRotation = this.#deltaRotation;
@@ -122,6 +129,7 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	//#endregion
 	//#region Shadow
 	#colorShadow: Color = Color.newBlack;
+
 	#runShadowDrawing(): void {
 		const normShadowAnchor = this.#normShadowAnchor;
 		const normTopAnchor = normShadowAnchor * 2 / 3;
@@ -155,12 +163,12 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	}
 });
 //#endregion
-
 //#region Pulsar
 Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 	//#region Rebuild preparation
 	#radius: number;
 	#colorBackground: Color;
+
 	#runMetadataRebuild(): void {
 		const { context } = this;
 		const { width, height } = context.canvas;
@@ -169,6 +177,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 
 		const colorBackground = this.#colorBackground = Color.parse(getComputedStyle(document.documentElement).getPropertyValue("--color-background"));
 	}
+
 	#runContextRebuild(): void {
 		const { context } = this;
 		const { width, height } = context.canvas;
@@ -200,6 +209,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 	#colorHaloOuter: Color = Color.fromHSL(0, 100, 50);
 	#colorHaloInner: Color = Color.newBlack;
 	#gradientHalo: CanvasGradient;
+
 	#runHaloDrawing(): void {
 		const radius = this.#radius;
 		const colorHaloOuter = this.#colorHaloOuter;
@@ -236,7 +246,9 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 		context.strokeStyle = gradientHalo;
 		context.stroke();
 	}
+
 	#offsetHaloRotation: number = 0;
+
 	#runHaloRotation(): void {
 		const colorHalo = this.#colorHaloOuter;
 		const duration = 6;
@@ -279,6 +291,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 	//#endregion
 	//#region Shadow
 	#colorShadow: Color = Color.newBlack;
+
 	#runShadowDrawing(): void {
 		const radius = this.#radius;
 		const colorShadow = this.#colorShadow;

@@ -5,7 +5,7 @@ import "adaptive-extender/web";
 const { sqrt, sqpw, abs, log2 } = Math;
 
 //#region Audioset
-interface AudiosetManager {
+export interface AudiosetManager {
 	get quality(): number;
 	set quality(value: number);
 	get smoothing(): number;
@@ -16,11 +16,12 @@ interface AudiosetManager {
 	set spread(value: number);
 	get autocorrect(): boolean;
 	set autocorrect(value: boolean);
+	get rate(): number;
 	get audioset(): Audioset;
 	refresh(): void;
 }
 
-interface AudiosetManagerConstructor {
+export interface AudiosetManagerConstructor {
 	new(media: HTMLMediaElement): AudiosetManager;
 	checkQuality(value: number): boolean;
 	checkSmoothing(value: number): boolean;
@@ -28,7 +29,7 @@ interface AudiosetManagerConstructor {
 	checkSpread(value: number): boolean;
 }
 
-class Audioset {
+export class Audioset {
 	//#region Manager
 	static #Manager: AudiosetManagerConstructor = class Manager implements AudiosetManager {
 		#context: AudioContext;
@@ -36,6 +37,20 @@ class Audioset {
 		#autocorrect: boolean = false;
 		#audioset: Audioset;
 		#dataTemporary: Uint8Array<ArrayBuffer>;
+
+		constructor(media: HTMLMediaElement) {
+			const context = this.#context = new AudioContext();
+			media.addEventListener("play", async event => await context.resume());
+			const source = context.createMediaElementSource(media);
+			const analyser = this.#analyser = context.createAnalyser();
+
+			source.connect(analyser);
+			analyser.connect(context.destination);
+
+			const length = analyser.frequencyBinCount;
+			this.#audioset = Audioset.#construct(length);
+			this.#dataTemporary = new Uint8Array(length);
+		}
 
 		get quality(): number {
 			return log2(this.#analyser.fftSize);
@@ -87,31 +102,10 @@ class Audioset {
 			analyser.maxDecibels = focus + value;
 		}
 
-		get autocorrect(): boolean {
-			return this.#autocorrect;
-		}
-
-		set autocorrect(value: boolean) {
-			this.#autocorrect = value;
-		}
-
-		get audioset(): Audioset {
-			return this.#audioset;
-		}
-
-		constructor(media: HTMLMediaElement) {
-			const context = this.#context = new AudioContext();
-			media.addEventListener("play", async event => await context.resume());
-			const source = context.createMediaElementSource(media);
-			const analyser = this.#analyser = context.createAnalyser();
-
-			source.connect(analyser);
-			analyser.connect(context.destination);
-
-			const length = analyser.frequencyBinCount;
-			this.#audioset = Audioset.#construct(length);
-			this.#dataTemporary = new Uint8Array(length);
-		}
+		get autocorrect(): boolean { return this.#autocorrect; }
+		set autocorrect(value: boolean) { this.#autocorrect = value; }
+		get rate(): number { return this.#context.sampleRate; }
+		get audioset(): Audioset { return this.#audioset; }
 
 		static checkQuality(value: number): boolean {
 			if (!Number.isInteger(value)) return false;
@@ -170,16 +164,10 @@ class Audioset {
 
 			audioset.#normVolume = sqrt(summaryVolume / length);
 			audioset.#normAmplitude = sqrt(summaryAmplitude / length);
-
-			if (!this.#autocorrect) return;
-
-			analyser.minDecibels = minDecibel;
-			analyser.maxDecibels = maxDecibel + 5;
 		}
 	};
-	static get Manager(): AudiosetManagerConstructor {
-		return this.#Manager;
-	}
+
+	static get Manager(): AudiosetManagerConstructor { return this.#Manager; }
 	//#endregion
 
 	static #lock: boolean = true;
@@ -188,25 +176,6 @@ class Audioset {
 	#normsDataTemporal: Float32Array;
 	#normVolume: number;
 	#normAmplitude: number;
-	get length(): number {
-		return this.#length;
-	}
-
-	get normsDataFrequency(): Float32Array {
-		return this.#normsDataFrequency;
-	}
-
-	get normsDataTemporal(): Float32Array {
-		return this.#normsDataTemporal;
-	}
-
-	get normVolume(): number {
-		return this.#normVolume;
-	}
-
-	get normAmplitude(): number {
-		return this.#normAmplitude;
-	}
 
 	constructor(length: number) {
 		if (Audioset.#lock) throw new TypeError("Illegal constructor");
@@ -223,8 +192,11 @@ class Audioset {
 		Audioset.#lock = true;
 		return self;
 	}
+
+	get length(): number { return this.#length; }
+	get normsDataFrequency(): Float32Array { return this.#normsDataFrequency; }
+	get normsDataTemporal(): Float32Array { return this.#normsDataTemporal; }
+	get normVolume(): number { return this.#normVolume; }
+	get normAmplitude(): number { return this.#normAmplitude; }
 }
 //#endregion
-
-export { type AudiosetManager, type AudiosetManagerConstructor };
-export { Audioset };

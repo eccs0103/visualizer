@@ -31,7 +31,7 @@ div#interface > *#audio-control {
 
 audio#player[data-ready] ~ div#interface button#audio-drive {
 	& img[alt="Audio drive"].icon {
-		content: url(../resources/icons/eject.svg);
+		content: url(../../assets/icons/eject.svg);
 	}
 }
 
@@ -41,7 +41,7 @@ div#interface > *#playback-control {
 }
 
 audio#player[data-ready][data-playing] ~ div#interface > *#playback-control img[alt="Status"].icon {
-	content: url(../resources/icons/pause.svg);
+	content: url(../../assets/icons/pause.svg);
 }
 
 div#interface > *#playback-auxiliary {
@@ -99,6 +99,14 @@ dialog#configurator {
 	}
 }
 
+span.scene-label {
+	font-weight: bold;
+}
+
+div.train-buttons {
+	flex-wrap: wrap;
+}
+
 @media screen and (orientation: landscape) {
 	dialog#configurator {
 		inset: 0 0 0 auto;
@@ -114,5 +122,5 @@ div:has(button#close-configurator) {
 }
 
 dialog.loader img[alt="Logo"] {
-	content: url(../resources/loading.gif);
+	content: url(../../assets/icons/loading.gif);
 }
