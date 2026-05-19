@@ -5,6 +5,8 @@ import { Controller } from "adaptive-extender/web";
 import { Visualizer } from "../services/visualizer.js";
 import { SceneDefinition } from "../models/audio-features.js";
 
+const { round } = Math;
+
 //#region AI controller
 export class AIController extends Controller<[visualizer: Visualizer, dialog: HTMLDialogElement]> {
 	async run(visualizer: Visualizer, dialog: HTMLDialogElement): Promise<void> {
@@ -16,18 +18,16 @@ export class AIController extends Controller<[visualizer: Visualizer, dialog: HT
 		const trainButtons = SceneDefinition.names.map((_, index) => dialog.getElement(HTMLButtonElement, `button#train-scene-${index}`));
 
 		visualizer.addEventListener("update", (event) => {
-			const features = visualizer.audioset.features;
-			const dspScene = features.dspScene;
-			const sceneIndex = features.scene;
-			const confidence = Math.round(features.sceneProbs[sceneIndex] * 100);
-			sceneLabel.textContent = `${SceneDefinition.names[dspScene >= 0 ? dspScene : sceneIndex]}  ·  ${confidence}%`;
+			const { sceneProbs, scene, dspScene } = visualizer.audioset.features;
+			const confidence = round(sceneProbs[scene] * 100);
+			sceneLabel.textContent = `${SceneDefinition.names[dspScene >= 0 ? dspScene : scene]}  ·  ${confidence}%`;
 		});
 
 		visualizer.analyzer.addEventListener("auto-progress", (event) => {
 			trainCount.textContent = String(event.detail);
 		});
 
-		autoToggle.checked = true;
+		autoToggle.checked = false;
 		autoToggle.addEventListener("input", (event) => {
 			visualizer.analyzer.autoTrain = autoToggle.checked;
 		});

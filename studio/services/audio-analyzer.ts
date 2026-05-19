@@ -22,7 +22,7 @@ export interface AudioAnalyzerEventMap {
 export class AudioAnalyzer extends EventTarget {
 	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
-	#worker: Worker = new Worker(new URL("../controllers/audio-analyzer.worker.ts", baseURI), { type: "module" });
+	#worker: Worker = new Worker(new URL("./controllers/audio-analyzer.worker.ts", baseURI), { type: "module" });
 	#rate: number;
 	#pendingExport: boolean = false;
 

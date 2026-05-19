@@ -5,6 +5,8 @@ import { SceneDefinition, SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-model.js";
 import { type AutoTeacher } from "./auto-teacher.js";
 
+const { max, round, min, sqrt } = Math;
+
 //#region Flux stats
 class FluxStats {
 	#mean: number;
@@ -60,8 +62,8 @@ export class FrameProcessor {
 			[6000, 20000],
 		];
 		return bands.map(([low, high]) => [
-			Math.max(0, Math.round(low / binWidth)),
-			Math.min(length - 1, Math.round(high / binWidth)),
+			max(0, round(low / binWidth)),
+			min(length - 1, round(high / binWidth)),
 		]);
 	}
 
@@ -116,23 +118,23 @@ export class FrameProcessor {
 			const sample = temporal[sampleIndex] * 2 - 1;
 			sum += sample * sample;
 		}
-		const rms = Math.sqrt(sum / length);
+		const rms = sqrt(sum / length);
 		this.#rmsHistory[this.#rmsCursor % FrameProcessor.#rmsWindow] = rms;
 		this.#rmsCursor++;
 		return rms;
 	}
 
 	#computeFluxStats(): FluxStats {
-		const filled = Math.min(this.#fluxCursor, FrameProcessor.#fluxWindow);
+		const filled = min(this.#fluxCursor, FrameProcessor.#fluxWindow);
 		let mean = 0;
 		for (let index = 0; index < filled; index++) mean += this.#fluxHistory[index];
-		mean /= Math.max(1, filled);
+		mean /= max(1, filled);
 		let variance = 0;
 		for (let index = 0; index < filled; index++) {
 			const diff = this.#fluxHistory[index] - mean;
 			variance += diff * diff;
 		}
-		return new FluxStats(mean, Math.sqrt(variance / Math.max(1, filled)));
+		return new FluxStats(mean, sqrt(variance / max(1, filled)));
 	}
 
 	#detectBeat(flux: number, stats: FluxStats): boolean {
@@ -178,7 +180,7 @@ export class FrameProcessor {
 		const currentRms = this.#computeRms(temporalSlice, length);
 
 		const fluxStats = this.#computeFluxStats();
-		const percussiveness = Math.min(1, flux / (fluxStats.mean + 0.001));
+		const percussiveness = min(1, flux / (fluxStats.mean + 0.001));
 		const beatDetected = this.#detectBeat(flux, fluxStats);
 
 		this.#buildInputFeatures(flux, bandEnergies, zeroCrossingRate, centroid, percussiveness);
@@ -190,9 +192,9 @@ export class FrameProcessor {
 			if (sceneProbs[scene] > sceneProbs[bestScene]) bestScene = scene;
 		}
 
-		const dropIntensity = Math.min(1, percussiveness * 3) * bandEnergies[0];
+		const dropIntensity = min(1, percussiveness * 3) * bandEnergies[0];
 		const bassLevel = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
-		const distortionLevel = Math.min(1, percussiveness * zeroCrossingRate * 5);
+		const distortionLevel = min(1, percussiveness * zeroCrossingRate * 5);
 
 		const rmsWindow = FrameProcessor.#rmsWindow;
 		const rmsOld = (this.#rmsHistory[(this.#rmsCursor - 5 + rmsWindow) % rmsWindow] + this.#rmsHistory[(this.#rmsCursor - 6 + rmsWindow) % rmsWindow]) * 0.5;
