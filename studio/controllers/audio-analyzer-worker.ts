@@ -7,15 +7,15 @@ import { NNAgent, NNWeights } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
 import { AutoTeacher } from "../services/auto-teacher.js";
 
-//#region Worker controller
-class WorkerController extends Controller {
+//#region Audio analyzer worker
+class AudioAnalyzerWorker extends Controller {
 	#inputControl: Int32Array | null = null;
 	#inputMetadata: Float32Array | null = null;
 	#inputFrequency: Float32Array | null = null;
 	#inputTemporal: Float32Array | null = null;
 	#outputBuffer: Float32Array | null = null;
 
-	#model: NNAgent = new NNAgent();
+	#agent: NNAgent = new NNAgent();
 	#processor: FrameProcessor = new FrameProcessor();
 	#teacher: AutoTeacher = new AutoTeacher();
 	#pendingLabel: number | null = null;
@@ -32,23 +32,23 @@ class WorkerController extends Controller {
 		const length = Atomics.load(inputControl, 1);
 		if (1 > length || length > SabLayout.inputMaxLength) return;
 
-		const model = this.#model;
+		const agent = this.#agent;
 		const processor = this.#processor;
 		const teacher = this.#teacher;
-		processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer, model, teacher);
+		processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer, agent, teacher);
 
 		const pendingLabel = this.#pendingLabel;
 		if (pendingLabel !== null) {
-			model.trainStep(processor.lastInputFeatures, pendingLabel, 0.01);
+			agent.trainStep(processor.lastInputFeatures, pendingLabel, 0.01);
 			this.#pendingLabel = null;
-			if (processor.frameCount % 300 === 0) self.postMessage({ type: "weights", weights: model.getWeights() });
+			if (processor.frameCount % 300 === 0) self.postMessage({ type: "weights", weights: agent.getWeights() });
 		}
 	}
 
 	#onMessage(event: MessageEvent): void {
 		const data = event.data as { type: string; [key: string]: unknown; };
 		const teacher = this.#teacher;
-		const model = this.#model;
+		const agent = this.#agent;
 
 		if (data.type === "init") {
 			const inputSAB = data.inSAB as SharedArrayBuffer;
@@ -77,12 +77,12 @@ class WorkerController extends Controller {
 		}
 
 		if (data.type === "load-weights") {
-			model.loadWeights(data.weights as NNWeights);
+			agent.loadWeights(data.weights as NNWeights);
 			return;
 		}
 
 		if (data.type === "save-weights") {
-			self.postMessage({ type: "weights", weights: model.getWeights() });
+			self.postMessage({ type: "weights", weights: agent.getWeights() });
 		}
 	}
 
@@ -93,4 +93,4 @@ class WorkerController extends Controller {
 }
 //#endregion
 
-await WorkerController.launch();
+await AudioAnalyzerWorker.launch();

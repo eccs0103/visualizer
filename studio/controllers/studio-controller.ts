@@ -16,10 +16,10 @@ class StudioController extends Controller {
 		const store: ObjectStore = new ObjectStore("Visualizer", "Audiolist");
 
 		const { body } = document;
-		const player = body.getElement(HTMLAudioElement, "audio#player");
-		const loader = body.getElement(HTMLInputElement, "input#audio-loader");
-		const canvas = body.getElement(HTMLCanvasElement, "canvas#display");
-		const visualizer = new Visualizer(canvas, player);
+		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
+		const inputAudioLoader = body.getElement(HTMLInputElement, "input#audio-loader");
+		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
+		const visualizer = new Visualizer(canvasDisplay, audioPlayer);
 
 		const settings = repository.content;
 		visualizer.rate = settings.visualizer.rate;
@@ -30,16 +30,16 @@ class StudioController extends Controller {
 		visualizer.focus = settings.visualizer.configuration.focus;
 		visualizer.spread = settings.visualizer.configuration.spread;
 
-		const panel = body.getElement(HTMLDivElement, "div#interface");
-		const drive = panel.getElement(HTMLButtonElement, "button#audio-drive");
-		const openButton = panel.getElement(HTMLButtonElement, "button#open-configurator");
-		const timeLabel = panel.getElement(HTMLElement, "b#playback-time");
-		const seekRange = panel.getElement(HTMLInputElement, "input#playback-track");
-		const dialog = document.getElement(HTMLDialogElement, "dialog#configurator");
-		const typeSelect = dialog.getElement(HTMLSelectElement, "select#visualizer-visualization");
+		const divInterface = body.getElement(HTMLDivElement, "div#interface");
+		const buttonAudioDrive = divInterface.getElement(HTMLButtonElement, "button#audio-drive");
+		const buttonOpenConfigurator = divInterface.getElement(HTMLButtonElement, "button#open-configurator");
+		const bPlaybackTime = divInterface.getElement(HTMLElement, "b#playback-time");
+		const inputPlaybackTrack = divInterface.getElement(HTMLInputElement, "input#playback-track");
+		const dialogConfigurator = document.getElement(HTMLDialogElement, "dialog#configurator");
+		const selectVisualizerVisualization = dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization");
 
-		await AudioController.launch(store, player, loader, panel, drive, timeLabel, seekRange);
-		await ConfiguratorController.launch(repository, visualizer, dialog, openButton, typeSelect);
+		await AudioController.launch(store, audioPlayer, inputAudioLoader, divInterface, buttonAudioDrive, bPlaybackTime, inputPlaybackTrack);
+		await ConfiguratorController.launch(repository, visualizer, dialogConfigurator, buttonOpenConfigurator, selectVisualizerVisualization);
 	}
 
 	async catch(error: Error): Promise<void> {
@@ -48,4 +48,5 @@ class StudioController extends Controller {
 	}
 }
 //#endregion
+
 await StudioController.launch();

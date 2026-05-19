@@ -8,51 +8,51 @@ import { VisualizerSettingsController } from "./visualizer-settings-controller.j
 import { AIController } from "./ai-controller.js";
 
 //#region Configurator controller
-export class ConfiguratorController extends Controller<[repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialog: HTMLDialogElement, openButton: HTMLButtonElement, typeSelect: HTMLSelectElement]> {
-	#dialog: HTMLDialogElement;
+export class ConfiguratorController extends Controller<[ArchiveRepository<typeof Settings>, Visualizer, HTMLDialogElement, HTMLButtonElement, HTMLSelectElement]> {
+	#dialogConfigurator: HTMLDialogElement;
 	#repository: ArchiveRepository<typeof Settings>;
 
 	async #setActivity(value: boolean): Promise<void> {
-		const dialog = this.#dialog;
+		const dialogConfigurator = this.#dialogConfigurator;
 		const duration = 50;
 		const fill: FillMode = "both";
 		if (value) {
-			dialog.show();
-			await dialog.animate([{ opacity: "0", easing: "ease-in" }, { opacity: "1" }], { duration, fill }).finished;
+			dialogConfigurator.show();
+			await dialogConfigurator.animate([{ opacity: "0", easing: "ease-in" }, { opacity: "1" }], { duration, fill }).finished;
 		} else {
-			await dialog.animate([{ opacity: "1", easing: "ease-out" }, { opacity: "0" }], { duration, fill }).finished;
-			dialog.close();
+			await dialogConfigurator.animate([{ opacity: "1", easing: "ease-out" }, { opacity: "0" }], { duration, fill }).finished;
+			dialogConfigurator.close();
 		}
 	}
 
-	async run(repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialog: HTMLDialogElement, openButton: HTMLButtonElement, typeSelect: HTMLSelectElement): Promise<void> {
-		this.#dialog = dialog;
+	async run(repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, buttonOpenConfigurator: HTMLButtonElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
+		this.#dialogConfigurator = dialogConfigurator;
 		this.#repository = repository;
 
-		const closeButton = dialog.getElement(HTMLButtonElement, "button#close-configurator");
+		const buttonCloseConfigurator = dialogConfigurator.getElement(HTMLButtonElement, "button#close-configurator");
 		const settings = repository.content;
 
-		await VisualizerSettingsController.launch(repository, visualizer, dialog, typeSelect);
-		await AIController.launch(visualizer, dialog);
+		await VisualizerSettingsController.launch(repository, visualizer, dialogConfigurator, selectVisualizerVisualization);
+		await AIController.launch(visualizer, dialogConfigurator);
 
-		openButton.addEventListener("click", async (event) => {
+		buttonOpenConfigurator.addEventListener("click", async (event) => {
 			event.stopPropagation();
 			await this.#setActivity(true);
-			settings.isOpenedConfigurator = dialog.open;
+			settings.isOpenedConfigurator = dialogConfigurator.open;
 			await repository.save(500);
 		});
 
-		closeButton.addEventListener("click", async (event) => {
+		buttonCloseConfigurator.addEventListener("click", async (event) => {
 			await this.#setActivity(false);
-			settings.isOpenedConfigurator = dialog.open;
+			settings.isOpenedConfigurator = dialogConfigurator.open;
 			await repository.save(500);
 		});
 
 		window.addEventListener("keydown", async (event) => {
 			if (event.shiftKey || event.code !== "Tab") return;
 			event.preventDefault();
-			await this.#setActivity(!dialog.open);
-			settings.isOpenedConfigurator = dialog.open;
+			await this.#setActivity(!dialogConfigurator.open);
+			settings.isOpenedConfigurator = dialogConfigurator.open;
 			await repository.save(500);
 		});
 

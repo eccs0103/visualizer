@@ -28,14 +28,11 @@ export class NNWeights extends Model {
 	bias3: number[] = [];
 }
 //#endregion
-
 //#region NN agent
 export class NNAgent {
 	static #sizeInput: number = 18;
 	static #sizeHidden1: number = 18;
 	static #sizeHidden2: number = 9;
-
-	static get sizeInput(): number { return NNAgent.#sizeInput; }
 
 	#matrix1: Float32Array;
 	#bias1: Float32Array;
@@ -58,6 +55,8 @@ export class NNAgent {
 		this.#matrix3 = NNAgent.#newWeights(sceneCount * sizeHidden2, sizeHidden2);
 		this.#bias3 = new Float32Array(sceneCount);
 	}
+
+	static get sizeInput(): number { return NNAgent.#sizeInput; }
 
 	static #newWeights(count: number, fanIn: number): Float32Array {
 		const scale = sqrt(2 / fanIn);

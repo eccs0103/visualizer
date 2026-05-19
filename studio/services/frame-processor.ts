@@ -25,7 +25,6 @@ class FluxStats {
 	}
 }
 //#endregion
-
 //#region Frame processor
 export class FrameProcessor {
 	static #fluxWindow: number = 43;

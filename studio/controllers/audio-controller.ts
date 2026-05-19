@@ -5,31 +5,35 @@ import { Controller, Timespan } from "adaptive-extender/web";
 import { ObjectStore } from "../services/object-store.js";
 
 //#region Audio controller
-export class AudioController extends Controller<[store: ObjectStore, player: HTMLAudioElement, loader: HTMLInputElement, panel: HTMLDivElement, drive: HTMLButtonElement, timeLabel: HTMLElement, seekRange: HTMLInputElement]> {
-	#player: HTMLAudioElement;
+export class AudioController extends Controller<[ObjectStore, HTMLAudioElement, HTMLInputElement, HTMLDivElement, HTMLButtonElement, HTMLElement, HTMLInputElement]> {
+	#audioPlayer: HTMLAudioElement;
 	#store: ObjectStore;
-	#timeLabel: HTMLElement;
-	#seekRange: HTMLInputElement;
+	#bPlaybackTime: HTMLElement;
+	#inputPlaybackTrack: HTMLInputElement;
 
-	get #markReady(): boolean { return this.#player.dataset["ready"] !== undefined; }
+	get #markReady(): boolean {
+		return this.#audioPlayer.dataset["ready"] !== undefined;
+	}
 	set #markReady(value: boolean) {
-		const dataset = this.#player.dataset;
+		const { dataset } = this.#audioPlayer;
 		if (value) dataset["ready"] = String.empty;
 		else delete dataset["ready"];
 	}
 
-	get #markPlaying(): boolean { return this.#player.dataset["playing"] !== undefined; }
+	get #markPlaying(): boolean {
+		return this.#audioPlayer.dataset["playing"] !== undefined;
+	}
 	set #markPlaying(value: boolean) {
 		if (!this.#markReady) return;
-		const dataset = this.#player.dataset;
+		const { dataset } = this.#audioPlayer;
 		if (value) dataset["playing"] = String.empty;
 		else delete dataset["playing"];
 	}
 
 	async #playToggle(value: boolean): Promise<void> {
-		const player = this.#player;
-		if (value) await player.play();
-		else player.pause();
+		const audioPlayer = this.#audioPlayer;
+		if (value) await audioPlayer.play();
+		else audioPlayer.pause();
 	}
 
 	static #toPlaytimeString(seconds: number): string {
@@ -40,30 +44,30 @@ export class AudioController extends Controller<[store: ObjectStore, player: HTM
 	}
 
 	#toPlaytimeInfo(seconds: number): string {
-		const player = this.#player;
+		const { duration } = this.#audioPlayer;
 		const current = AudioController.#toPlaytimeString(seconds);
-		if (Number.isNaN(player.duration)) return current;
-		return `${current} • ${AudioController.#toPlaytimeString(player.duration)}`;
+		if (Number.isNaN(duration)) return current;
+		return `${current} • ${AudioController.#toPlaytimeString(duration)}`;
 	}
 
 	async #loadAudio(file: File): Promise<void> {
-		const player = this.#player;
+		const audioPlayer = this.#audioPlayer;
 		await Promise.withSignal((signal, resolve, reject) => {
-			player.addEventListener("canplay", event => resolve(), { signal });
-			player.addEventListener("error", event => reject(new Error("Failed to load audio file")), { signal });
-			player.src = URL.createObjectURL(file);
+			audioPlayer.addEventListener("canplay", event => resolve(), { signal });
+			audioPlayer.addEventListener("error", event => reject(new Error("Failed to load audio file")), { signal });
+			audioPlayer.src = URL.createObjectURL(file);
 		});
 	}
 
 	#dropAudio(): void {
-		const player = this.#player;
-		player.removeAttribute("src");
-		player.srcObject = null;
+		const audioPlayer = this.#audioPlayer;
+		audioPlayer.removeAttribute("src");
+		audioPlayer.srcObject = null;
 	}
 
 	async #loadRecentAudio(): Promise<void> {
 		const file = await this.#store.get(0);
-		if (file === undefined || !(file instanceof File)) return;
+		if (!(file instanceof File)) return;
 		await this.#loadAudio(file);
 	}
 
@@ -79,79 +83,84 @@ export class AudioController extends Controller<[store: ObjectStore, player: HTM
 	}
 
 	#seekFactor(): number {
-		const { value, min, max } = this.#seekRange;
+		const { value, min, max } = this.#inputPlaybackTrack;
 		return Number(value).lerp(Number(min), Number(max));
 	}
 
-	async run(store: ObjectStore, player: HTMLAudioElement, loader: HTMLInputElement, panel: HTMLDivElement, drive: HTMLButtonElement, timeLabel: HTMLElement, seekRange: HTMLInputElement): Promise<void> {
-		this.#player = player;
-		this.#store = store;
-		this.#timeLabel = timeLabel;
-		this.#seekRange = seekRange;
+	#updateSeekTrack(): void {
+		const inputPlaybackTrack = this.#inputPlaybackTrack;
+		const bPlaybackTime = this.#bPlaybackTime;
+		const { duration } = this.#audioPlayer;
+		const factor = this.#seekFactor();
+		inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
+		const time = (duration * factor).insteadNaN(0);
+		bPlaybackTime.innerText = this.#toPlaytimeInfo(time);
+	}
 
-		player.addEventListener("canplay", event => this.#markReady = true);
-		player.addEventListener("emptied", event => this.#markReady = false);
-		player.addEventListener("play", event => this.#markPlaying = true);
-		player.addEventListener("pause", event => this.#markPlaying = false);
+	async run(store: ObjectStore, audioPlayer: HTMLAudioElement, inputAudioLoader: HTMLInputElement, divInterface: HTMLDivElement, buttonAudioDrive: HTMLButtonElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
+		this.#audioPlayer = audioPlayer;
+		this.#store = store;
+		this.#bPlaybackTime = bPlaybackTime;
+		this.#inputPlaybackTrack = inputPlaybackTrack;
+
+		audioPlayer.addEventListener("canplay", event => this.#markReady = true);
+		audioPlayer.addEventListener("emptied", event => this.#markReady = false);
+		audioPlayer.addEventListener("play", event => this.#markPlaying = true);
+		audioPlayer.addEventListener("pause", event => this.#markPlaying = false);
 
 		await this.#loadRecentAudio();
-		timeLabel.innerText = this.#toPlaytimeInfo(player.currentTime);
+		bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
 
-		loader.addEventListener("input", async (event) => {
+		inputAudioLoader.addEventListener("input", async (event) => {
 			try {
-				const files = ReferenceError.suppress(loader.files, "Unable to read files list");
+				const files = ReferenceError.suppress(inputAudioLoader.files, "Unable to read files list");
 				const file = files.item(0);
 				if (file === null) return;
 				await this.#saveRecentAudio(file);
 			} catch (reason) {
 				await this.catch(Error.from(reason));
 			} finally {
-				timeLabel.innerText = this.#toPlaytimeInfo(player.currentTime);
-				loader.value = String.empty;
+				bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
+				inputAudioLoader.value = String.empty;
 			}
 		});
 
-		panel.addEventListener("click", async (event) => {
-			if (player.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
+		divInterface.addEventListener("click", async (event) => {
+			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
 			event.stopImmediatePropagation();
-			await this.#playToggle(player.paused);
+			await this.#playToggle(audioPlayer.paused);
 		});
 
-		drive.addEventListener("click", async (event) => {
+		buttonAudioDrive.addEventListener("click", async (event) => {
 			event.stopPropagation();
-			if (player.readyState === HTMLMediaElement.HAVE_NOTHING) loader.click();
+			if (audioPlayer.readyState === HTMLMediaElement.HAVE_NOTHING) inputAudioLoader.click();
 			else await this.#saveRecentAudio(null);
 		});
 
-		player.addEventListener("timeupdate", (event) => {
-			if (document.activeElement === seekRange) return;
-			const factor = (player.currentTime / player.duration).insteadNaN(0);
-			seekRange.value = `${factor * 100}`;
-			seekRange.style.setProperty("--track-value", `${factor * 100}%`);
-			timeLabel.innerText = this.#toPlaytimeInfo(player.currentTime);
+		audioPlayer.addEventListener("timeupdate", (event) => {
+			if (document.activeElement === inputPlaybackTrack) return;
+			const factor = (audioPlayer.currentTime / audioPlayer.duration).insteadNaN(0);
+			inputPlaybackTrack.value = `${factor * 100}`;
+			inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
+			bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
 		});
-		seekRange.addEventListener("pointerup", (event) => seekRange.blur());
+		inputPlaybackTrack.addEventListener("pointerup", (event) => inputPlaybackTrack.blur());
 
-		const updateSeekTrack = (): void => {
-			const factor = this.#seekFactor();
-			seekRange.style.setProperty("--track-value", `${factor * 100}%`);
-			const time = (player.duration * factor).insteadNaN(0);
-			timeLabel.innerText = this.#toPlaytimeInfo(time);
-		};
-		seekRange.addEventListener("input", (event) => {
-			if (player.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
-			updateSeekTrack();
+
+		inputPlaybackTrack.addEventListener("input", (event) => {
+			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
+			this.#updateSeekTrack();
 		});
-		seekRange.addEventListener("change", (event) => {
-			if (player.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
-			updateSeekTrack();
-			player.currentTime = (player.duration * this.#seekFactor()).insteadNaN(0);
+		inputPlaybackTrack.addEventListener("change", (event) => {
+			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
+			this.#updateSeekTrack();
+			audioPlayer.currentTime = (audioPlayer.duration * this.#seekFactor()).insteadNaN(0);
 		});
 
 		window.addEventListener("keydown", async (event) => {
 			if (event.code !== "Space") return;
 			event.preventDefault();
-			await this.#playToggle(player.paused);
+			await this.#playToggle(audioPlayer.paused);
 		});
 	}
 

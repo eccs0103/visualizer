@@ -8,47 +8,48 @@ import { SceneDefinition } from "../models/audio-features.js";
 const { round } = Math;
 
 //#region AI controller
-export class AIController extends Controller<[visualizer: Visualizer, dialog: HTMLDialogElement]> {
-	async run(visualizer: Visualizer, dialog: HTMLDialogElement): Promise<void> {
-		const sceneLabel = dialog.getElement(HTMLSpanElement, "span#current-scene-label");
-		const trainCount = dialog.getElement(HTMLSpanElement, "span#auto-train-count");
-		const autoToggle = dialog.getElement(HTMLInputElement, "input#auto-train-toggle");
-		const resetButton = dialog.getElement(HTMLButtonElement, "button#reset-model");
-		const exportButton = dialog.getElement(HTMLButtonElement, "button#export-model");
-		const trainButtons = SceneDefinition.names.map((_, index) => dialog.getElement(HTMLButtonElement, `button#train-scene-${index}`));
+export class AIController extends Controller<[Visualizer, HTMLDialogElement]> {
+	async run(visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
+		const { analyzer } = visualizer;
+		const spanCurrentSceneLabel = dialogConfigurator.getElement(HTMLSpanElement, "span#current-scene-label");
+		const spanAutoTrainCount = dialogConfigurator.getElement(HTMLSpanElement, "span#auto-train-count");
+		const inputAutoTrainToggle = dialogConfigurator.getElement(HTMLInputElement, "input#auto-train-toggle");
+		const buttonResetModel = dialogConfigurator.getElement(HTMLButtonElement, "button#reset-model");
+		const buttonExportModel = dialogConfigurator.getElement(HTMLButtonElement, "button#export-model");
+		const buttonsTrainScene = SceneDefinition.names.map((_, index) => dialogConfigurator.getElement(HTMLButtonElement, `button#train-scene-${index}`));
 
 		visualizer.addEventListener("update", (event) => {
 			const { sceneProbs, scene, dspScene } = visualizer.audioset;
 			const confidence = round(sceneProbs[scene] * 100);
-			sceneLabel.textContent = `${SceneDefinition.names[dspScene >= 0 ? dspScene : scene]}  ·  ${confidence}%`;
+			spanCurrentSceneLabel.textContent = `${SceneDefinition.names[dspScene >= 0 ? dspScene : scene]} · ${confidence}%`;
 		});
 
-		visualizer.analyzer.addEventListener("auto-progress", (event) => {
-			trainCount.textContent = String(event.detail);
+		analyzer.addEventListener("auto-progress", (event) => {
+			spanAutoTrainCount.textContent = String(event.detail);
 		});
 
-		autoToggle.checked = false;
-		autoToggle.addEventListener("input", (event) => {
-			visualizer.analyzer.autoTrain = autoToggle.checked;
+		inputAutoTrainToggle.checked = false;
+		inputAutoTrainToggle.addEventListener("input", (event) => {
+			analyzer.autoTrain = inputAutoTrainToggle.checked;
 		});
 
-		resetButton.addEventListener("click", (event) => {
+		buttonResetModel.addEventListener("click", (event) => {
 			event.stopPropagation();
-			visualizer.analyzer.resetWeights();
-			trainCount.textContent = "0";
+			analyzer.resetWeights();
+			spanAutoTrainCount.textContent = String(0);
 		});
 
-		for (let index = 0; index < trainButtons.length; index++) {
+		for (let index = 0; index < buttonsTrainScene.length; index++) {
 			const index2 = index;
-			trainButtons[index].addEventListener("click", (event) => {
+			buttonsTrainScene[index].addEventListener("click", (event) => {
 				event.stopPropagation();
-				visualizer.analyzer.train(index2);
+				analyzer.train(index2);
 			});
 		}
 
-		exportButton.addEventListener("click", (event) => {
+		buttonExportModel.addEventListener("click", (event) => {
 			event.stopPropagation();
-			visualizer.analyzer.exportWeights();
+			analyzer.exportWeights();
 		});
 	}
 }

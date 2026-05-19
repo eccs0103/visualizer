@@ -23,7 +23,6 @@ export class SceneDefinition {
 	}
 }
 //#endregion
-
 //#region SAB layout
 /**
  *inSAB layout:  
@@ -59,7 +58,6 @@ export class SabLayout {
 	}
 }
 //#endregion
-
 //#region Band energy
 export class BandEnergy {
 	#subBass: number = 0;
@@ -76,12 +74,12 @@ export class BandEnergy {
 	get highMid(): number { return this.#highMid; }
 	get high(): number { return this.#high; }
 
-	get total(): number {
+	total(): number {
 		return this.#subBass + this.#bass + this.#lowMid + this.#mid + this.#highMid + this.#high;
 	}
 
 	bassWeight(): number {
-		const { total } = this;
+		const total = this.total();
 		if (total === 0) return 0;
 		return (this.#subBass + this.#bass) / total;
 	}
@@ -96,7 +94,6 @@ export class BandEnergy {
 	}
 }
 //#endregion
-
 //#region Audio features
 export class AudioFeatures {
 	#spectralFlux: number = 0;

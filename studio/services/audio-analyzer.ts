@@ -4,7 +4,7 @@ import "adaptive-extender/web";
 import { ArchiveRepository } from "adaptive-extender/web";
 import { NNWeights } from "../models/nn-agent.js";
 import { FeatureBridge } from "./feature-bridge.js";
-import { ClientBridge } from "./bridge.js";
+import { ClientBridge } from "./client-bridge.js";
 import { Scene } from "../models/audio-features.js";
 import { type AudiosetManager } from "../models/audioset.js";
 
@@ -91,15 +91,16 @@ export class AudioAnalyzer extends EventTarget {
 	#onMessage(event: MessageEvent): void {
 		const data = event.data as WorkerResponse;
 		if (data.type === "weights") {
+			const repository = this.#repository;
 			const weights = NNWeights.import(data.weights, "weights");
-			const cached = this.#repository.content;
+			const cached = repository.content;
 			cached.matrix1 = weights.matrix1;
 			cached.bias1 = weights.bias1;
 			cached.matrix2 = weights.matrix2;
 			cached.bias2 = weights.bias2;
 			cached.matrix3 = weights.matrix3;
 			cached.bias3 = weights.bias3;
-			void this.#repository.save(2000);
+			void repository.save(2000);
 			if (this.#pendingExport) {
 				this.#pendingExport = false;
 				this.#downloadFile("nn-weights.json", JSON.stringify(NNWeights.export(weights)));

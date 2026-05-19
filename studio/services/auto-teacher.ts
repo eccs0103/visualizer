@@ -5,14 +5,14 @@ import { NNAgent } from "../models/nn-agent.js";
 
 //#region Auto teacher
 export class AutoTeacher {
-	#enabled: boolean = true;
-	#sampleCount: number = 0;
-	#confirmBuffer: number[] = [];
-
 	static #confirmWindow = 4;
 	static #trainInterval = 18;
 	static #autoSaveInterval = 300;
 	static #progressReportInterval = 50;
+
+	#enabled: boolean = true;
+	#sampleCount: number = 0;
+	#confirmBuffer: number[] = [];
 
 	get enabled(): boolean { return this.#enabled; }
 	set enabled(value: boolean) { this.#enabled = value; }
