@@ -5,9 +5,9 @@ import { Controller, ArchiveRepository } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { ObjectStore } from "../services/object-store.js";
-import "../view/visualizations.js";
 import { AudioController } from "./audio-controller.js";
 import { ConfiguratorController } from "./configurator-controller.js";
+import "../view/visualizations.js";
 
 //#region Studio controller
 class StudioController extends Controller {
