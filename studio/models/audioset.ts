@@ -1,6 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { AudioFeatures } from "./audio-features.js";
 
 const { sqrt, sqpw, abs, log2 } = Math;
 
@@ -176,6 +177,7 @@ export class Audioset {
 	#normsDataTemporal: Float32Array;
 	#normVolume: number;
 	#normAmplitude: number;
+	#features: AudioFeatures = new AudioFeatures();
 
 	constructor(length: number) {
 		if (Audioset.#lock) throw new TypeError("Illegal constructor");
@@ -198,5 +200,6 @@ export class Audioset {
 	get normsDataTemporal(): Float32Array { return this.#normsDataTemporal; }
 	get normVolume(): number { return this.#normVolume; }
 	get normAmplitude(): number { return this.#normAmplitude; }
+	get features(): AudioFeatures { return this.#features; }
 }
 //#endregion

@@ -4,7 +4,6 @@ import "adaptive-extender/web";
 import { type Engine, FastEngine } from "adaptive-extender/web";
 import { Audioset, type AudiosetManager } from "../models/audioset.js";
 import { AudioAnalyzer } from "./audio-analyzer.js";
-import { type AudioFeatures } from "../models/audio-features.js";
 
 const { round } = Math;
 
@@ -17,7 +16,6 @@ export interface VisualizerEventMap {
 export interface VisualizationBundle {
 	get context(): CanvasRenderingContext2D;
 	get audioset(): Audioset;
-	get features(): AudioFeatures;
 	get isLaunched(): boolean;
 	get delta(): number;
 	get fps(): number;
@@ -42,7 +40,6 @@ export class Visualizer extends EventTarget {
 
 		get context(): CanvasRenderingContext2D { return this.#visualizer.#context; }
 		get audioset(): Audioset { return this.#visualizer.#manager.audioset; }
-		get features(): AudioFeatures { return this.#visualizer.#analyzer.features; }
 		get isLaunched(): boolean { return this.#visualizer.#engine.launched; }
 		get delta(): number { return this.#visualizer.#engine.delta; }
 		get fps(): number { return this.#visualizer.#engine.fps; }
@@ -157,6 +154,7 @@ export class Visualizer extends EventTarget {
 	}
 
 	get analyzer(): AudioAnalyzer { return this.#analyzer; }
+	get audioset(): Audioset { return this.#manager.audioset; }
 
 	static attach(name: string, visualization: VisualizationDescriptor): void {
 		const descriptors = Visualizer.#descriptors;
@@ -197,8 +195,8 @@ export class Visualizer extends EventTarget {
 	#update(): void {
 		const analyzer = this.#analyzer;
 		const manager = this.#manager;
-		const { dspScene } = analyzer.features;
 		analyzer.analyze(manager.audioset);
+		const { dspScene } = manager.audioset.features;
 		if (manager.autocorrect && dspScene >= 0) {
 			const [focus, spread] = Visualizer.#targets[dspScene];
 			manager.focus += (focus - manager.focus) * 0.04;

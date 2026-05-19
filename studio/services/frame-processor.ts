@@ -2,30 +2,30 @@
 
 import "adaptive-extender/core";
 import { SceneDefinition, SabLayout } from "../models/audio-features.js";
-import { NNAgent, NNWeights } from "../models/nn-model.js";
-import { Controller } from "adaptive-extender/core";
+import { NNAgent } from "../models/nn-model.js";
+import { type AutoTeacher } from "./auto-teacher.js";
 
 //#region Flux stats
 class FluxStats {
 	#mean: number;
-	#stdDeviation: number;
+	#standardDeviation: number;
 
-	constructor(mean: number, stdDeviation: number) {
+	constructor(mean: number, standardDeviation: number) {
 		this.#mean = mean;
-		this.#stdDeviation = stdDeviation;
+		this.#standardDeviation = standardDeviation;
 	}
 
 	get mean(): number { return this.#mean; }
-	get stdDeviation(): number { return this.#stdDeviation; }
+	get standardDeviation(): number { return this.#standardDeviation; }
 
 	onsetThreshold(): number {
-		return this.#mean + 1.5 * this.#stdDeviation;
+		return this.#mean + 1.5 * this.#standardDeviation;
 	}
 }
 //#endregion
 
 //#region Frame processor
-class FrameProcessor {
+export class FrameProcessor {
 	static #fluxWindow: number = 43;
 	static #rmsWindow: number = 8;
 	static #minBeatGap: number = 8;
@@ -228,136 +228,3 @@ class FrameProcessor {
 	}
 }
 //#endregion
-
-//#region Auto teacher
-class AutoTeacher {
-	#enabled: boolean = true;
-	#sampleCount: number = 0;
-	#confirmBuf: number[] = [];
-
-	static #confirmWindow = 4;
-	static #trainInterval = 18;
-	static #autoSaveInterval = 300;
-	static #progressReportInterval = 50;
-
-	get enabled(): boolean { return this.#enabled; }
-	set enabled(value: boolean) { this.#enabled = value; }
-	get count(): number { return this.#sampleCount; }
-
-	consider(label: number | null, features: Float32Array, model: NNAgent, frameCount: number): void {
-		if (!this.#enabled || label === null) return;
-
-		const confirmBuf = this.#confirmBuf;
-		confirmBuf.push(label);
-		if (confirmBuf.length > AutoTeacher.#confirmWindow) confirmBuf.shift();
-
-		const allAgree = confirmBuf.length === AutoTeacher.#confirmWindow && confirmBuf.every(candidate => candidate === label);
-
-		if (!allAgree || frameCount % AutoTeacher.#trainInterval !== 0) return;
-
-		model.trainStep(features, label, 0.004);
-		this.#sampleCount++;
-
-		if (this.#sampleCount % AutoTeacher.#progressReportInterval === 0) {
-			self.postMessage({ type: "auto-progress", count: this.#sampleCount });
-		}
-		if (this.#sampleCount % AutoTeacher.#autoSaveInterval === 0) {
-			self.postMessage({ type: "weights", weights: model.getWeights() });
-		}
-	}
-
-	reset(): void {
-		this.#sampleCount = 0;
-		this.#confirmBuf.length = 0;
-		self.postMessage({ type: "auto-progress", count: 0 });
-	}
-}
-//#endregion
-
-//#region Worker controller
-class WorkerController extends Controller {
-	#inCtrl: Int32Array | null = null;
-	#inMeta: Float32Array | null = null;
-	#inFreq: Float32Array | null = null;
-	#inTemp: Float32Array | null = null;
-	#outBuf: Float32Array | null = null;
-
-	#model: NNAgent = new NNAgent();
-	#processor: FrameProcessor = new FrameProcessor();
-	#teacher: AutoTeacher = new AutoTeacher();
-	#pendingLabel: number | null = null;
-
-	#poll(): void {
-		const inCtrl = this.#inCtrl;
-		const inMeta = this.#inMeta;
-		const inFreq = this.#inFreq;
-		const inTemp = this.#inTemp;
-		const outBuf = this.#outBuf;
-		if (inCtrl === null || inMeta === null || inFreq === null || inTemp === null || outBuf === null) return;
-
-		const frame = Atomics.load(inCtrl, 0);
-		const length = Atomics.load(inCtrl, 1);
-		if (1 > length || length > SabLayout.inputMaxLength) return;
-
-		const model = this.#model;
-		const processor = this.#processor;
-		const teacher = this.#teacher;
-		processor.process(frame, length, inMeta, inFreq, inTemp, outBuf, model, teacher);
-
-		const pendingLabel = this.#pendingLabel;
-		if (pendingLabel !== null) {
-			model.trainStep(processor.lastInputFeatures, pendingLabel, 0.01);
-			this.#pendingLabel = null;
-			if (processor.frameCount % 300 === 0) self.postMessage({ type: "weights", weights: model.getWeights() });
-		}
-	}
-
-	#onMessage(event: MessageEvent): void {
-		const data = event.data as { type: string;[key: string]: unknown; };
-		const teacher = this.#teacher;
-		const model = this.#model;
-
-		if (data.type === "init") {
-			const inSAB = data.inSAB as SharedArrayBuffer;
-			const outSAB = data.outSAB as SharedArrayBuffer;
-			this.#inCtrl = new Int32Array(inSAB, 0, 2);
-			this.#inMeta = new Float32Array(inSAB, 8, 3);
-			this.#inFreq = new Float32Array(inSAB, 20, SabLayout.inputMaxLength);
-			this.#inTemp = new Float32Array(inSAB, 20 + SabLayout.inputMaxLength * 4, SabLayout.inputMaxLength);
-			this.#outBuf = new Float32Array(outSAB);
-			return;
-		}
-
-		if (data.type === "set-auto-train") {
-			teacher.enabled = data.enabled as boolean;
-			return;
-		}
-
-		if (data.type === "reset") {
-			teacher.reset();
-			return;
-		}
-
-		if (data.type === "train") {
-			this.#pendingLabel = data.label as number;
-			return;
-		}
-
-		if (data.type === "load-weights") {
-			model.loadWeights(data.weights as NNWeights);
-			return;
-		}
-
-		if (data.type === "save-weights") {
-			self.postMessage({ type: "weights", weights: model.getWeights() });
-		}
-	}
-
-	async run(): Promise<void> {
-		setInterval(this.#poll.bind(this), 4);
-		self.addEventListener("message", this.#onMessage.bind(this));
-	}
-}
-//#endregion
-
-await WorkerController.launch();

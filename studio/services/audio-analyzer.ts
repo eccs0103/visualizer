@@ -6,7 +6,6 @@ import { NNWeights } from "../models/nn-model.js";
 import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./bridge.js";
 import { Scene } from "../models/audio-features.js";
-import { type AudioFeatures } from "../models/audio-features.js";
 import { type Audioset } from "../models/audioset.js";
 
 const { baseURI } = document;
@@ -23,7 +22,7 @@ export interface AudioAnalyzerEventMap {
 export class AudioAnalyzer extends EventTarget {
 	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
-	#worker: Worker = new Worker(new URL("./workers/audio-analyzer.worker.ts", baseURI), { type: "module" });
+	#worker: Worker = new Worker(new URL("../controllers/audio-analyzer.worker.ts", baseURI), { type: "module" });
 	#rate: number;
 	#pendingExport: boolean = false;
 
@@ -49,13 +48,12 @@ export class AudioAnalyzer extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
-	get features(): AudioFeatures { return this.#bridge.features; }
-
 	set autoTrain(enabled: boolean) {
 		this.#worker.postMessage({ type: "set-auto-train", enabled });
 	}
 
 	analyze(audioset: Audioset): void {
+		this.#bridge.readInto(audioset.features);
 		this.#bridge.writeInput(audioset.length, this.#rate, audioset.normVolume, audioset.normAmplitude, audioset.normsDataFrequency, audioset.normsDataTemporal);
 	}
 

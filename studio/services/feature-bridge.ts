@@ -1,6 +1,6 @@
 "use strict";
 
-import { SabLayout, AudioFeatures } from "../models/audio-features.js";
+import { SabLayout, type AudioFeatures } from "../models/audio-features.js";
 
 //#region Feature bridge
 export class FeatureBridge {
@@ -12,8 +12,6 @@ export class FeatureBridge {
 	#inFreq: Float32Array;
 	#inTemp: Float32Array;
 	#out: Float32Array;
-
-	#features: AudioFeatures = new AudioFeatures();
 
 	constructor() {
 		this.#inSAB = new SharedArrayBuffer(SabLayout.inputByteSize());
@@ -39,10 +37,8 @@ export class FeatureBridge {
 		Atomics.add(this.#inCtrl, 0, 1);
 	}
 
-	get features(): AudioFeatures {
-		const features = this.#features;
-		features.readFrom(this.#out);
-		return features;
+	readInto(target: AudioFeatures): void {
+		target.readFrom(this.#out);
 	}
 }
 //#endregion
