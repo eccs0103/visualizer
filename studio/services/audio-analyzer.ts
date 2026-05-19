@@ -6,7 +6,7 @@ import { NNWeights } from "../models/nn-model.js";
 import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./bridge.js";
 import { Scene } from "../models/audio-features.js";
-import { type Audioset } from "../models/audioset.js";
+import { type AudiosetManager } from "../models/audioset.js";
 
 const { baseURI } = document;
 
@@ -52,8 +52,9 @@ export class AudioAnalyzer extends EventTarget {
 		this.#worker.postMessage({ type: "set-auto-train", enabled });
 	}
 
-	analyze(audioset: Audioset): void {
-		this.#bridge.readInto(audioset.features);
+	analyze(manager: AudiosetManager): void {
+		manager.readFeatures(this.#bridge.output);
+		const { audioset } = manager;
 		this.#bridge.writeInput(audioset.length, this.#rate, audioset.normVolume, audioset.normAmplitude, audioset.normsDataFrequency, audioset.normsDataTemporal);
 	}
 

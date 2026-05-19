@@ -195,8 +195,8 @@ export class Visualizer extends EventTarget {
 	#update(): void {
 		const analyzer = this.#analyzer;
 		const manager = this.#manager;
-		analyzer.analyze(manager.audioset);
-		const { dspScene } = manager.audioset.features;
+		analyzer.analyze(manager);
+		const { dspScene } = manager.audioset;
 		if (manager.autocorrect && dspScene >= 0) {
 			const [focus, spread] = Visualizer.#targets[dspScene];
 			manager.focus += (focus - manager.focus) * 0.04;

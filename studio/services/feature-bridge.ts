@@ -1,6 +1,6 @@
 "use strict";
 
-import { SabLayout, type AudioFeatures } from "../models/audio-features.js";
+import { SabLayout } from "../models/audio-features.js";
 
 //#region Feature bridge
 export class FeatureBridge {
@@ -26,6 +26,7 @@ export class FeatureBridge {
 
 	get inSAB(): SharedArrayBuffer { return this.#inSAB; }
 	get outSAB(): SharedArrayBuffer { return this.#outSAB; }
+	get output(): Float32Array { return this.#out; }
 
 	writeInput(length: number, sampleRate: number, normVolume: number, normAmplitude: number, normsDataFrequency: Float32Array, normsDataTemporal: Float32Array): void {
 		this.#inMeta[0] = sampleRate;
@@ -37,8 +38,5 @@ export class FeatureBridge {
 		Atomics.add(this.#inCtrl, 0, 1);
 	}
 
-	readInto(target: AudioFeatures): void {
-		target.readFrom(this.#out);
-	}
 }
 //#endregion

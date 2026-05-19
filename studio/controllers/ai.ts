@@ -18,7 +18,7 @@ export class AIController extends Controller<[visualizer: Visualizer, dialog: HT
 		const trainButtons = SceneDefinition.names.map((_, index) => dialog.getElement(HTMLButtonElement, `button#train-scene-${index}`));
 
 		visualizer.addEventListener("update", (event) => {
-			const { sceneProbs, scene, dspScene } = visualizer.audioset.features;
+			const { sceneProbs, scene, dspScene } = visualizer.audioset;
 			const confidence = round(sceneProbs[scene] * 100);
 			sceneLabel.textContent = `${SceneDefinition.names[dspScene >= 0 ? dspScene : scene]}  ·  ${confidence}%`;
 		});

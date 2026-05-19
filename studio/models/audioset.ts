@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { AudioFeatures } from "./audio-features.js";
+import { type BandEnergy, type Scene, AudioFeatures } from "./audio-features.js";
 
 const { sqrt, sqpw, abs, log2 } = Math;
 
@@ -20,6 +20,7 @@ export interface AudiosetManager {
 	get rate(): number;
 	get audioset(): Audioset;
 	refresh(): void;
+	readFeatures(out: Float32Array): void;
 }
 
 export interface AudiosetManagerConstructor {
@@ -107,6 +108,10 @@ export class Audioset {
 		set autocorrect(value: boolean) { this.#autocorrect = value; }
 		get rate(): number { return this.#context.sampleRate; }
 		get audioset(): Audioset { return this.#audioset; }
+
+		readFeatures(out: Float32Array): void {
+			this.#audioset.#features.readFrom(out);
+		}
 
 		static checkQuality(value: number): boolean {
 			if (!Number.isInteger(value)) return false;
@@ -200,6 +205,19 @@ export class Audioset {
 	get normsDataTemporal(): Float32Array { return this.#normsDataTemporal; }
 	get normVolume(): number { return this.#normVolume; }
 	get normAmplitude(): number { return this.#normAmplitude; }
-	get features(): AudioFeatures { return this.#features; }
+	get spectralFlux(): number { return this.#features.spectralFlux; }
+	get bandEnergy(): BandEnergy { return this.#features.bandEnergy; }
+	get zeroCrossingRate(): number { return this.#features.zeroCrossingRate; }
+	get spectralCentroid(): number { return this.#features.spectralCentroid; }
+	get percussiveness(): number { return this.#features.percussiveness; }
+	get beatDetected(): boolean { return this.#features.beatDetected; }
+	get scene(): Scene { return this.#features.scene; }
+	get sceneProbs(): Float32Array { return this.#features.sceneProbs; }
+	get dropIntensity(): number { return this.#features.dropIntensity; }
+	get bassLevel(): number { return this.#features.bassLevel; }
+	get distortionLevel(): number { return this.#features.distortionLevel; }
+	get dspScene(): number { return this.#features.dspScene; }
+	isActive(): boolean { return this.#features.isActive(); }
+	isPercussive(): boolean { return this.#features.isPercussive(); }
 }
 //#endregion
