@@ -4,8 +4,8 @@ import "adaptive-extender/web";
 import { Controller, ArchiveRepository } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
-import { VisualizerSettingsController } from "./visualizer-settings.js";
-import { AIController } from "./ai.js";
+import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
+import { AIController } from "./ai-controller.js";
 
 //#region Configurator controller
 export class ConfiguratorController extends Controller<[repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialog: HTMLDialogElement, openButton: HTMLButtonElement, typeSelect: HTMLSelectElement]> {

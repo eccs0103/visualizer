@@ -2,7 +2,7 @@
 
 import "adaptive-extender/core";
 import { SceneDefinition, SabLayout } from "../models/audio-features.js";
-import { NNAgent } from "../models/nn-model.js";
+import { NNAgent } from "../models/nn-agent.js";
 import { type AutoTeacher } from "./auto-teacher.js";
 
 const { max, round, min, sqrt } = Math;

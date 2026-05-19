@@ -3,7 +3,7 @@
 import "adaptive-extender/core";
 import { Controller } from "adaptive-extender/core";
 import { SabLayout } from "../models/audio-features.js";
-import { NNAgent, NNWeights } from "../models/nn-model.js";
+import { NNAgent, NNWeights } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
 import { AutoTeacher } from "../services/auto-teacher.js";
 

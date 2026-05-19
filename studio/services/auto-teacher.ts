@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { NNAgent } from "../models/nn-model.js";
+import { NNAgent } from "../models/nn-agent.js";
 
 //#region Auto teacher
 export class AutoTeacher {

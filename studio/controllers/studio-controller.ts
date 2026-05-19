@@ -6,8 +6,8 @@ import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { ObjectStore } from "../services/object-store.js";
 import "../view/visualizations.js";
-import { AudioController } from "./audio.js";
-import { ConfiguratorController } from "./configurator.js";
+import { AudioController } from "./audio-controller.js";
+import { ConfiguratorController } from "./configurator-controller.js";
 
 //#region Studio controller
 class StudioController extends Controller {
