@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/web";
-import { Model, Field, RecordOf } from "adaptive-extender/web";
+import "adaptive-extender/core";
+import { Model, Field, RecordOf } from "adaptive-extender/core";
 import { Visualizer } from "../services/visualizer.js";
 
 //#region Visualization configuration

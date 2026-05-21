@@ -21,7 +21,7 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	#runMetadataRebuild(): void {
 		this.#deltaRotation = 360 / 6;
 
-		const colorGrid = this.#colorGrid = Color.parse(getComputedStyle(document.documentElement).getPropertyValue("--color-background"));
+		const colorGrid = this.#colorGrid = Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-background"));
 		colorGrid.lightness = this.#interpolate(colorGrid.lightness / 100) * 100;
 	}
 
@@ -175,7 +175,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 
 		const radius = this.#radius = min(width, height) / 2;
 
-		const colorBackground = this.#colorBackground = Color.parse(getComputedStyle(document.documentElement).getPropertyValue("--color-background"));
+		const colorBackground = this.#colorBackground = Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-background"));
 	}
 
 	#runContextRebuild(): void {

@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Controller } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Controller } from "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
 import { NNAgent, NNWeights } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
@@ -46,7 +46,7 @@ class AudioAnalyzerWorker extends Controller {
 	}
 
 	#onMessage(event: MessageEvent): void {
-		const data = event.data as { type: string; [key: string]: unknown; };
+		const data = event.data as { type: string;[key: string]: unknown; };
 		const teacher = this.#teacher;
 		const agent = this.#agent;
 

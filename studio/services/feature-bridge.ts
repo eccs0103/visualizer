@@ -1,5 +1,6 @@
 "use strict";
 
+import "adaptive-extender/core";
 import { SabLayout } from "../models/audio-features.js";
 
 //#region Feature bridge

@@ -1,6 +1,6 @@
 "use strict";
 
-import "adaptive-extender/core";
+import "adaptive-extender/worker";
 import { NNAgent } from "../models/nn-agent.js";
 
 //#region Auto teacher
