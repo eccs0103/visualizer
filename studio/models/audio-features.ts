@@ -116,7 +116,7 @@ export class AudioFeatures {
 	get percussiveness(): number { return this.#percussiveness; }
 	get beatDetected(): boolean { return this.#beatDetected; }
 	get scene(): Scene { return this.#scene; }
-	get sceneProbs(): Float32Array { return this.#sceneProbs; }
+	get confidence(): number { return this.#sceneProbs[this.#scene]; }
 	get dropIntensity(): number { return this.#dropIntensity; }
 	get bassLevel(): number { return this.#bassLevel; }
 	get distortionLevel(): number { return this.#distortionLevel; }

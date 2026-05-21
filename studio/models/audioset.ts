@@ -206,13 +206,18 @@ export class Audioset {
 	get normVolume(): number { return this.#normVolume; }
 	get normAmplitude(): number { return this.#normAmplitude; }
 	get spectralFlux(): number { return this.#features.spectralFlux; }
-	get bandEnergy(): BandEnergy { return this.#features.bandEnergy; }
+	get subBass(): number { return this.#features.bandEnergy.subBass; }
+	get bass(): number { return this.#features.bandEnergy.bass; }
+	get lowMid(): number { return this.#features.bandEnergy.lowMid; }
+	get mid(): number { return this.#features.bandEnergy.mid; }
+	get highMid(): number { return this.#features.bandEnergy.highMid; }
+	get high(): number { return this.#features.bandEnergy.high; }
 	get zeroCrossingRate(): number { return this.#features.zeroCrossingRate; }
 	get spectralCentroid(): number { return this.#features.spectralCentroid; }
 	get percussiveness(): number { return this.#features.percussiveness; }
 	get beatDetected(): boolean { return this.#features.beatDetected; }
 	get scene(): Scene { return this.#features.scene; }
-	get sceneProbs(): Float32Array { return this.#features.sceneProbs; }
+	get confidence(): number { return this.#features.confidence; }
 	get dropIntensity(): number { return this.#features.dropIntensity; }
 	get bassLevel(): number { return this.#features.bassLevel; }
 	get distortionLevel(): number { return this.#features.distortionLevel; }
