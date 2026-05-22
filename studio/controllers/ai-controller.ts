@@ -17,11 +17,19 @@ export class AIController extends Controller<[Visualizer, HTMLDialogElement]> {
 		const buttonResetModel = dialogConfigurator.getElement(HTMLButtonElement, "button#reset-model");
 		const buttonExportModel = dialogConfigurator.getElement(HTMLButtonElement, "button#export-model");
 		const buttonsTrainScene = SceneDefinition.names.map((_, index) => dialogConfigurator.getElement(HTMLButtonElement, `button#train-scene-${index}`));
+		const spanSceneProbabilities = SceneDefinition.names.map((_, index) => dialogConfigurator.getElement(HTMLElement, `small#scene-probability-${index}`));
+		const spanModelConfidence = dialogConfigurator.getElement(HTMLSpanElement, "span#model-confidence");
 
+		let rollingConfidence = 0;
 		visualizer.addEventListener("update", (event) => {
 			const { audioset } = visualizer;
 			const { scene, dspScene } = audioset;
 			spanCurrentSceneLabel.textContent = `${SceneDefinition.names[dspScene >= 0 ? dspScene : scene]} · ${round(audioset.confidence * 100)}%`;
+			for (const [typeScene, probability] of audioset.probabilities) {
+				spanSceneProbabilities[typeScene].textContent = `${round(probability * 100)}%`;
+			}
+			rollingConfidence = rollingConfidence * 0.97 + audioset.confidence * 0.03;
+			spanModelConfidence.textContent = `${round(rollingConfidence * 100)}%`;
 		});
 
 		analyzer.addEventListener("auto-progress", (event) => {

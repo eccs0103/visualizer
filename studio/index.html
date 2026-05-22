@@ -102,15 +102,20 @@
 			<span id="current-scene-label" class="value scene-label">—</span>
 		</section>
 		<section class="option">
+			<h4 class="title">Model confidence</h4>
+			<span class="definition">Rolling average certainty. ≤17% — untrained. 50%+ — decent. 70%+ — well-trained.</span>
+			<span id="model-confidence" class="value scene-label">—</span>
+		</section>
+		<section class="option">
 			<h4 class="title">Manual labels</h4>
 			<span class="definition">Optional fine-tuning. Press when you hear something the AI labels wrong. Uses a higher learning rate than auto-training.</span>
 			<div class="grid-line flex with-gap train-buttons">
-				<button id="train-scene-0" type="button" class="rounded depth with-padding">Silence</button>
-				<button id="train-scene-1" type="button" class="rounded depth with-padding">Speech</button>
-				<button id="train-scene-2" type="button" class="rounded depth with-padding">Ambient</button>
-				<button id="train-scene-3" type="button" class="rounded depth with-padding">Buildup</button>
-				<button id="train-scene-4" type="button" class="rounded depth with-padding">Beat</button>
-				<button id="train-scene-5" type="button" class="rounded depth with-padding">Drop</button>
+				<button id="train-scene-0" type="button" class="rounded depth with-padding">Silence <small id="scene-probability-0" class="probability-tag">—</small></button>
+				<button id="train-scene-1" type="button" class="rounded depth with-padding">Speech <small id="scene-probability-1" class="probability-tag">—</small></button>
+				<button id="train-scene-2" type="button" class="rounded depth with-padding">Ambient <small id="scene-probability-2" class="probability-tag">—</small></button>
+				<button id="train-scene-3" type="button" class="rounded depth with-padding">Buildup <small id="scene-probability-3" class="probability-tag">—</small></button>
+				<button id="train-scene-4" type="button" class="rounded depth with-padding">Beat <small id="scene-probability-4" class="probability-tag">—</small></button>
+				<button id="train-scene-5" type="button" class="rounded depth with-padding">Drop <small id="scene-probability-5" class="probability-tag">—</small></button>
 			</div>
 		</section>
 		<section class="option">

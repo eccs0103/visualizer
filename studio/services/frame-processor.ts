@@ -28,14 +28,16 @@ class FluxStats {
 //#region Frame processor
 export class FrameProcessor {
 	static #fluxWindow: number = 43;
-	static #rmsWindow: number = 8;
 	static #minBeatGap: number = 8;
+	static #featCount: number = 10;
+	static #histSize: number = 32;
+	static #emaAlpha: number = 0.9995;
+	static #emaWarmup: number = 200;
+	static #epsNorm: number = 1e-6;
 
 	#prevFrequency: Float32Array = new Float32Array(SabLayout.inputMaxLength);
 	#fluxHistory: Float32Array = new Float32Array(FrameProcessor.#fluxWindow);
 	#fluxCursor: number = 0;
-	#rmsHistory: Float32Array = new Float32Array(FrameProcessor.#rmsWindow);
-	#rmsCursor: number = 0;
 	#lastFrame: number = -1;
 	#frameCount: number = 0;
 	#beatGap: number = FrameProcessor.#minBeatGap;
@@ -44,11 +46,20 @@ export class FrameProcessor {
 	#cachedLength: number = 0;
 	#cachedSampleRate: number = 0;
 
-	#inputFeatures: Float32Array = new Float32Array(NNAgent.sizeInput);
-	#lastInputFeatures: Float32Array = new Float32Array(NNAgent.sizeInput);
+	#emaMean: Float32Array = new Float32Array(FrameProcessor.#featCount);
+	#emaVar: Float32Array = new Float32Array(FrameProcessor.#featCount);
+	#rawFeats: Float32Array = new Float32Array(FrameProcessor.#featCount);
+	#normBuf: Float32Array = new Float32Array(FrameProcessor.#featCount);
+	#featHistory: Float32Array = new Float32Array(FrameProcessor.#histSize * FrameProcessor.#featCount);
+	#dspHistory: number[] = [];
+	#prevRms: number = 0;
+
+	constructor() {
+		this.#emaVar.fill(1);
+	}
 
 	get frameCount(): number { return this.#frameCount; }
-	get lastInputFeatures(): Float32Array { return this.#lastInputFeatures; }
+	get lastInputFeatures(): Float32Array { return this.#featHistory; }
 
 	#computeBins(length: number, sampleRate: number): [number, number][] {
 		const binWidth = (sampleRate / 2) / length;
@@ -117,10 +128,7 @@ export class FrameProcessor {
 			const sample = temporal[sampleIndex] * 2 - 1;
 			sum += sample * sample;
 		}
-		const rms = sqrt(sum / length);
-		this.#rmsHistory[this.#rmsCursor % FrameProcessor.#rmsWindow] = rms;
-		this.#rmsCursor++;
-		return rms;
+		return sqrt(sum / length);
 	}
 
 	#computeFluxStats(): FluxStats {
@@ -143,17 +151,31 @@ export class FrameProcessor {
 		return detected;
 	}
 
-	#buildInputFeatures(flux: number, bandEnergies: Float32Array, zeroCrossingRate: number, centroid: number, percussiveness: number): void {
-		this.#inputFeatures[0] = flux;
-		for (let bandIndex = 0; bandIndex < 6; bandIndex++) this.#inputFeatures[1 + bandIndex] = bandEnergies[bandIndex];
-		this.#inputFeatures[7] = zeroCrossingRate;
-		this.#inputFeatures[8] = centroid;
-		this.#inputFeatures[9] = percussiveness;
-		const rmsWindow = FrameProcessor.#rmsWindow;
-		for (let index = 0; index < rmsWindow; index++) {
-			this.#inputFeatures[10 + index] = this.#rmsHistory[(this.#rmsCursor - 1 - index + rmsWindow) % rmsWindow];
+	#fillInput(flux: number, bandEnergies: Float32Array, zeroCrossingRate: number, centroid: number, percussiveness: number): void {
+		const raw = this.#rawFeats;
+		raw[0] = flux;
+		for (let bandIndex = 0; bandIndex < 6; bandIndex++) raw[1 + bandIndex] = bandEnergies[bandIndex];
+		raw[7] = zeroCrossingRate;
+		raw[8] = centroid;
+		raw[9] = percussiveness;
+
+		const mean = this.#emaMean, variance = this.#emaVar;
+		const alpha = FrameProcessor.#emaAlpha, eps = FrameProcessor.#epsNorm;
+		const norm = this.#normBuf;
+		const doNorm = this.#frameCount >= FrameProcessor.#emaWarmup;
+		for (let i = 0; i < FrameProcessor.#featCount; i++) {
+			const x = raw[i];
+			mean[i] = alpha * mean[i] + (1 - alpha) * x;
+			const diff = x - mean[i];
+			variance[i] = alpha * variance[i] + (1 - alpha) * diff * diff;
+			norm[i] = doNorm ? (x - mean[i]) / sqrt(variance[i] + eps) : x;
 		}
-		this.#lastInputFeatures.set(this.#inputFeatures);
+	}
+
+	#pushHistory(): void {
+		const hist = this.#featHistory, count = FrameProcessor.#featCount;
+		hist.copyWithin(0, count);
+		hist.set(this.#normBuf, (FrameProcessor.#histSize - 1) * count);
 	}
 
 	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array, model: NNAgent, teacher: AutoTeacher): void {
@@ -182,10 +204,11 @@ export class FrameProcessor {
 		const percussiveness = min(1, flux / (fluxStats.mean + 0.001));
 		const beatDetected = this.#detectBeat(flux, fluxStats);
 
-		this.#buildInputFeatures(flux, bandEnergies, zeroCrossingRate, centroid, percussiveness);
+		this.#fillInput(flux, bandEnergies, zeroCrossingRate, centroid, percussiveness);
+		this.#pushHistory();
 
 		const sceneProbs = new Float32Array(SceneDefinition.count);
-		model.forward(this.#inputFeatures, sceneProbs);
+		model.forward(this.#featHistory, sceneProbs);
 		let bestScene = 0;
 		for (let scene = 1; scene < SceneDefinition.count; scene++) {
 			if (sceneProbs[scene] > sceneProbs[bestScene]) bestScene = scene;
@@ -195,13 +218,11 @@ export class FrameProcessor {
 		const bassLevel = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
 		const distortionLevel = min(1, percussiveness * zeroCrossingRate * 5);
 
-		const rmsWindow = FrameProcessor.#rmsWindow;
-		const rmsOld = (this.#rmsHistory[(this.#rmsCursor - 5 + rmsWindow) % rmsWindow] + this.#rmsHistory[(this.#rmsCursor - 6 + rmsWindow) % rmsWindow]) * 0.5;
-		const rmsNew = (this.#rmsHistory[(this.#rmsCursor - 1 + rmsWindow) % rmsWindow] + this.#rmsHistory[(this.#rmsCursor - 2 + rmsWindow) % rmsWindow]) * 0.5;
-		const rmsSlope = rmsNew - rmsOld;
+		const rmsSlope = currentRms - this.#prevRms;
+		this.#prevRms = currentRms;
 
 		const autoLabel = this.#classifyAutoLabel(currentRms, zeroCrossingRate, bandEnergies, percussiveness, beatDetected, rmsSlope);
-		teacher.consider(autoLabel, this.#lastInputFeatures, model, this.#frameCount);
+		teacher.consider(autoLabel, this.#featHistory, model, this.#frameCount);
 
 		output[1] = flux;
 		for (let bandIndex = 0; bandIndex < 6; bandIndex++) output[2 + bandIndex] = bandEnergies[bandIndex];
@@ -219,13 +240,22 @@ export class FrameProcessor {
 	}
 
 	#classifyAutoLabel(currentRms: number, zeroCrossingRate: number, bandEnergies: Float32Array, percussiveness: number, beatDetected: boolean, rmsSlope: number): number | null {
-		if (currentRms < 0.015) return 0;
-		if (zeroCrossingRate > 0.22 && bandEnergies[0] < 0.08 && bandEnergies[1] < 0.12 && bandEnergies[3] > 0.04) return 1;
-		if (beatDetected && percussiveness > 0.45) return 4;
-		if (percussiveness > 0.55 && bandEnergies[0] > 0.18 && currentRms > 0.12) return 5;
-		if (rmsSlope > 0.012 && currentRms > 0.04 && !beatDetected) return 3;
-		if (currentRms > 0.025) return 2;
-		return null;
+		let raw: number | null = null;
+		if (currentRms < 0.015) raw = 0;
+		else if (zeroCrossingRate > 0.22 && bandEnergies[0] < 0.08 && bandEnergies[1] < 0.12 && bandEnergies[3] > 0.04) raw = 1;
+		else if (beatDetected && percussiveness > 0.35) raw = 4;
+		else if (percussiveness > 0.5 && bandEnergies[0] > 0.18 && currentRms > 0.12) raw = 5;
+		else if (rmsSlope > 0.008 && currentRms > 0.04 && !beatDetected && bandEnergies[3] > 0.06) raw = 3;
+		else if (currentRms > 0.025) raw = 2;
+
+		const history = this.#dspHistory;
+		if (raw === null) { history.length = 0; return null; }
+		history.push(raw);
+		if (history.length > 3) history.shift();
+		if (history.length < 2) return null;
+		let votes = 0;
+		for (const past of history) { if (past === raw) votes++; }
+		return votes >= 2 ? raw : null;
 	}
 }
 //#endregion

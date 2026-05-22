@@ -39,9 +39,9 @@ class AudioAnalyzerWorker extends Controller {
 
 		const pendingLabel = this.#pendingLabel;
 		if (pendingLabel !== null) {
-			agent.trainStep(processor.lastInputFeatures, pendingLabel, 0.01);
+			agent.trainStep(processor.lastInputFeatures, pendingLabel);
 			this.#pendingLabel = null;
-			if (processor.frameCount % 300 === 0) self.postMessage({ type: "weights", weights: agent.getWeights() });
+			if (processor.frameCount % 300 === 0) self.postMessage({ type: "weights", weights: NNWeights.export(agent.getWeights()) });
 		}
 	}
 
@@ -67,6 +67,7 @@ class AudioAnalyzerWorker extends Controller {
 		}
 
 		if (data.type === "reset") {
+			this.#agent.reset();
 			teacher.reset();
 			return;
 		}
@@ -82,7 +83,7 @@ class AudioAnalyzerWorker extends Controller {
 		}
 
 		if (data.type === "save-weights") {
-			self.postMessage({ type: "weights", weights: agent.getWeights() });
+			self.postMessage({ type: "weights", weights: NNWeights.export(agent.getWeights()) });
 		}
 	}
 

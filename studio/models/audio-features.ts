@@ -103,7 +103,14 @@ export class AudioFeatures {
 	#percussiveness: number = 0;
 	#beatDetected: boolean = false;
 	#scene: Scene = Scene.silence;
-	#sceneProbs: Float32Array = new Float32Array(SceneDefinition.count);
+	#probabilities: Map<Scene, number> = new Map([
+		[Scene.silence, 0],
+		[Scene.speech, 0],
+		[Scene.ambient, 0],
+		[Scene.buildup, 0],
+		[Scene.beat, 0],
+		[Scene.drop, 0],
+	]);
 	#dropIntensity: number = 0;
 	#bassLevel: number = 0;
 	#distortionLevel: number = 0;
@@ -116,7 +123,8 @@ export class AudioFeatures {
 	get percussiveness(): number { return this.#percussiveness; }
 	get beatDetected(): boolean { return this.#beatDetected; }
 	get scene(): Scene { return this.#scene; }
-	get confidence(): number { return this.#sceneProbs[this.#scene]; }
+	get confidence(): number { return this.#probabilities.get(this.#scene) ?? NaN; }
+	get probabilities(): ReadonlyMap<Scene, number> { return this.#probabilities; }
 	get dropIntensity(): number { return this.#dropIntensity; }
 	get bassLevel(): number { return this.#bassLevel; }
 	get distortionLevel(): number { return this.#distortionLevel; }
@@ -138,7 +146,12 @@ export class AudioFeatures {
 		this.#percussiveness = out[10];
 		this.#beatDetected = out[11] > 0.5;
 		this.#scene = out[12];
-		this.#sceneProbs.set(out.subarray(13, 19));
+		this.#probabilities.set(Scene.silence, out[13]);
+		this.#probabilities.set(Scene.speech, out[14]);
+		this.#probabilities.set(Scene.ambient, out[15]);
+		this.#probabilities.set(Scene.buildup, out[16]);
+		this.#probabilities.set(Scene.beat, out[17]);
+		this.#probabilities.set(Scene.drop, out[18]);
 		this.#dropIntensity = out[19];
 		this.#bassLevel = out[20];
 		this.#distortionLevel = out[21];

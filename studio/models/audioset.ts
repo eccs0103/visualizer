@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { type BandEnergy, type Scene, AudioFeatures } from "./audio-features.js";
+import { type Scene, AudioFeatures } from "./audio-features.js";
 
 const { sqrt, sqpw, abs, log2 } = Math;
 
@@ -218,6 +218,7 @@ export class Audioset {
 	get beatDetected(): boolean { return this.#features.beatDetected; }
 	get scene(): Scene { return this.#features.scene; }
 	get confidence(): number { return this.#features.confidence; }
+	get probabilities(): ReadonlyMap<Scene, number> { return this.#features.probabilities; }
 	get dropIntensity(): number { return this.#features.dropIntensity; }
 	get bassLevel(): number { return this.#features.bassLevel; }
 	get distortionLevel(): number { return this.#features.distortionLevel; }
