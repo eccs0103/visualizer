@@ -3,9 +3,10 @@
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
-import { NNAgent, NNWeights } from "../models/nn-agent.js";
+import { NNAgent } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
 import { AutoTeacher } from "../services/auto-teacher.js";
+import { Command, InitializeCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, SetAutoTrainCommand, TrainCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 //#region Audio analyzer worker
 class AudioAnalyzerWorker extends Controller {
@@ -38,52 +39,50 @@ class AudioAnalyzerWorker extends Controller {
 		processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer, agent, teacher);
 
 		const pendingLabel = this.#pendingLabel;
-		if (pendingLabel !== null) {
-			agent.trainStep(processor.lastInputFeatures, pendingLabel);
-			this.#pendingLabel = null;
-			if (processor.frameCount % 300 === 0) self.postMessage({ type: "weights", weights: NNWeights.export(agent.getWeights()) });
-		}
+		if (pendingLabel === null) return;
+		agent.trainStep(processor.lastInputFeatures, pendingLabel);
+		this.#pendingLabel = null;
+		if (processor.frameCount % 300 === 0) self.postMessage(Command.export(new WeightsCommand(agent.getWeights())));
 	}
 
 	#onMessage(event: MessageEvent): void {
-		const data = event.data as { type: string;[key: string]: unknown; };
+		const command = Command.import(event.data, "command");
 		const teacher = this.#teacher;
 		const agent = this.#agent;
 
-		if (data.type === "init") {
-			const inputSAB = data.inSAB as SharedArrayBuffer;
-			const outputSAB = data.outSAB as SharedArrayBuffer;
-			this.#inputControl = new Int32Array(inputSAB, 0, 2);
-			this.#inputMetadata = new Float32Array(inputSAB, 8, 3);
-			this.#inputFrequency = new Float32Array(inputSAB, 20, SabLayout.inputMaxLength);
-			this.#inputTemporal = new Float32Array(inputSAB, 20 + SabLayout.inputMaxLength * 4, SabLayout.inputMaxLength);
-			this.#outputBuffer = new Float32Array(outputSAB);
+		if (command instanceof InitializeCommand) {
+			const { inSAB, outSAB } = command;
+			this.#inputControl = new Int32Array(inSAB, 0, 2);
+			this.#inputMetadata = new Float32Array(inSAB, 8, 3);
+			this.#inputFrequency = new Float32Array(inSAB, 20, SabLayout.inputMaxLength);
+			this.#inputTemporal = new Float32Array(inSAB, 20 + SabLayout.inputMaxLength * 4, SabLayout.inputMaxLength);
+			this.#outputBuffer = new Float32Array(outSAB);
 			return;
 		}
 
-		if (data.type === "set-auto-train") {
-			teacher.enabled = data.enabled as boolean;
+		if (command instanceof SetAutoTrainCommand) {
+			teacher.enabled = command.enabled;
 			return;
 		}
 
-		if (data.type === "reset") {
-			this.#agent.reset();
+		if (command instanceof ResetCommand) {
+			agent.reset();
 			teacher.reset();
 			return;
 		}
 
-		if (data.type === "train") {
-			this.#pendingLabel = data.label as number;
+		if (command instanceof TrainCommand) {
+			this.#pendingLabel = command.label;
 			return;
 		}
 
-		if (data.type === "load-weights") {
-			agent.loadWeights(data.weights as NNWeights);
+		if (command instanceof LoadWeightsCommand) {
+			agent.loadWeights(command.weights);
 			return;
 		}
 
-		if (data.type === "save-weights") {
-			self.postMessage({ type: "weights", weights: NNWeights.export(agent.getWeights()) });
+		if (command instanceof SaveWeightsCommand) {
+			self.postMessage(Command.export(new WeightsCommand(agent.getWeights())));
 		}
 	}
 

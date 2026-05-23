@@ -8,6 +8,15 @@ const { sqrt, exp } = Math;
 const random = Random.global;
 
 //#region NN weights
+export interface NNWeightsSceme {
+	matrix_1: number[];
+	bias_1: number[];
+	matrix_2: number[];
+	bias_2: number[];
+	matrix_3: number[];
+	bias_3: number[];
+}
+
 export class NNWeights extends Model {
 	@Field(ArrayOf(Number), "matrix_1")
 	matrix1: number[] = [];

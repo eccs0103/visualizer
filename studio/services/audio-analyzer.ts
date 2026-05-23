@@ -7,14 +7,11 @@ import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./client-bridge.js";
 import { Scene, SceneDefinition } from "../models/audio-features.js";
 import { type AudiosetManager } from "../models/audioset.js";
+import { AutoProgressCommand, Command, InitializeCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, SetAutoTrainCommand, TrainCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 const { baseURI } = document;
 
 //#region Audio analyser
-type WorkerResponse =
-	| { type: "weights"; weights: NNWeights; }
-	| { type: "auto-progress"; count: number; };
-
 export interface AudioAnalyzerEventMap {
 	"auto-progress": CustomEvent<number>;
 }
@@ -32,7 +29,7 @@ export class AudioAnalyzer extends EventTarget {
 		this.#rate = rate;
 		const { inSAB, outSAB } = this.#bridge;
 		const worker = this.#worker;
-		worker.postMessage({ type: "init", inSAB, outSAB });
+		worker.postMessage(Command.export(new InitializeCommand(inSAB, outSAB)));
 		worker.addEventListener("message", this.#onMessage.bind(this));
 		void this.#loadWeights();
 	}
@@ -56,28 +53,29 @@ export class AudioAnalyzer extends EventTarget {
 	set autoTrain(enabled: boolean) {
 		if (this.#autoTrain === enabled) return;
 		this.#autoTrain = enabled;
-		this.#worker.postMessage({ type: "set-auto-train", enabled });
+		this.#worker.postMessage(Command.export(new SetAutoTrainCommand(enabled)));
 	}
 
 	analyze(manager: AudiosetManager): void {
-		manager.readFeatures(this.#bridge.output);
-		const { audioset } = manager;
-		this.#bridge.writeInput(audioset.length, this.#rate, audioset.normVolume, audioset.normAmplitude, audioset.normsDataFrequency, audioset.normsDataTemporal);
+		const bridge = this.#bridge;
+		manager.readFeatures(bridge.output);
+		const { length, normVolume, normAmplitude, normsDataFrequency, normsDataTemporal } = manager.audioset;
+		bridge.writeInput(length, this.#rate, normVolume, normAmplitude, normsDataFrequency, normsDataTemporal);
 	}
 
 	train(scene: Scene): void {
 		const worker = this.#worker;
-		worker.postMessage({ type: "train", label: SceneDefinition.indexOf(scene) });
-		worker.postMessage({ type: "save-weights" });
+		worker.postMessage(Command.export(new TrainCommand(SceneDefinition.indexOf(scene))));
+		worker.postMessage(Command.export(new SaveWeightsCommand()));
 	}
 
 	exportWeights(): void {
 		this.#pendingExport = true;
-		this.#worker.postMessage({ type: "save-weights" });
+		this.#worker.postMessage(Command.export(new SaveWeightsCommand()));
 	}
 
 	resetWeights(): void {
-		this.#worker.postMessage({ type: "reset" });
+		this.#worker.postMessage(Command.export(new ResetCommand()));
 		this.#repository.reset();
 	}
 
@@ -85,22 +83,23 @@ export class AudioAnalyzer extends EventTarget {
 		const worker = this.#worker;
 		let weights = this.#repository.content;
 		if (weights.matrix1.length > 0) {
-			worker.postMessage({ type: "load-weights", weights });
+			worker.postMessage(Command.export(new LoadWeightsCommand(weights)));
 			return;
 		}
 		const bridge = new ClientBridge();
 		const content = await bridge.read(new URL("../data/nn-weights.json", baseURI));
 		if (content === null) return;
 		weights = NNWeights.import(JSON.parse(content), "nn-weights");
-		worker.postMessage({ type: "load-weights", weights });
+		worker.postMessage(Command.export(new LoadWeightsCommand(weights)));
 	}
 
 	#onMessage(event: MessageEvent): void {
-		const data = event.data as WorkerResponse;
-		if (data.type === "weights") {
+		const command = Command.import(event.data, "command");
+
+		if (command instanceof WeightsCommand) {
 			const repository = this.#repository;
-			const weights = NNWeights.import(data.weights, "weights");
 			const cached = repository.content;
+			const { weights } = command;
 			cached.matrix1 = weights.matrix1;
 			cached.bias1 = weights.bias1;
 			cached.matrix2 = weights.matrix2;
@@ -114,8 +113,9 @@ export class AudioAnalyzer extends EventTarget {
 			}
 			return;
 		}
-		if (data.type === "auto-progress") {
-			this.dispatchEvent(new CustomEvent("auto-progress", { detail: data.count }));
+
+		if (command instanceof AutoProgressCommand) {
+			this.dispatchEvent(new CustomEvent("auto-progress", { detail: command.count }));
 		}
 	}
 

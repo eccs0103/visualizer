@@ -1,15 +1,16 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { NNAgent, NNWeights } from "../models/nn-agent.js";
+import { NNAgent } from "../models/nn-agent.js";
 import { SceneDefinition } from "../models/audio-features.js";
+import { AutoProgressCommand, Command, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 //#region Auto teacher
 export class AutoTeacher {
 	static #confirmWindow = 6;
 	static #trainInterval = 12;
 	static #autoSaveInterval = 200;
-	static #progressReportInterval = 50;
+	static #progressReportInterval = 1;
 	static #skipThreshold = 0.90;
 
 	#enabled: boolean = true;
@@ -40,17 +41,18 @@ export class AutoTeacher {
 		this.#sampleCount++;
 
 		if (this.#sampleCount % AutoTeacher.#progressReportInterval === 0) {
-			self.postMessage({ type: "auto-progress", count: this.#sampleCount });
+			self.postMessage(Command.export(new AutoProgressCommand(this.#sampleCount)));
 		}
+
 		if (this.#sampleCount % AutoTeacher.#autoSaveInterval === 0) {
-			self.postMessage({ type: "weights", weights: NNWeights.export(model.getWeights()) });
+			self.postMessage(Command.export(new WeightsCommand(model.getWeights())));
 		}
 	}
 
 	reset(): void {
 		this.#sampleCount = 0;
 		this.#confirmBuffer.length = 0;
-		self.postMessage({ type: "auto-progress", count: 0 });
+		self.postMessage(Command.export(new AutoProgressCommand(0)));
 	}
 }
 //#endregion
