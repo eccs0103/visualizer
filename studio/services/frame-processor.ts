@@ -29,6 +29,7 @@ class FluxStats {
 export class FrameProcessor {
 	static #fluxWindow: number = 43;
 	static #minBeatGap: number = 8;
+	static #beatWindow: number = 6;
 	static #featCount: number = 10;
 	static #histSize: number = 32;
 	static #emaAlpha: number = 0.9995;
@@ -53,6 +54,8 @@ export class FrameProcessor {
 	#featHistory: Float32Array = new Float32Array(FrameProcessor.#histSize * FrameProcessor.#featCount);
 	#dspHistory: number[] = [];
 	#prevRms: number = 0;
+	#beatActive: number = 0;
+	#rmsSlope: number = 0;
 
 	constructor() {
 		this.#emaVar.fill(1);
@@ -147,7 +150,10 @@ export class FrameProcessor {
 	#detectBeat(flux: number, stats: FluxStats): boolean {
 		this.#beatGap++;
 		const detected = flux > stats.onsetThreshold() && this.#beatGap >= FrameProcessor.#minBeatGap;
-		if (detected) this.#beatGap = 0;
+		if (detected) {
+			this.#beatGap = 0;
+			this.#beatActive = FrameProcessor.#beatWindow;
+		}
 		return detected;
 	}
 
@@ -160,15 +166,15 @@ export class FrameProcessor {
 		raw[9] = percussiveness;
 
 		const mean = this.#emaMean, variance = this.#emaVar;
-		const alpha = FrameProcessor.#emaAlpha, eps = FrameProcessor.#epsNorm;
+		const alpha = FrameProcessor.#emaAlpha, epsilon = FrameProcessor.#epsNorm;
 		const norm = this.#normBuf;
 		const doNorm = this.#frameCount >= FrameProcessor.#emaWarmup;
-		for (let i = 0; i < FrameProcessor.#featCount; i++) {
-			const x = raw[i];
-			mean[i] = alpha * mean[i] + (1 - alpha) * x;
-			const diff = x - mean[i];
-			variance[i] = alpha * variance[i] + (1 - alpha) * diff * diff;
-			norm[i] = doNorm ? (x - mean[i]) / sqrt(variance[i] + eps) : x;
+		for (let index = 0; index < FrameProcessor.#featCount; index++) {
+			const rawValue = raw[index];
+			mean[index] = alpha * mean[index] + (1 - alpha) * rawValue;
+			const diff = rawValue - mean[index];
+			variance[index] = alpha * variance[index] + (1 - alpha) * diff * diff;
+			norm[index] = doNorm ? (rawValue - mean[index]) / sqrt(variance[index] + epsilon) : rawValue;
 		}
 	}
 
@@ -218,10 +224,11 @@ export class FrameProcessor {
 		const bassLevel = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
 		const distortionLevel = min(1, percussiveness * zeroCrossingRate * 5);
 
-		const rmsSlope = currentRms - this.#prevRms;
+		this.#rmsSlope = 0.9 * this.#rmsSlope + 0.1 * (currentRms - this.#prevRms);
 		this.#prevRms = currentRms;
 
-		const autoLabel = this.#classifyAutoLabel(currentRms, zeroCrossingRate, bandEnergies, percussiveness, beatDetected, rmsSlope);
+		const autoLabel = this.#classifyAutoLabel(currentRms, zeroCrossingRate, bandEnergies, percussiveness);
+		if (this.#beatActive > 0) this.#beatActive--;
 		teacher.consider(autoLabel, this.#featHistory, model, this.#frameCount);
 
 		output[1] = flux;
@@ -239,13 +246,13 @@ export class FrameProcessor {
 		output[0] = frame;
 	}
 
-	#classifyAutoLabel(currentRms: number, zeroCrossingRate: number, bandEnergies: Float32Array, percussiveness: number, beatDetected: boolean, rmsSlope: number): number | null {
+	#classifyAutoLabel(currentRms: number, zeroCrossingRate: number, bandEnergies: Float32Array, percussiveness: number): number | null {
 		let raw: number | null = null;
 		if (currentRms < 0.015) raw = 0;
 		else if (zeroCrossingRate > 0.22 && bandEnergies[0] < 0.08 && bandEnergies[1] < 0.12 && bandEnergies[3] > 0.04) raw = 1;
-		else if (beatDetected && percussiveness > 0.35) raw = 4;
 		else if (percussiveness > 0.5 && bandEnergies[0] > 0.18 && currentRms > 0.12) raw = 5;
-		else if (rmsSlope > 0.008 && currentRms > 0.04 && !beatDetected && bandEnergies[3] > 0.06) raw = 3;
+		else if (this.#beatActive > 0 && percussiveness > 0.3) raw = 4;
+		else if (this.#rmsSlope > 0.003 && this.#beatActive === 0 && bandEnergies[3] > 0.06 && currentRms > 0.035) raw = 3;
 		else if (currentRms > 0.025) raw = 2;
 
 		const history = this.#dspHistory;
