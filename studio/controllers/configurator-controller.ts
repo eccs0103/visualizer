@@ -33,19 +33,19 @@ export class ConfiguratorController extends Controller<[ArchiveRepository<typeof
 		const settings = repository.content;
 
 		await VisualizerSettingsController.launch(repository, visualizer, dialogConfigurator, selectVisualizerVisualization);
-		await AIController.launch(visualizer, dialogConfigurator);
+		await AIController.launch(repository, visualizer, dialogConfigurator);
 
 		buttonOpenConfigurator.addEventListener("click", async (event) => {
 			event.stopPropagation();
 			await this.#setActivity(true);
 			settings.isOpenedConfigurator = dialogConfigurator.open;
-			await repository.save(500);
+			try { await repository.save(500); } catch { }
 		});
 
 		buttonCloseConfigurator.addEventListener("click", async (event) => {
 			await this.#setActivity(false);
 			settings.isOpenedConfigurator = dialogConfigurator.open;
-			await repository.save(500);
+			try { await repository.save(500); } catch { }
 		});
 
 		window.addEventListener("keydown", async (event) => {
@@ -53,7 +53,7 @@ export class ConfiguratorController extends Controller<[ArchiveRepository<typeof
 			event.preventDefault();
 			await this.#setActivity(!dialogConfigurator.open);
 			settings.isOpenedConfigurator = dialogConfigurator.open;
-			await repository.save(500);
+			try { await repository.save(500); } catch { }
 		});
 
 		await this.#setActivity(settings.isOpenedConfigurator);

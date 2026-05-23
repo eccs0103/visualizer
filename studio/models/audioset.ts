@@ -15,8 +15,8 @@ export interface AudiosetManager {
 	set focus(value: number);
 	get spread(): number;
 	set spread(value: number);
-	get autocorrect(): boolean;
-	set autocorrect(value: boolean);
+	get autoCorrect(): boolean;
+	set autoCorrect(value: boolean);
 	get rate(): number;
 	get audioset(): Audioset;
 	refresh(): void;
@@ -36,7 +36,7 @@ export class Audioset {
 	static #Manager: AudiosetManagerConstructor = class Manager implements AudiosetManager {
 		#context: AudioContext;
 		#analyser: AnalyserNode;
-		#autocorrect: boolean = false;
+		#autoCorrect: boolean = false;
 		#audioset: Audioset;
 		#dataTemporary: Uint8Array<ArrayBuffer>;
 
@@ -104,8 +104,8 @@ export class Audioset {
 			analyser.maxDecibels = focus + value;
 		}
 
-		get autocorrect(): boolean { return this.#autocorrect; }
-		set autocorrect(value: boolean) { this.#autocorrect = value; }
+		get autoCorrect(): boolean { return this.#autoCorrect; }
+		set autoCorrect(value: boolean) { this.#autoCorrect = value; }
 		get rate(): number { return this.#context.sampleRate; }
 		get audioset(): Audioset { return this.#audioset; }
 

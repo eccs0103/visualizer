@@ -1,16 +1,19 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller } from "adaptive-extender/web";
+import { ArchiveRepository, Controller } from "adaptive-extender/web";
 import { Visualizer } from "../services/visualizer.js";
 import { SceneDefinition } from "../models/audio-features.js";
+import { type Settings } from "../models/settings.js";
 
 const { round } = Math;
 
 //#region AI controller
-export class AIController extends Controller<[Visualizer, HTMLDialogElement]> {
-	async run(visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
+export class AIController extends Controller<[ArchiveRepository<typeof Settings>, Visualizer, HTMLDialogElement]> {
+	async run(repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
 		const { analyzer } = visualizer;
+		const settings = repository.content;
+
 		const spanCurrentSceneLabel = dialogConfigurator.getElement(HTMLSpanElement, "span#current-scene-label");
 		const spanAutoTrainCount = dialogConfigurator.getElement(HTMLSpanElement, "span#auto-train-count");
 		const inputAutoTrainToggle = dialogConfigurator.getElement(HTMLInputElement, "input#auto-train-toggle");
@@ -37,9 +40,11 @@ export class AIController extends Controller<[Visualizer, HTMLDialogElement]> {
 			spanAutoTrainCount.textContent = String(event.detail);
 		});
 
-		inputAutoTrainToggle.checked = false;
-		inputAutoTrainToggle.addEventListener("input", (event) => {
+		if (settings.autoTrain !== undefined) inputAutoTrainToggle.checked = settings.autoTrain;
+		inputAutoTrainToggle.addEventListener("input", async (event) => {
 			analyzer.autoTrain = inputAutoTrainToggle.checked;
+			settings.autoTrain = analyzer.autoTrain;
+			try { await repository.save(500); } catch { }
 		});
 
 		buttonResetModel.addEventListener("click", (event) => {

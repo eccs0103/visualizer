@@ -1,11 +1,11 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field, RecordOf } from "adaptive-extender/core";
+import { Model, Field, RecordOf, Optional } from "adaptive-extender/core";
 import { Visualizer } from "../services/visualizer.js";
 
-//#region Visualization configuration
-export class VisualizationConfiguration extends Model {
+//#region Visualization settings
+export class VisualizationSettings extends Model {
 	@Field(Number, "quality")
 	quality: number;
 
@@ -34,71 +34,58 @@ export class VisualizationConfiguration extends Model {
 	}
 }
 //#endregion
-//#region Visualizer configuration
-export class VisualizerConfiguration extends Model {
-	@Field(Number, "rate")
-	rate: number;
-
-	@Field(Boolean, "autocorrect")
-	autocorrect: boolean;
-
-	@Field(String, "visualization")
-	visualization: string;
-
-	@Field(RecordOf(VisualizationConfiguration), "attachments")
-	attachments: Map<string, VisualizationConfiguration>;
-
-	constructor();
-	constructor(rate: number, autocorrect: boolean, visualization: string, attachments: Map<string, VisualizationConfiguration>);
-	constructor(rate?: number, autocorrect?: boolean, visualization?: string, attachments?: Map<string, VisualizationConfiguration>) {
-		if (rate === undefined || autocorrect === undefined || visualization === undefined || attachments === undefined) {
-			super();
-			return;
-		}
-
-		super();
-		this.rate = rate;
-		this.autocorrect = autocorrect;
-		this.visualization = visualization;
-		this.attachments = attachments;
-	}
-
-	get configuration(): VisualizationConfiguration {
-		let config = this.attachments.get(this.visualization);
-		if (config === undefined) {
-			config = new VisualizationConfiguration(10, 0.8, -60, 30);
-			this.attachments.set(this.visualization, config);
-		}
-		return config;
-	}
-}
-//#endregion
 //#region Settings
 export class Settings extends Model {
 	@Field(Boolean, "is_opened_configurator")
 	isOpenedConfigurator: boolean;
 
-	@Field(VisualizerConfiguration, "visualizer")
-	visualizer: VisualizerConfiguration;
+	@Field(Number, "rate")
+	rate: number;
+
+	@Field(Boolean, "auto_correct")
+	autoCorrect: boolean;
+
+	@Field(Optional(Boolean), "auto_train")
+	autoTrain: boolean | undefined;
+
+	@Field(String, "visualization")
+	visualization: string;
+
+	@Field(RecordOf(VisualizationSettings), "attachments")
+	attachments: Map<string, VisualizationSettings>;
 
 	constructor();
-	constructor(isOpenedConfigurator: boolean, visualizer: VisualizerConfiguration);
-	constructor(isOpenedConfigurator?: boolean, visualizer?: VisualizerConfiguration) {
-		if (isOpenedConfigurator === undefined || visualizer === undefined) {
+	constructor(isOpenedConfigurator: boolean, rate: number, autoCorrect: boolean, autoTrain: boolean | undefined, visualization: string, attachments: Map<string, VisualizationSettings>);
+	constructor(isOpenedConfigurator?: boolean, rate?: number, autoCorrect?: boolean, autoTrain?: boolean | undefined, visualization?: string, attachments?: Map<string, VisualizationSettings>) {
+		if (isOpenedConfigurator === undefined || rate === undefined || autoCorrect === undefined || visualization === undefined || attachments === undefined) {
 			super();
 			return;
 		}
+
 		super();
 		this.isOpenedConfigurator = isOpenedConfigurator;
-		this.visualizer = visualizer;
+		this.rate = rate;
+		this.autoCorrect = autoCorrect;
+		this.autoTrain = autoTrain;
+		this.visualization = visualization;
+		this.attachments = attachments;
+	}
+
+	get configuration(): VisualizationSettings {
+		let config = this.attachments.get(this.visualization);
+		if (config === undefined) {
+			config = new VisualizationSettings(10, 0.8, -60, 30);
+			this.attachments.set(this.visualization, config);
+		}
+		return config;
 	}
 
 	static get newDefault(): Settings {
-		const configuration = new VisualizationConfiguration(10, 0.8, -60, 30);
+		const configuration = new VisualizationSettings(10, 0.6, -60, 30);
 		const visualization = ReferenceError.suppress(Visualizer.visualizations.at(0), "No any visualizations found");
 		const attachments = new Map(Visualizer.visualizations.map(name => [name, configuration]));
-		const visualizer = new VisualizerConfiguration(120, false, visualization, attachments);
-		return new Settings(false, visualizer);
+		const settings = new Settings(false, 240, true, undefined, visualization, attachments);
+		return settings;
 	}
 }
 //#endregion

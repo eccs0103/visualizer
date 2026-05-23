@@ -131,8 +131,8 @@ export class Visualizer extends EventTarget {
 		this.#engine.limit = round(value);
 	}
 
-	get autocorrect(): boolean { return this.#manager.autocorrect; }
-	set autocorrect(value: boolean) { this.#manager.autocorrect = value; }
+	get autoCorrect(): boolean { return this.#manager.autoCorrect; }
+	set autoCorrect(value: boolean) { this.#manager.autoCorrect = value; }
 	get quality(): number { return this.#manager.quality; }
 	set quality(value: number) { this.#manager.quality = value; }
 	get smoothing(): number { return this.#manager.smoothing; }
@@ -198,7 +198,7 @@ export class Visualizer extends EventTarget {
 		const manager = this.#manager;
 		analyzer.analyze(manager);
 		const { dspScene } = manager.audioset;
-		if (manager.autocorrect && dspScene >= 0) {
+		if (manager.autoCorrect && dspScene >= 0) {
 			const target = Visualizer.#targets.get(SceneDefinition.fromIndex(dspScene));
 			if (target !== undefined) {
 				const [focus, spread] = target;
@@ -213,7 +213,7 @@ export class Visualizer extends EventTarget {
 
 	static checkRate(value: number): boolean {
 		if (!Number.isFinite(value)) return false;
-		if (30 > value || value > 300) return false;
+		if (30 > value || value > 1200) return false;
 		if (value % 30 !== 0) return false;
 		return true;
 	}

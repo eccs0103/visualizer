@@ -22,13 +22,13 @@ class StudioController extends Controller {
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer);
 
 		const settings = repository.content;
-		visualizer.rate = settings.visualizer.rate;
-		visualizer.autocorrect = settings.visualizer.autocorrect;
-		visualizer.visualization = settings.visualizer.visualization;
-		visualizer.quality = settings.visualizer.configuration.quality;
-		visualizer.smoothing = settings.visualizer.configuration.smoothing;
-		visualizer.focus = settings.visualizer.configuration.focus;
-		visualizer.spread = settings.visualizer.configuration.spread;
+		visualizer.rate = settings.rate;
+		visualizer.autoCorrect = settings.autoCorrect;
+		visualizer.visualization = settings.visualization;
+		visualizer.quality = settings.configuration.quality;
+		visualizer.smoothing = settings.configuration.smoothing;
+		visualizer.focus = settings.configuration.focus;
+		visualizer.spread = settings.configuration.spread;
 
 		const divInterface = body.getElement(HTMLDivElement, "div#interface");
 		const buttonAudioDrive = divInterface.getElement(HTMLButtonElement, "button#audio-drive");

@@ -20,6 +20,7 @@ export interface AudioAnalyzerEventMap {
 }
 
 export class AudioAnalyzer extends EventTarget {
+	#autoTrain: boolean = false;
 	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
 	#worker: Worker = new Worker(new URL("./controllers/audio-analyzer-worker.ts", baseURI), { type: "module" });
@@ -48,7 +49,13 @@ export class AudioAnalyzer extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
+	get autoTrain(): boolean {
+		return this.#autoTrain;
+	}
+
 	set autoTrain(enabled: boolean) {
+		if (this.#autoTrain === enabled) return;
+		this.#autoTrain = enabled;
 		this.#worker.postMessage({ type: "set-auto-train", enabled });
 	}
 
@@ -100,7 +107,7 @@ export class AudioAnalyzer extends EventTarget {
 			cached.bias2 = weights.bias2;
 			cached.matrix3 = weights.matrix3;
 			cached.bias3 = weights.bias3;
-			void repository.save(2000);
+			void repository.save(2000).catch(() => { });
 			if (this.#pendingExport) {
 				this.#pendingExport = false;
 				this.#downloadFile("nn-weights.json", JSON.stringify(NNWeights.export(weights)));

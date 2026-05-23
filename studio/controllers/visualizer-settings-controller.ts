@@ -21,14 +21,14 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		const settings = this.#repository.content;
 		const visualizer = this.#visualizer;
 		visualizer.visualization = this.#selectVisualizerVisualization.value;
-		settings.visualizer.visualization = visualizer.visualization;
-		visualizer.quality = settings.visualizer.configuration.quality;
+		settings.visualization = visualizer.visualization;
+		visualizer.quality = settings.configuration.quality;
 		this.#inputVisualizationQuality.value = String(visualizer.quality);
-		visualizer.smoothing = settings.visualizer.configuration.smoothing;
+		visualizer.smoothing = settings.configuration.smoothing;
 		this.#inputVisualizationSmoothing.value = String(visualizer.smoothing);
-		visualizer.focus = settings.visualizer.configuration.focus;
+		visualizer.focus = settings.configuration.focus;
 		this.#inputVisualizationFocus.value = String(visualizer.focus);
-		visualizer.spread = settings.visualizer.configuration.spread;
+		visualizer.spread = settings.configuration.spread;
 		this.#inputVisualizationSpread.value = String(visualizer.spread);
 	}
 
@@ -38,7 +38,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		this.#selectVisualizerVisualization = selectVisualizerVisualization;
 
 		const inputVisualizerRate = this.#inputVisualizerRate = dialogConfigurator.getElement(HTMLInputElement, "input#visualizer-rate");
-		const inputAutocorrectToggle = this.#inputAutocorrectToggle = dialogConfigurator.getElement(HTMLInputElement, "input#autocorrect-toggle");
+		const inputAutocorrectToggle = this.#inputAutocorrectToggle = dialogConfigurator.getElement(HTMLInputElement, "input#auto-correct-toggle");
 		const inputVisualizationQuality = this.#inputVisualizationQuality = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-quality");
 		const inputVisualizationSmoothing = this.#inputVisualizationSmoothing = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-smoothing");
 		const inputVisualizationFocus = this.#inputVisualizationFocus = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-focus");
@@ -58,16 +58,16 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		inputVisualizerRate.addEventListener("change", async (event) => {
 			visualizer.rate = Number(inputVisualizerRate.value);
 			inputVisualizerRate.value = String(visualizer.rate);
-			settings.visualizer.rate = visualizer.rate;
-			await repository.save(500);
+			settings.rate = visualizer.rate;
+			try { await repository.save(500); } catch { }
 		});
 
 		inputVisualizationQuality.value = String(visualizer.quality);
 		inputVisualizationQuality.addEventListener("change", async (event) => {
 			visualizer.quality = Number(inputVisualizationQuality.value);
 			inputVisualizationQuality.value = String(visualizer.quality);
-			settings.visualizer.configuration.quality = visualizer.quality;
-			await repository.save(500);
+			settings.configuration.quality = visualizer.quality;
+			try { await repository.save(500); } catch { }
 		});
 
 		inputVisualizationSmoothing.value = String(visualizer.smoothing);
@@ -75,47 +75,47 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			visualizer.smoothing = Number(inputVisualizationSmoothing.value);
 		});
 		inputVisualizationSmoothing.addEventListener("change", async (event) => {
-			settings.visualizer.configuration.smoothing = visualizer.smoothing;
-			await repository.save(500);
+			settings.configuration.smoothing = visualizer.smoothing;
+			try { await repository.save(500); } catch { }
 		});
 
 		inputVisualizationFocus.value = String(visualizer.focus);
-		inputVisualizationFocus.disabled = visualizer.autocorrect;
+		inputVisualizationFocus.disabled = visualizer.autoCorrect;
 		inputVisualizationFocus.addEventListener("input", (event) => {
 			visualizer.focus = Number(inputVisualizationFocus.value);
 		});
 		inputVisualizationFocus.addEventListener("change", async (event) => {
-			settings.visualizer.configuration.focus = visualizer.focus;
-			await repository.save(500);
+			settings.configuration.focus = visualizer.focus;
+			try { await repository.save(500); } catch { }
 		});
 
 		inputVisualizationSpread.value = String(visualizer.spread);
-		inputVisualizationSpread.disabled = visualizer.autocorrect;
+		inputVisualizationSpread.disabled = visualizer.autoCorrect;
 		inputVisualizationSpread.addEventListener("input", (event) => {
 			visualizer.spread = Number(inputVisualizationSpread.value);
 		});
 		inputVisualizationSpread.addEventListener("change", async (event) => {
-			settings.visualizer.configuration.spread = visualizer.spread;
-			await repository.save(500);
+			settings.configuration.spread = visualizer.spread;
+			try { await repository.save(500); } catch { }
 		});
 
 		visualizer.addEventListener("update", async (event) => {
-			if (!visualizer.autocorrect) return;
+			if (!visualizer.autoCorrect) return;
 			inputVisualizationFocus.value = String(visualizer.focus);
-			settings.visualizer.configuration.focus = visualizer.focus;
+			settings.configuration.focus = visualizer.focus;
 			inputVisualizationSpread.value = String(visualizer.spread);
-			settings.visualizer.configuration.spread = visualizer.spread;
+			settings.configuration.spread = visualizer.spread;
 		});
 
-		inputAutocorrectToggle.checked = visualizer.autocorrect;
+		inputAutocorrectToggle.checked = visualizer.autoCorrect;
 		inputAutocorrectToggle.addEventListener("input", (event) => {
-			visualizer.autocorrect = inputAutocorrectToggle.checked;
-			inputVisualizationFocus.disabled = visualizer.autocorrect;
-			inputVisualizationSpread.disabled = visualizer.autocorrect;
+			visualizer.autoCorrect = inputAutocorrectToggle.checked;
+			inputVisualizationFocus.disabled = visualizer.autoCorrect;
+			inputVisualizationSpread.disabled = visualizer.autoCorrect;
 		});
 		inputAutocorrectToggle.addEventListener("change", async (event) => {
-			settings.visualizer.autocorrect = visualizer.autocorrect;
-			await repository.save(500);
+			settings.autoCorrect = visualizer.autoCorrect;
+			try { await repository.save(500); } catch { }
 		});
 
 		window.addEventListener("keydown", (event) => {

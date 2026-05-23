@@ -57,45 +57,18 @@
 		<section class="option">
 			<h4 class="title">Rate</h4>
 			<span class="definition">The maximum frame rate limit in the visualizer, determining how often the graphical display updates per second. A higher value increases smoothness but also raises the system load.</span>
-			<input id="visualizer-rate" type="number" min="30" max="300" step="30" class="value rounded depth with-padding">
+			<input id="visualizer-rate" type="number" min="30" max="1200" step="30" class="value rounded depth with-padding">
 		</section>
 		<section class="option">
-			<h4 class="title">AI autocorrect</h4>
+			<h4 class="title">AI auto-correct</h4>
 			<span class="definition">Uses AI scene detection to smoothly adjust the dB range. Beat and Drop widen the range; Silence and Speech make it more sensitive.</span>
-			<input id="autocorrect-toggle" type="checkbox" hidden>
-			<label for="autocorrect-toggle" role="checkbox" class="value depth toggle">
+			<input id="auto-correct-toggle" type="checkbox" hidden>
+			<label for="auto-correct-toggle" role="checkbox" class="value depth toggle">
 				<span class="layer knob"></span>
 			</label>
 		</section>
-		<section class="option">
-			<h4 class="title">Visualization</h4>
-			<span class="definition">The method of displaying audio analysis in the visualizer. The chosen method affects how sound data is transformed into visual elements.</span>
-			<select id="visualizer-visualization" class="value rounded depth with-padding"></select>
-		</section>
 		<hr class="depth">
-		<h2>Visualization</h2>
-		<section class="option">
-			<h4 class="title">Quality</h4>
-			<span class="definition">The level of detail in audio analysis, where higher values enhance accuracy, producing a more detailed visual representation. Acceptable values range from 5 to 15.</span>
-			<input id="visualization-quality" type="number" min="5" max="15" step="1" class="value rounded depth with-padding">
-		</section>
-		<section class="option">
-			<h4 class="title">Smoothing</h4>
-			<span class="definition">The level of smoothing applied to the analysis, ensuring a smoother transition between values. A value of 0 means no smoothing, while 1 indicates maximum smoothing.</span>
-			<input id="visualization-smoothing" type="range" min="0" max="1" step="0.1" class="value depth rounded">
-		</section>
-		<section class="option">
-			<h4 class="title">Focus</h4>
-			<span class="definition">The focus level of the audio analysis, adjusting the central volume value for analysis purposes, allowing emphasis on specific frequency ranges or volume levels.</span>
-			<input id="visualization-focus" type="range" min="-100" max="0" step="1" class="value depth rounded">
-		</section>
-		<section class="option">
-			<h4 class="title">Spread</h4>
-			<span class="definition">The volume range for analysis, expanding or contracting the area around the central focus value.</span>
-			<input id="visualization-spread" type="range" min="1" max="100" step="1" class="value depth rounded">
-		</section>
-		<hr class="depth">
-		<h2>AI core</h2>
+		<h2>AI dashboard</h2>
 		<section class="option">
 			<h4 class="title">Current scene</h4>
 			<span class="definition">What the AI detects right now. Confidence in brackets.</span>
@@ -140,6 +113,33 @@
 			<h4 class="title">Export weights</h4>
 			<span class="definition">Downloads the trained model as nn-weights.json. Place it in resources/data/ to share your trained model on GitHub Pages.</span>
 			<button id="export-model" type="button" class="value rounded depth with-padding">Export</button>
+		</section>
+		<hr class="depth">
+		<h2>Visualization</h2>
+		<section class="option">
+			<h4 class="title">Type</h4>
+			<span class="definition">The method of displaying audio analysis in the visualizer. The chosen method affects how sound data is transformed into visual elements.</span>
+			<select id="visualizer-visualization" class="value rounded depth with-padding"></select>
+		</section>
+		<section class="option">
+			<h4 class="title">Quality</h4>
+			<span class="definition">The level of detail in audio analysis, where higher values enhance accuracy, producing a more detailed visual representation. Acceptable values range from 5 to 15.</span>
+			<input id="visualization-quality" type="number" min="5" max="15" step="1" class="value rounded depth with-padding">
+		</section>
+		<section class="option">
+			<h4 class="title">Smoothing</h4>
+			<span class="definition">The level of smoothing applied to the analysis, ensuring a smoother transition between values. A value of 0 means no smoothing, while 1 indicates maximum smoothing.</span>
+			<input id="visualization-smoothing" type="range" min="0" max="1" step="0.1" class="value depth rounded">
+		</section>
+		<section class="option">
+			<h4 class="title">Focus</h4>
+			<span class="definition">The focus level of the audio analysis, adjusting the central volume value for analysis purposes, allowing emphasis on specific frequency ranges or volume levels.</span>
+			<input id="visualization-focus" type="range" min="-100" max="0" step="1" class="value depth rounded">
+		</section>
+		<section class="option">
+			<h4 class="title">Spread</h4>
+			<span class="definition">The volume range for analysis, expanding or contracting the area around the central focus value.</span>
+			<input id="visualization-spread" type="range" min="1" max="100" step="1" class="value depth rounded">
 		</section>
 	</dialog>
 </body>
