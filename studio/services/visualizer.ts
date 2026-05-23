@@ -2,6 +2,7 @@
 
 import "adaptive-extender/web";
 import { type Engine, FastEngine } from "adaptive-extender/web";
+import { Scene, SceneDefinition } from "../models/audio-features.js";
 import { Audioset, type AudiosetManager } from "../models/audioset.js";
 import { AudioAnalyzer } from "./audio-analyzer.js";
 
@@ -60,14 +61,14 @@ export class Visualizer extends EventTarget {
 
 	static #descriptors: Map<string, VisualizationDescriptor> = new Map();
 	static #instances: Visualizer[] = [];
-	static #targets: [number, number][] = [
-		[-80, 20], // SILENCE
-		[-60, 25], // SPEECH
-		[-55, 30], // AMBIENT
-		[-50, 35], // BUILDUP
-		[-45, 35], // BEAT
-		[-38, 40], // DROP
-	];
+	static #targets: Map<Scene, [number, number]> = new Map([
+		[Scene.silence, [-80, 20]],
+		[Scene.speech,  [-60, 25]],
+		[Scene.ambient, [-55, 30]],
+		[Scene.buildup, [-50, 35]],
+		[Scene.beat,    [-45, 35]],
+		[Scene.drop,    [-38, 40]],
+	]);
 
 	#engine: Engine;
 	#canvas: HTMLCanvasElement;
@@ -198,9 +199,12 @@ export class Visualizer extends EventTarget {
 		analyzer.analyze(manager);
 		const { dspScene } = manager.audioset;
 		if (manager.autocorrect && dspScene >= 0) {
-			const [focus, spread] = Visualizer.#targets[dspScene];
-			manager.focus += (focus - manager.focus) * 0.04;
-			manager.spread += (spread - manager.spread) * 0.04;
+			const target = Visualizer.#targets.get(SceneDefinition.fromIndex(dspScene));
+			if (target !== undefined) {
+				const [focus, spread] = target;
+				manager.focus += (focus - manager.focus) * 0.04;
+				manager.spread += (spread - manager.spread) * 0.04;
+			}
 		}
 		const [, visualization] = this.#selection;
 		visualization.update();

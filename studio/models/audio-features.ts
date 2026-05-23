@@ -4,23 +4,24 @@ import "adaptive-extender/core";
 
 //#region Scene definition
 export enum Scene {
-	silence,
-	speech,
-	ambient,
-	buildup,
-	beat,
-	drop
+	silence = "Silence",
+	speech = "Speech",
+	ambient = "Ambient",
+	buildup = "Buildup",
+	beat = "Beat",
+	drop = "Drop"
 }
 
 export class SceneDefinition {
-	static #names: readonly string[] = Object.freeze(["Silence", "Speech", "Ambient", "Buildup", "Beat", "Drop"]);
+	static #values: readonly Scene[] = Object.freeze(Object.values(Scene));
 
-	static get count(): number { return SceneDefinition.#names.length; }
-	static get names(): readonly string[] { return SceneDefinition.#names; }
+	static get count(): number { return SceneDefinition.#values.length; }
+	static get names(): readonly string[] { return SceneDefinition.#values; }
+	static get values(): readonly Scene[] { return SceneDefinition.#values; }
 
-	static nameOf(scene: Scene): string {
-		return ReferenceError.suppress(SceneDefinition.#names[scene], "Unknown scene");
-	}
+	static nameOf(scene: Scene): string { return scene; }
+	static indexOf(scene: Scene): number { return SceneDefinition.#values.indexOf(scene); }
+	static fromIndex(index: number): Scene { return SceneDefinition.#values[index]; }
 }
 //#endregion
 //#region SAB layout
@@ -31,7 +32,7 @@ export class SceneDefinition {
  *  Bytes 20.. : Float32[inputMaxLength] normsDataFrequency  
  *             + Float32[inputMaxLength] normsDataTemporal  
  *
- *outSAB layout (Float32Array of outputSize floats):  
+ *outSAB layout (Float32Array of outputSize = 17 + N floats, N = SceneDefinition.count):  
  *  [0]     frameCounter  
  *  [1]     spectralFlux  
  *  [2–7]   bandEnergy[6]  (subBass, bass, lowMid, mid, highMid, high)  
@@ -39,19 +40,18 @@ export class SceneDefinition {
  *  [9]     spectralCentroid  
  *  [10]    percussiveness  
  *  [11]    beatDetected   (0 | 1)  
- *  [12]    scene          (0–5)  
- *  [13–18] sceneProbs[6]  
- *  [19]    dropIntensity  
- *  [20]    bassLevel  
- *  [21]    distortionLevel  
- *  [22]    dspScene       (-1 = no confident label, 0–5 = DSP label)  
+ *  [12]    scene          (scene index 0..N-1)  
+ *  [13..13+N-1] sceneProbs[N]  
+ *  [13+N]  dropIntensity  
+ *  [13+N+1] bassLevel  
+ *  [13+N+2] distortionLevel  
+ *  [13+N+3] dspScene     (-1 = no confident label, 0..N-1 = DSP label)  
  */
 export class SabLayout {
 	static #inputMaxLength: number = 16384;
-	static #outputSize: number = 23;
 
 	static get inputMaxLength(): number { return SabLayout.#inputMaxLength; }
-	static get outputSize(): number { return SabLayout.#outputSize; }
+	static get outputSize(): number { return 17 + SceneDefinition.count; }
 
 	static inputByteSize(): number {
 		return 20 + SabLayout.#inputMaxLength * 4 * 2;
@@ -103,14 +103,7 @@ export class AudioFeatures {
 	#percussiveness: number = 0;
 	#beatDetected: boolean = false;
 	#scene: Scene = Scene.silence;
-	#probabilities: Map<Scene, number> = new Map([
-		[Scene.silence, 0],
-		[Scene.speech, 0],
-		[Scene.ambient, 0],
-		[Scene.buildup, 0],
-		[Scene.beat, 0],
-		[Scene.drop, 0],
-	]);
+	#probabilities: Map<Scene, number> = new Map(SceneDefinition.values.map(scene => [scene, 0]));
 	#dropIntensity: number = 0;
 	#bassLevel: number = 0;
 	#distortionLevel: number = 0;
@@ -145,17 +138,13 @@ export class AudioFeatures {
 		this.#spectralCentroid = out[9];
 		this.#percussiveness = out[10];
 		this.#beatDetected = out[11] > 0.5;
-		this.#scene = out[12];
-		this.#probabilities.set(Scene.silence, out[13]);
-		this.#probabilities.set(Scene.speech, out[14]);
-		this.#probabilities.set(Scene.ambient, out[15]);
-		this.#probabilities.set(Scene.buildup, out[16]);
-		this.#probabilities.set(Scene.beat, out[17]);
-		this.#probabilities.set(Scene.drop, out[18]);
-		this.#dropIntensity = out[19];
-		this.#bassLevel = out[20];
-		this.#distortionLevel = out[21];
-		this.#dspScene = out[22];
+		this.#scene = SceneDefinition.fromIndex(out[12]);
+		const scenes = SceneDefinition.values;
+		scenes.forEach((scene, index) => this.#probabilities.set(scene, out[13 + index]));
+		this.#dropIntensity = out[13 + scenes.length];
+		this.#bassLevel = out[13 + scenes.length + 1];
+		this.#distortionLevel = out[13 + scenes.length + 2];
+		this.#dspScene = out[13 + scenes.length + 3];
 	}
 }
 //#endregion

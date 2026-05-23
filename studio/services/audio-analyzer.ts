@@ -5,7 +5,7 @@ import { ArchiveRepository } from "adaptive-extender/web";
 import { NNWeights } from "../models/nn-agent.js";
 import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./client-bridge.js";
-import { Scene } from "../models/audio-features.js";
+import { Scene, SceneDefinition } from "../models/audio-features.js";
 import { type AudiosetManager } from "../models/audioset.js";
 
 const { baseURI } = document;
@@ -60,7 +60,7 @@ export class AudioAnalyzer extends EventTarget {
 
 	train(scene: Scene): void {
 		const worker = this.#worker;
-		worker.postMessage({ type: "train", label: scene });
+		worker.postMessage({ type: "train", label: SceneDefinition.indexOf(scene) });
 		worker.postMessage({ type: "save-weights" });
 	}
 

@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { SceneDefinition, SabLayout } from "../models/audio-features.js";
+import { Scene, SceneDefinition, SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { type AutoTeacher } from "./auto-teacher.js";
 
@@ -239,21 +239,22 @@ export class FrameProcessor {
 		output[11] = beatDetected ? 1 : 0;
 		output[12] = bestScene;
 		for (let scene = 0; scene < SceneDefinition.count; scene++) output[13 + scene] = sceneProbs[scene];
-		output[19] = dropIntensity;
-		output[20] = bassLevel;
-		output[21] = distortionLevel;
-		output[22] = autoLabel ?? -1;
+		const endScene = 13 + SceneDefinition.count;
+		output[endScene] = dropIntensity;
+		output[endScene + 1] = bassLevel;
+		output[endScene + 2] = distortionLevel;
+		output[endScene + 3] = autoLabel ?? -1;
 		output[0] = frame;
 	}
 
 	#classifyAutoLabel(currentRms: number, zeroCrossingRate: number, bandEnergies: Float32Array, percussiveness: number): number | null {
 		let raw: number | null = null;
-		if (currentRms < 0.015) raw = 0;
-		else if (zeroCrossingRate > 0.22 && bandEnergies[0] < 0.08 && bandEnergies[1] < 0.12 && bandEnergies[3] > 0.04) raw = 1;
-		else if (percussiveness > 0.5 && bandEnergies[0] > 0.18 && currentRms > 0.12) raw = 5;
-		else if (this.#beatActive > 0 && percussiveness > 0.3) raw = 4;
-		else if (this.#rmsSlope > 0.003 && this.#beatActive === 0 && bandEnergies[3] > 0.06 && currentRms > 0.035) raw = 3;
-		else if (currentRms > 0.025) raw = 2;
+		if (currentRms < 0.015) raw = SceneDefinition.indexOf(Scene.silence);
+		else if (zeroCrossingRate > 0.22 && bandEnergies[0] < 0.08 && bandEnergies[1] < 0.12 && bandEnergies[3] > 0.04) raw = SceneDefinition.indexOf(Scene.speech);
+		else if (percussiveness > 0.5 && bandEnergies[0] > 0.18 && currentRms > 0.12) raw = SceneDefinition.indexOf(Scene.drop);
+		else if (this.#beatActive > 0 && percussiveness > 0.3) raw = SceneDefinition.indexOf(Scene.beat);
+		else if (this.#rmsSlope > 0.003 && this.#beatActive === 0 && bandEnergies[3] > 0.06 && currentRms > 0.035) raw = SceneDefinition.indexOf(Scene.buildup);
+		else if (currentRms > 0.025) raw = SceneDefinition.indexOf(Scene.ambient);
 
 		const history = this.#dspHistory;
 		if (raw === null) { history.length = 0; return null; }

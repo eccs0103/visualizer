@@ -23,10 +23,11 @@ export class AIController extends Controller<[Visualizer, HTMLDialogElement]> {
 		let rollingConfidence = 0;
 		visualizer.addEventListener("update", (event) => {
 			const { audioset } = visualizer;
-			const { scene, dspScene } = audioset;
-			spanCurrentSceneLabel.textContent = `${SceneDefinition.names[dspScene >= 0 ? dspScene : scene]} · ${round(audioset.confidence * 100)}%`;
-			for (const [typeScene, probability] of audioset.probabilities) {
-				spanSceneProbabilities[typeScene].textContent = `${round(probability * 100)}%`;
+			// const { dspScene } = audioset;
+			// const sceneLabel = dspScene >= 0 ? SceneDefinition.fromIndex(dspScene) : audioset.scene;
+			spanCurrentSceneLabel.textContent = `${audioset.scene} \u00B7 ${round(audioset.confidence * 100)}%`;
+			for (const [scene, probability] of audioset.probabilities) {
+				spanSceneProbabilities[SceneDefinition.indexOf(scene)].textContent = `${round(probability * 100)}%`;
 			}
 			rollingConfidence = rollingConfidence * 0.97 + audioset.confidence * 0.03;
 			spanModelConfidence.textContent = `${round(rollingConfidence * 100)}%`;
@@ -51,7 +52,7 @@ export class AIController extends Controller<[Visualizer, HTMLDialogElement]> {
 			const index2 = index;
 			buttonsTrainScene[index].addEventListener("click", (event) => {
 				event.stopPropagation();
-				analyzer.train(index2);
+				analyzer.train(SceneDefinition.fromIndex(index2));
 			});
 		}
 
