@@ -56,13 +56,18 @@ class ClipSession {
 	#recorder: MediaRecorder;
 	#streamVideo: MediaStream;
 	#streamAudio: MediaStream;
-	#trackVideo: CanvasCaptureMediaStreamTrack;
+	#trackVideo: CanvasCaptureMediaStreamTrack | null;
 	#chunks: Blob[] = [];
 
-	constructor(recorder: MediaRecorder, streamVideo: MediaStream, streamAudio: MediaStream, trackVideo: CanvasCaptureMediaStreamTrack) {
+	constructor(recorder: MediaRecorder, streamVideo: MediaStream, streamAudio: MediaStream) {
 		this.#recorder = recorder;
 		this.#streamVideo = streamVideo;
 		this.#streamAudio = streamAudio;
+
+		const tracksVideo = streamVideo.getVideoTracks();
+		if (tracksVideo.length < 1) return;
+		const trackVideo = tracksVideo[0];
+		if (!(trackVideo instanceof CanvasCaptureMediaStreamTrack)) return;
 		this.#trackVideo = trackVideo;
 	}
 
@@ -84,23 +89,18 @@ class ClipSession {
 		const mimeType = ClipSession.#pickType();
 		if (mimeType === null) throw new Error("No supported WebM encoder is available in this browser");
 
-		const streamVideo = canvas.captureStream(0);
+		const streamVideo = canvas.captureStream(); // 0?
 		const tracksVideo = streamVideo.getVideoTracks();
-		if (tracksVideo.length < 1) throw new Error("Unable to acquire video tracks from canvas stream");
-
-		const trackVideo = tracksVideo[0];
-		if (!(trackVideo instanceof CanvasCaptureMediaStreamTrack)) throw new Error("Unable to acquire video track from canvas stream");
 
 		const streamAudio = ClipSession.#captureAudioStream(media);
 		const tracksAudio = streamAudio.getAudioTracks();
-		if (tracksAudio.length < 1) throw new Error("No audio track found in media stream. Start playback and try again");
 
 		const stream = new MediaStream([...tracksVideo, ...tracksAudio]);
 		const videoBitsPerSecond = 12_000_000;
 		const audioBitsPerSecond = 192_000;
 		const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond, audioBitsPerSecond });
 
-		return new ClipSession(recorder, streamVideo, streamAudio, trackVideo);
+		return new ClipSession(recorder, streamVideo, streamAudio);
 	}
 
 	begin(): void {
@@ -115,7 +115,7 @@ class ClipSession {
 	}
 
 	capture(): void {
-		this.#trackVideo.requestFrame();
+		this.#trackVideo?.requestFrame();
 	}
 
 	finish(): Promise<ClipFile> {
@@ -128,7 +128,7 @@ class ClipSession {
 					const type = recorder.mimeType;
 					resolve(ClipFile.from(new Blob(chunks, { type })));
 				} catch (reason) {
-					reject(Error.from(reason));
+					reject(reason);
 				}
 			}, { signal });
 			recorder.addEventListener("error", event => reject(event.error ?? event.message), { signal });
