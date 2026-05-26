@@ -25,6 +25,11 @@ div#interface {
 	overflow: hidden;
 }
 
+/* div#interface:has(button#clip-toggle[data-recording]) {
+	outline: var(--size-large-separator) solid var(--color-error);
+	outline-offset: calc(-1 * var(--size-large-separator));
+} */
+
 div#interface > *#audio-control {
 	grid-area: audio-control-area;
 }
@@ -60,21 +65,13 @@ audio#player[data-ready][data-playing] ~ div#interface *#playback-control > span
 
 button#clip-toggle > span.icon {
 	--url: url(../../assets/icons/record.svg);
-}
-
-button#clip-toggle[data-recording] > span.icon {
 	color: var(--color-error);
-	/* hsl(0deg 90% 60%); */
 }
 
 div#interface > *#playback-auxiliary {
 	grid-area: playback-auxiliary-area;
 	align-items: end;
 }
-
-/* b#clip-time {
-	opacity: 0.85;
-} */
 
 div#interface > input#playback-track {
 	grid-area: playback-track-area;

@@ -11,7 +11,6 @@ export class ClipController extends Controller<[Visualizer, HTMLCanvasElement, H
 	#recorder: ClipRecorder;
 	#buttonClipToggle: HTMLButtonElement;
 	#itemClipTime: HTMLElement;
-	#bClipLabel: HTMLElement;
 
 	static #toPlaytimeString(time: Timespan): string {
 		const minute = time.days * 24 + time.hours * 60 + time.minutes;
@@ -21,14 +20,12 @@ export class ClipController extends Controller<[Visualizer, HTMLCanvasElement, H
 
 	#markRecording(value: boolean): void {
 		const { dataset } = this.#buttonClipToggle;
-		const bClipLabel = this.#bClipLabel;
 		const itemClipTime = this.#itemClipTime;
 
 		if (value) dataset["recording"] = String.empty;
 		else delete dataset["recording"];
-		bClipLabel.innerText = value ? "STOP" : "REC";
 		itemClipTime.hidden = !value;
-		if (value) itemClipTime.innerText = ClipController.#toPlaytimeString(ClipController.#zero);
+		if (!value) itemClipTime.innerText = ClipController.#toPlaytimeString(ClipController.#zero);
 	}
 
 	async #setRecording(value: boolean): Promise<void> {
@@ -57,7 +54,6 @@ export class ClipController extends Controller<[Visualizer, HTMLCanvasElement, H
 
 		this.#buttonClipToggle = buttonClipToggle;
 		this.#itemClipTime = itemClipTime;
-		this.#bClipLabel = buttonClipToggle.getElement(HTMLElement, "b#clip-label");
 
 		recorder.addEventListener("tick", (event) => {
 			itemClipTime.innerText = ClipController.#toPlaytimeString(event.detail);

@@ -38,15 +38,14 @@
 				<span class="icon">Open configurator</span>
 			</button>
 		</div>
-		<div id="playback-control" class="with-inline-padding large-padding flex column reversed">
+		<div id="playback-control" class="with-inline-padding large-padding flex column reversed with-gap">
 			<span class="icon">Toggle playback</span>
-			<button id="clip-toggle" type="button" class="flex alt-center with-block-padding">
-				<span class="icon in-line">Toggle recording</span>
-				<b id="clip-label">REC</b>
+			<button id="clip-toggle" type="button" class="flex alt-center with-gap	">
+				<span class="icon">Toggle recording</span>
+				<b id="clip-time" hidden>00:00</b>
 			</button>
 		</div>
 		<div id="playback-auxiliary" class="with-inline-padding large-padding flex reversed">
-			<b id="clip-time" hidden>00:00</b>
 			<b id="playback-time">00:00</b>
 		</div>
 		<input id="playback-track" type="range" min="0" max="100" step="0.1" value="0" title="Playback time track">
