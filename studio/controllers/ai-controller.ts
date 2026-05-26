@@ -66,5 +66,9 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 			analyzer.exportWeights();
 		});
 	}
+
+	async catch(error: Error): Promise<void> {
+		throw error;
+	}
 }
 //#endregion

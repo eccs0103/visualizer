@@ -10,7 +10,6 @@ import { AIController } from "./ai-controller.js";
 //#region Configurator controller
 export class ConfiguratorController extends Controller<[ArchiveRepository<typeof Settings>, Visualizer, HTMLDialogElement, HTMLButtonElement, HTMLSelectElement]> {
 	#dialogConfigurator: HTMLDialogElement;
-	#repository: ArchiveRepository<typeof Settings>;
 
 	async #setActivity(value: boolean): Promise<void> {
 		const dialogConfigurator = this.#dialogConfigurator;
@@ -27,7 +26,6 @@ export class ConfiguratorController extends Controller<[ArchiveRepository<typeof
 
 	async run(repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, buttonOpenConfigurator: HTMLButtonElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
 		this.#dialogConfigurator = dialogConfigurator;
-		this.#repository = repository;
 
 		const buttonCloseConfigurator = dialogConfigurator.getElement(HTMLButtonElement, "button#close-configurator");
 		const settings = repository.content;
@@ -57,6 +55,10 @@ export class ConfiguratorController extends Controller<[ArchiveRepository<typeof
 		});
 
 		await this.#setActivity(settings.isOpenedConfigurator);
+	}
+
+	async catch(error: Error): Promise<void> {
+		throw error;
 	}
 }
 //#endregion

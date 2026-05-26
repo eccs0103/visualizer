@@ -165,8 +165,7 @@ export class AudioController extends Controller<[ObjectStore, HTMLAudioElement, 
 	}
 
 	async catch(error: Error): Promise<void> {
-		const message = `${error}\n\nAn error occurred. Any further actions may result in errors. To prevent this from happening, would you like to reload?`;
-		if (window.confirm(message)) location.reload();
+		throw error;
 	}
 }
 //#endregion

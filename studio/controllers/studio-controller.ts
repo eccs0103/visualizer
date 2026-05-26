@@ -7,6 +7,7 @@ import { Visualizer } from "../services/visualizer.js";
 import { ObjectStore } from "../services/object-store.js";
 import { AudioController } from "./audio-controller.js";
 import { ConfiguratorController } from "./configurator-controller.js";
+import { ClipController } from "./clip-controller.js";
 import "../view/visualizations.js";
 
 //#region Studio controller
@@ -33,12 +34,15 @@ class StudioController extends Controller {
 		const divInterface = body.getElement(HTMLDivElement, "div#interface");
 		const buttonAudioDrive = divInterface.getElement(HTMLButtonElement, "button#audio-drive");
 		const buttonOpenConfigurator = divInterface.getElement(HTMLButtonElement, "button#open-configurator");
+		const buttonClipToggle = divInterface.getElement(HTMLButtonElement, "button#clip-toggle");
 		const bPlaybackTime = divInterface.getElement(HTMLElement, "b#playback-time");
+		const bClipTime = divInterface.getElement(HTMLElement, "b#clip-time");
 		const inputPlaybackTrack = divInterface.getElement(HTMLInputElement, "input#playback-track");
 		const dialogConfigurator = document.getElement(HTMLDialogElement, "dialog#configurator");
 		const selectVisualizerVisualization = dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization");
 
 		await AudioController.launch(store, audioPlayer, inputAudioLoader, divInterface, buttonAudioDrive, bPlaybackTime, inputPlaybackTrack);
+		await ClipController.launch(visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
 		await ConfiguratorController.launch(repository, visualizer, dialogConfigurator, buttonOpenConfigurator, selectVisualizerVisualization);
 	}
 

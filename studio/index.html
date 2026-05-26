@@ -4,12 +4,12 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta name="generator" content="2.4.0">
+	<meta name="generator" content="3.0.0">
 	<meta name="title" content="Visualizer">
 	<meta name="author" content="eccs0103">
 	<meta name="color-scheme" content="dark">
-	<meta name="description" content="A music visualizer">
-	<meta name="keywords" content="audio, visualization, css, music, html, canvas, jsdoc, js, dom, effects, visualizer">
+	<meta name="description" content="An AI powered music visualizer">
+	<meta name="keywords" content="AI, audio, visualization, css, music, html, canvas, jsdoc, js, dom, effects, visualizer">
 	<meta name="robots" content="index, follow">
 	<meta name="language" content="English">
 	<meta name="revisit-after" content="0 days">
@@ -29,19 +29,24 @@
 	<!-- Interface -->
 	<div id="interface">
 		<div id="audio-control" class="with-padding large-padding flex">
-			<button id="audio-drive" type="button" class="flex secondary-centered with-gap">
-				<img src="../assets/icons/upload.svg" alt="Audio drive" class="icon">
+			<button id="audio-drive" type="button" class="flex alt-center with-gap">
+				<span class="icon">Audio drive</span>
 			</button>
 		</div>
 		<div id="audio-auxiliary" class="with-padding large-padding flex reversed">
-			<button id="open-configurator" type="button" class="flex secondary-centered with-gap">
-				<img src="../assets/icons/tune.svg" alt="Open configurator" class="icon">
+			<button id="open-configurator" type="button" class="flex alt-center with-gap">
+				<span class="icon">Open configurator</span>
 			</button>
 		</div>
-		<div id="playback-control" class="with-inline-padding large-padding flex">
-			<img src="../assets/icons/play.svg" alt="Status" class="icon">
+		<div id="playback-control" class="with-inline-padding large-padding flex column reversed">
+			<span class="icon">Toggle playback</span>
+			<button id="clip-toggle" type="button" class="flex alt-center with-block-padding">
+				<span class="icon in-line">Toggle recording</span>
+				<b id="clip-label">REC</b>
+			</button>
 		</div>
 		<div id="playback-auxiliary" class="with-inline-padding large-padding flex reversed">
+			<b id="clip-time" hidden>00:00</b>
 			<b id="playback-time">00:00</b>
 		</div>
 		<input id="playback-track" type="range" min="0" max="100" step="0.1" value="0" title="Playback time track">
@@ -49,8 +54,8 @@
 	<!-- Configurator -->
 	<dialog id="configurator" class="layer rounded with-padding large-padding flex column with-gap">
 		<div class="flex reversed">
-			<button id="close-configurator" type="button" class="flex secondary-centered with-gap">
-				<img src="../assets/icons/close.svg" alt="Close configurator" class="icon">
+			<button id="close-configurator" type="button" class="flex alt-center with-gap">
+				<span class="icon">Close configurator</span>
 			</button>
 		</div>
 		<h2>Visualizer</h2>

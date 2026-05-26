@@ -29,19 +29,42 @@ div#interface > *#audio-control {
 	grid-area: audio-control-area;
 }
 
-audio#player[data-ready] ~ div#interface button#audio-drive {
-	& img[alt="Audio drive"].icon {
-		content: url(../../assets/icons/eject.svg);
-	}
+button#audio-drive > span.icon {
+	--url: url(../../assets/icons/upload.svg);
+}
+
+audio#player[data-ready] ~ div#interface button#audio-drive > span.icon {
+	--url: url(../../assets/icons/eject.svg);
+}
+
+div#interface > *#audio-auxiliary {
+	grid-area: audio-auxiliary-area;
+}
+
+button#open-configurator > span.icon {
+	--url: url(../../assets/icons/tune.svg);
 }
 
 div#interface > *#playback-control {
 	grid-area: playback-control-area;
-	align-items: end;
+	align-items: start;
 }
 
-audio#player[data-ready][data-playing] ~ div#interface > *#playback-control img[alt="Status"].icon {
-	content: url(../../assets/icons/pause.svg);
+*#playback-control > span.icon {
+	--url: url(../../assets/icons/play.svg);
+}
+
+audio#player[data-ready][data-playing] ~ div#interface *#playback-control > span.icon {
+	--url: url(../../assets/icons/pause.svg);
+}
+
+button#clip-toggle > span.icon {
+	--url: url(../../assets/icons/record.svg);
+}
+
+button#clip-toggle[data-recording] > span.icon {
+	color: var(--color-error);
+	/* hsl(0deg 90% 60%); */
 }
 
 div#interface > *#playback-auxiliary {
@@ -49,12 +72,15 @@ div#interface > *#playback-auxiliary {
 	align-items: end;
 }
 
+/* b#clip-time {
+	opacity: 0.85;
+} */
+
 div#interface > input#playback-track {
 	grid-area: playback-track-area;
 }
 
 input#playback-track {
-	grid-area: playback-track-area;
 	width: 100%;
 	height: var(--size-standart);
 	position: relative;
@@ -83,11 +109,11 @@ input#playback-track {
 
 dialog#configurator {
 	position: absolute;
-	min-width: calc(9 * var(--size-standart));
-	max-width: calc(18 * var(--size-standart));
+	min-width: calc(10 * var(--size-standart));
+	max-width: calc(20 * var(--size-standart));
 	width: fit-content;
 	max-height: 100%;
-	overflow: auto;
+	overflow: hidden auto;
 }
 
 @media screen and (orientation: portrait) {
@@ -97,19 +123,6 @@ dialog#configurator {
 		border-bottom-left-radius: 0;
 		border-bottom-right-radius: 0;
 	}
-}
-
-span.scene-label {
-	font-weight: bold;
-}
-
-div.train-buttons {
-	flex-wrap: wrap;
-}
-
-button small.probability-tag {
-	opacity: 0.65;
-	font-size: 0.75em;
 }
 
 @media screen and (orientation: landscape) {
@@ -124,6 +137,25 @@ button small.probability-tag {
 div:has(button#close-configurator) {
 	position: sticky;
 	top: 0;
+}
+
+button#close-configurator > span.icon {
+	--url: url(../../assets/icons/close.svg);
+}
+
+/* Experimental */
+
+span.scene-label {
+	font-weight: bold;
+}
+
+div.train-buttons {
+	flex-wrap: wrap;
+}
+
+button small.probability-tag {
+	opacity: 0.65;
+	font-size: 0.75em;
 }
 
 dialog.loader img[alt="Logo"] {

@@ -2,49 +2,53 @@
 
 @media (prefers-color-scheme: light) {
 	:root:has(meta[name="color-scheme"][content="system"]) {
-		--color-foreground: rgb(255, 255, 255);
-		--color-background: rgb(225, 225, 225);
-		--color-text: rgb(50, 50, 50);
-		--color-text-description: rgb(150, 150, 150);
+		--color-main: rgb(255, 255, 255);
+		--color-heavy-main: rgb(225, 225, 225);
+		--color-negative: rgb(50, 50, 50);
+		--color-light-negative: rgb(150, 150, 150);
 	}
 }
 
 @media (prefers-color-scheme: dark) {
 	:root:has(meta[name="color-scheme"][content="system"]) {
-		--color-foreground: rgb(50, 50, 50);
-		--color-background: rgb(25, 25, 25);
-		--color-text: rgb(255, 255, 255);
-		--color-text-description: rgb(150, 150, 150);
+		--color-main: rgb(50, 50, 50);
+		--color-heavy-main: rgb(25, 25, 25);
+		--color-negative: rgb(255, 255, 255);
+		--color-light-negative: rgb(150, 150, 150);
 	}
 }
 
 :root {
 	&:has(meta[name="color-scheme"][content="light"]) {
-		--color-foreground: rgb(255, 255, 255);
-		--color-background: rgb(225, 225, 225);
-		--color-text: rgb(50, 50, 50);
-		--color-text-description: rgb(150, 150, 150);
+		--color-main: rgb(255, 255, 255);
+		--color-heavy-main: rgb(225, 225, 225);
+		--color-negative: rgb(50, 50, 50);
+		--color-light-negative: rgb(150, 150, 150);
 	}
 
 	&:has(meta[name="color-scheme"][content="dark"]) {
-		--color-foreground: rgb(50, 50, 50);
-		--color-background: rgb(25, 25, 25);
-		--color-text: rgb(255, 255, 255);
-		--color-text-description: rgb(150, 150, 150);
+		--color-main: rgb(50, 50, 50);
+		--color-heavy-main: rgb(25, 25, 25);
+		--color-negative: rgb(255, 255, 255);
+		--color-light-negative: rgb(150, 150, 150);
 	}
 
 	--time-duration: 100ms;
+	--time-reveal-duration: calc(3 * var(--time-duration));
+
 	--color-highlight: hsl(200deg, 100%, 50%);
 	--color-warn: hsl(60deg 100% 40%);
 	--color-error: hsl(0deg, 100%, 60%);
 	--color-shadow: hsla(0deg, 0%, 0%, 0.75);
+
+	color-scheme: light dark;
 }
 
 /* Global */
 
 body {
-	background-color: var(--color-background);
-	color: var(--color-text);
+	background-color: var(--color-heavy-main);
+	color: var(--color-negative);
 
 	& * {
 		background-color: initial;
@@ -52,19 +56,19 @@ body {
 	}
 }
 
-*.layer {
-	background-color: var(--color-foreground);
+.layer {
+	background-color: var(--color-main);
 }
 
-*.depth {
-	background-color: var(--color-background);
+.depth {
+	background-color: var(--color-heavy-main);
 }
 
-*.translucent {
+.translucent {
 	background-color: var(--color-shadow);
 }
 
-*.rounded {
+.rounded {
 	border-radius: var(--size-gap);
 
 	&.in-top {
@@ -88,18 +92,43 @@ body {
 	}
 }
 
-*.transparent {
+.transparent {
 	background-color: transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-	:root:has(meta[name="color-scheme"][content="system"]) img.icon {
-		filter: invert(1);
+.awaiting-reveal {
+	opacity: 0;
+	transform: translateY(var(--size-standart));
+	transition:
+		opacity var(--time-reveal-duration) cubic-bezier(0.2, 0.8, 0.2, 1),
+		transform var(--time-reveal-duration) cubic-bezier(0.2, 0.8, 0.2, 1);
+	will-change: opacity, transform;
+}
+
+.revealed {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.awaiting-reveal {
+		opacity: 1;
+		transform: none;
+		transition: none;
 	}
 }
 
-:root:has(meta[name="color-scheme"][content="dark"]) img.icon {
-	filter: invert(1);
+span.icon {
+	background-color: currentColor;
+	-webkit-mask-image: var(--url);
+	mask-image: var(--url);
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-position: center;
+	mask-position: center;
+	transition: background-color var(--time-duration);
 }
 
 :enabled:hover,
@@ -108,7 +137,7 @@ body {
 [role="checkbox"]:hover,
 [role="combobox"]:hover,
 [contenteditable="true"]:hover {
-	filter: invert(0.1);
+	opacity: 0.8;
 	transition: var(--time-duration);
 }
 
@@ -118,13 +147,13 @@ body {
 [role="checkbox"]:active,
 [role="combobox"]:active,
 [contenteditable="true"]:active {
-	filter: invert(0.2);
+	opacity: 0.6;
 	transition: var(--time-duration);
 }
 
 :read-write:hover,
 :read-write:active {
-	filter: revert;
+	opacity: 1;
 }
 
 [aria-readonly="true"] {
@@ -147,6 +176,7 @@ body {
 
 :disabled,
 :disabled + label,
+[inert],
 [aria-disabled="true"] {
 	pointer-events: none;
 	opacity: 0.5;
@@ -169,42 +199,12 @@ input[type="radio"]:checked + label,
 
 *::placeholder,
 *[contenteditable]:empty::before {
-	color: var(--color-text-description);
-}
-
-@media (prefers-color-scheme: dark) {
-	:root:has(meta[name="color-scheme"][content="system"]) {
-
-		&input[type="date"]::-webkit-calendar-picker-indicator,
-		&input[type="datetime"]::-webkit-calendar-picker-indicator,
-		&input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-		&input[type="month"]::-webkit-calendar-picker-indicator,
-		&input[type="password"]::-ms-reveal,
-		&input[type="search"]::-webkit-search-cancel-button,
-		&input[type="time"]::-webkit-calendar-picker-indicator,
-		&input[type="week"]::-webkit-calendar-picker-indicator {
-			filter: invert(1);
-		}
-	}
-}
-
-:root:has(meta[name="color-scheme"][content="dark"]) {
-
-	&input[type="date"]::-webkit-calendar-picker-indicator,
-	&input[type="datetime"]::-webkit-calendar-picker-indicator,
-	&input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-	&input[type="month"]::-webkit-calendar-picker-indicator,
-	&input[type="password"]::-ms-reveal,
-	&input[type="search"]::-webkit-search-cancel-button,
-	&input[type="time"]::-webkit-calendar-picker-indicator,
-	&input[type="week"]::-webkit-calendar-picker-indicator {
-		filter: invert(1);
-	}
+	color: var(--color-light-negative);
 }
 
 *::placeholder {
-	color: var(--color-text-description);
-	filter: brightness(0.75);
+	color: var(--color-light-negative);
+	filter: brightness(0.8);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -227,53 +227,55 @@ dt {
 }
 
 code,
-*.code {
+.code {
 	font-family: "Cascadia Code", "Consolas", monospace;
 	tab-size: 4;
 }
 
 a {
+	font-style: normal;
 	text-decoration: none;
 }
 
-*.highlight,
+.highlight,
 a:not([role]):any-link {
 	color: var(--color-highlight);
 }
 
-*.highlight-background {
+.highlight-background {
 	background-color: var(--color-highlight);
 }
 
 mark,
-*.warn,
-*.mark {
+.warn,
+.mark {
 	color: var(--color-warn);
 }
 
-*.warn-background {
+.warn-background {
 	background-color: var(--color-warn);
 }
 
-*.invalid {
+.invalid {
 	color: var(--color-error);
 }
 
-*.invalid-background {
+.invalid-background {
 	background-color: var(--color-error);
 }
 
 hr {
-	border-color: var(--color-background);
+	border-color: var(--color-heavy-main);
 }
 
 dfn,
-time {
-	color: var(--color-text-description);
+time,
+.description {
+	color: var(--color-light-negative);
 }
 
 ::-webkit-scrollbar {
-	background-color: var(--color-background);
+	background-color: var(--color-heavy-main);
 }
 
 ::-webkit-scrollbar-thumb {
