@@ -64,8 +64,8 @@
 			<input id="visualizer-rate" type="number" min="30" max="1200" step="30" class="value rounded depth with-padding">
 		</section>
 		<section class="option">
-			<h4 class="title">AI auto-correct</h4>
-			<span class="definition">Uses AI scene detection to smoothly adjust the dB range. Beat and Drop widen the range; Silence and Speech make it more sensitive.</span>
+			<h4 class="title">AI</h4>
+			<span class="definition">Master AI switch. When enabled, the neural network runs scene inference every frame and applies automatic dB correction per detected scene.</span>
 			<input id="auto-correct-toggle" type="checkbox" hidden>
 			<label for="auto-correct-toggle" role="checkbox" class="value depth toggle">
 				<span class="layer knob"></span>
@@ -74,30 +74,18 @@
 		<hr class="depth">
 		<h2>AI dashboard</h2>
 		<section class="option">
-			<h4 class="title">Current scene</h4>
-			<span class="definition">What the AI detects right now. Confidence in brackets.</span>
-			<span id="current-scene-label" class="value scene-label">—</span>
-		</section>
-		<section class="option">
 			<h4 class="title">Model confidence</h4>
-			<span class="definition">Rolling average certainty. ≤17% — untrained. 50%+ — decent. 70%+ — well-trained.</span>
+			<span class="definition">Rolling average certainty across frames. ≤17% — untrained. 50%+ — decent. 70%+ — well-trained.</span>
 			<span id="model-confidence" class="value scene-label">—</span>
 		</section>
 		<section class="option">
-			<h4 class="title">Manual labels</h4>
-			<span class="definition">Optional fine-tuning. Press when you hear something the AI labels wrong. Uses a higher learning rate than auto-training.</span>
-			<div class="grid-line flex with-gap train-buttons">
-				<button id="train-scene-0" type="button" class="rounded depth with-padding">Silence <small id="scene-probability-0" class="probability-tag">—</small></button>
-				<button id="train-scene-1" type="button" class="rounded depth with-padding">Speech <small id="scene-probability-1" class="probability-tag">—</small></button>
-				<button id="train-scene-2" type="button" class="rounded depth with-padding">Ambient <small id="scene-probability-2" class="probability-tag">—</small></button>
-				<button id="train-scene-3" type="button" class="rounded depth with-padding">Buildup <small id="scene-probability-3" class="probability-tag">—</small></button>
-				<button id="train-scene-4" type="button" class="rounded depth with-padding">Beat <small id="scene-probability-4" class="probability-tag">—</small></button>
-				<button id="train-scene-5" type="button" class="rounded depth with-padding">Drop <small id="scene-probability-5" class="probability-tag">—</small></button>
-			</div>
+			<h4 class="title">Scene training</h4>
+			<span class="definition">Each bar shows the model's current probability for that scene. Click a scene to pin it as the active training target — the model trains on it continuously while pinned. Click again to unpin and save.</span>
+			<div id="scene-controls" class="grid-line flex wrap with-gap"></div>
 		</section>
 		<section class="option">
 			<h4 class="title">Auto-training <span class="warn">[Recommended]</span></h4>
-			<span class="definition">The AI labels itself using DSP rules while music plays. Just hit play and wait ~30 seconds. Weights are saved automatically every 300 samples.</span>
+			<span class="definition">The AI labels itself using DSP rules while music plays. Weights are saved automatically every 300 samples.</span>
 			<input id="auto-train-toggle" type="checkbox" hidden>
 			<label for="auto-train-toggle" role="checkbox" class="value depth toggle">
 				<span class="layer knob"></span>
@@ -105,17 +93,17 @@
 		</section>
 		<section class="option">
 			<h4 class="title">Samples collected</h4>
-			<span class="definition">Auto-training progress. ~300 samples is already well-trained. Persists across sessions.</span>
+			<span class="definition">Auto-training progress. ~300 samples is well-trained. Persists across sessions.</span>
 			<span id="auto-train-count" class="value scene-label">0</span>
 		</section>
 		<section class="option">
 			<h4 class="title">Reset model</h4>
-			<span class="definition">Wipes learned weights and restarts training from scratch. Useful if the model behaved incorrectly for too long.</span>
+			<span class="definition">Wipes learned weights and restarts from scratch.</span>
 			<button id="reset-model" type="button" class="value rounded depth with-padding">Reset</button>
 		</section>
 		<section class="option">
 			<h4 class="title">Export weights</h4>
-			<span class="definition">Downloads the trained model as nn-weights.json. Place it in resources/data/ to share your trained model on GitHub Pages.</span>
+			<span class="definition">Downloads nn-weights.json. Place in resources/data/ to share on GitHub Pages.</span>
 			<button id="export-model" type="button" class="value rounded depth with-padding">Export</button>
 		</section>
 		<hr class="depth">

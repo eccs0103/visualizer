@@ -69,6 +69,10 @@ export class AudioAnalyzer extends EventTarget {
 		worker.postMessage(Command.export(new SaveWeightsCommand()));
 	}
 
+	teach(scene: Scene): void {
+		this.#worker.postMessage(Command.export(new TrainCommand(SceneDefinition.indexOf(scene))));
+	}
+
 	exportWeights(): void {
 		this.#pendingExport = true;
 		this.#worker.postMessage(Command.export(new SaveWeightsCommand()));

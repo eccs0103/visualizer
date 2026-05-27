@@ -63,11 +63,11 @@ export class Visualizer extends EventTarget {
 	static #instances: Visualizer[] = [];
 	static #targets: Map<Scene, [number, number]> = new Map([
 		[Scene.silence, [-80, 20]],
-		[Scene.speech,  [-60, 25]],
+		[Scene.speech, [-60, 25]],
 		[Scene.ambient, [-55, 30]],
 		[Scene.buildup, [-50, 35]],
-		[Scene.beat,    [-45, 35]],
-		[Scene.drop,    [-38, 40]],
+		[Scene.beat, [-45, 35]],
+		[Scene.drop, [-38, 40]],
 	]);
 
 	#engine: Engine;
@@ -179,6 +179,7 @@ export class Visualizer extends EventTarget {
 		canvas.width = width;
 		canvas.height = height;
 	}
+
 	#clear(): void {
 		const [, visualization] = this.#selection;
 		const { context } = visualization;
@@ -193,19 +194,21 @@ export class Visualizer extends EventTarget {
 		this.dispatchEvent(new Event("rebuild"));
 	}
 
-	#update(): void {
-		const analyzer = this.#analyzer;
+	#correct(): void {
 		const manager = this.#manager;
-		analyzer.analyze(manager);
+		this.#analyzer.analyze(manager);
 		const { dspScene } = manager.audioset;
-		if (manager.autoCorrect && dspScene >= 0) {
-			const target = Visualizer.#targets.get(SceneDefinition.fromIndex(dspScene));
-			if (target !== undefined) {
-				const [focus, spread] = target;
-				manager.focus += (focus - manager.focus) * 0.04;
-				manager.spread += (spread - manager.spread) * 0.04;
-			}
-		}
+		if (dspScene < 0) return;
+		const target = Visualizer.#targets.get(SceneDefinition.fromIndex(dspScene));
+		if (target === undefined) return;
+		const [focus, spread] = target;
+		manager.focus += (focus - manager.focus) * 0.04;
+		manager.spread += (spread - manager.spread) * 0.04;
+	}
+
+	#update(): void {
+		const manager = this.#manager;
+		if (manager.autoCorrect) this.#correct();
 		const [, visualization] = this.#selection;
 		visualization.update();
 		this.dispatchEvent(new Event("update"));

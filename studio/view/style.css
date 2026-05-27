@@ -146,13 +146,33 @@ span.scene-label {
 	font-weight: bold;
 }
 
-div.train-buttons {
-	flex-wrap: wrap;
+button.scene-button {
+	position: relative;
+	overflow: hidden;
 }
 
-button small.probability-tag {
-	opacity: 0.65;
-	font-size: 0.75em;
+button.scene-button::before {
+	content: '';
+	position: absolute;
+	inset: 0 auto 0 0;
+	width: calc(var(--probability, 0) * 100%);
+	background-color: var(--color-light-negative);
+	opacity: 0.14;
+	transition: width var(--time-duration) ease-out;
+	pointer-events: none;
+}
+
+button.scene-button[data-active]::before {
+	opacity: 0.28;
+}
+
+button.scene-button[data-active] {
+	outline: var(--size-separator) solid var(--color-light-negative);
+	outline-offset: 0;
+}
+
+button.scene-button[data-predicted] {
+	color: var(--color-highlight);
 }
 
 dialog.loader img[alt="Logo"] {
