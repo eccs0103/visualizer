@@ -81,7 +81,6 @@ class ClipSession {
 
 	static #captureAudioStream(media: HTMLMediaElement): MediaStream {
 		if ("captureStream" in media && typeof media.captureStream === "function") return media.captureStream();
-		if ("mozCaptureStream" in media && typeof media.mozCaptureStream === "function") return media.mozCaptureStream();
 		throw new Error("Audio stream capture is not supported by this browser");
 	}
 
@@ -89,7 +88,7 @@ class ClipSession {
 		const mimeType = ClipSession.#pickType();
 		if (mimeType === null) throw new Error("No supported WebM encoder is available in this browser");
 
-		const streamVideo = canvas.captureStream(); // 0?
+		const streamVideo = canvas.captureStream();
 		const tracksVideo = streamVideo.getVideoTracks();
 
 		const streamAudio = ClipSession.#captureAudioStream(media);
