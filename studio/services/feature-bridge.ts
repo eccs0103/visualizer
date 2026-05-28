@@ -17,6 +17,7 @@ export class FeatureBridge {
 	constructor() {
 		this.#inSAB = new SharedArrayBuffer(SabLayout.inputByteSize());
 		this.#outSAB = new SharedArrayBuffer(SabLayout.outputSize * 4);
+		debugger;
 
 		this.#inControl = new Int32Array(this.#inSAB, 0, 2);
 		this.#inMetadata = new Float32Array(this.#inSAB, 8, 3);

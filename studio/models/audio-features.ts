@@ -140,7 +140,6 @@ export class AudioFeatures {
 		this.#beatDetected = out[11] > 0.5;
 		this.#scene = SceneDefinition.fromIndex(out[12]);
 		const scenes = SceneDefinition.values;
-		debugger;
 		scenes.forEach((scene, index) => this.#probabilities.set(scene, out[13 + index]));
 		this.#dropIntensity = out[13 + scenes.length];
 		this.#bassLevel = out[13 + scenes.length + 1];
