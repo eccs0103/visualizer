@@ -8,10 +8,10 @@ import { ObjectStore } from "../services/object-store.js";
 import { AudioController } from "./audio-controller.js";
 import { ConfiguratorController } from "./configurator-controller.js";
 import { ClipController } from "./clip-controller.js";
-import "../view/visualizations.js";
 import { MetadataInjector } from "../../environment/services/metadata-injector.js";
 import { AnalyticsController } from "../../environment/controllers/analytics-controller.js";
-import "../controllers/coi-controller.js";
+import { CorsIsolationController } from "../controllers/coi-controller.js";
+import "../view/visualizations.js";
 
 const { baseURI, body } = document;
 
@@ -71,4 +71,5 @@ class StudioController extends Controller {
 }
 //#endregion
 
+await CorsIsolationController.launch();
 await StudioController.launch();
