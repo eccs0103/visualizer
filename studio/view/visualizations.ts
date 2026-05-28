@@ -6,163 +6,6 @@ import { Visualizer } from "../services/visualizer.js";
 
 const { min, max, split, sin, cos, PI, exp, abs, trunc, sqrt, SQRT1_2, asin, meanGeometric } = Math;
 
-//#region Spectrogram
-Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
-	//#region Rebuild preparation
-	#normShadowAnchor: number = 0.8;
-	#deltaRotation: number;
-	#colorGrid: Color;
-
-	#interpolate(value: number): number {
-		const alpha = 0.2;
-		return value * (1 - alpha) + 0.5 * alpha;
-	}
-
-	#runMetadataRebuild(): void {
-		this.#deltaRotation = 360 / 6;
-
-		const colorGrid = this.#colorGrid = Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
-		colorGrid.lightness = this.#interpolate(colorGrid.lightness / 100) * 100;
-	}
-
-	#runContextRebuild(): void {
-		const { context } = this;
-		const { width, height } = context.canvas;
-
-		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
-
-		context.lineWidth = min(width, height) >> 8;
-	}
-	//#endregion
-
-	rebuild(): void {
-		this.#runMetadataRebuild();
-		this.#runContextRebuild();
-	}
-
-	//#region Update preparation
-	#runContextUpdate(): void {
-		const { audioset, context } = this;
-		const { normVolume, normAmplitude } = audioset;
-		const { width, height } = context.canvas;
-
-		let { a, b, c, d, e, f } = context.getTransform();
-		a = 1 + 0.2 * normVolume;
-		d = 1 + 0.4 * normAmplitude;
-		context.setTransform(a, b, c, d, e, f);
-		context.clearRect(-e / a, -f / d, width / a, height / d);
-	}
-	//#endregion
-	//#region Grid
-	#runGridDrawing(): void {
-		const colorGrid = this.#colorGrid;
-		const { context } = this;
-		const { width, height } = context.canvas;
-
-		const step = 4 * context.lineWidth;
-		const position = Vector2D.newNaN;
-		position.y = -height / 2;
-		context.beginPath();
-		// Grid render loop optimization
-		for (position.x = -trunc(width / step) * step / 2; position.x < width; position.x += step) {
-			context.moveTo(position.x, position.y);
-			context.lineTo(position.x, position.y + height);
-		}
-		position.x = -width / 2;
-		for (position.y = -trunc(height / step) * step / 2; position.y < height; position.y += step) {
-			context.moveTo(position.x, position.y);
-			context.lineTo(position.x + width, position.y);
-		}
-		context.globalCompositeOperation = "source-over";
-		context.strokeStyle = colorGrid.toString();
-		context.stroke();
-	}
-	//#endregion
-	//#region Spectrum
-	#colorSpectrumSeed: Color = Color.fromHSL(0, 100, 50);
-
-	#runSpectrumDrawing(): void {
-		const normShadowAnchor = this.#normShadowAnchor;
-		const colorSpectrumSeed = this.#colorSpectrumSeed;
-		const deltaRotation = this.#deltaRotation;
-		const { context, audioset } = this;
-		const { normsDataFrequency, normVolume, normAmplitude } = audioset;
-		const { width, height } = context.canvas;
-
-		const gradientSpectrum = context.createLinearGradient(-width / 2, height / 2, width / 2, height / 2);
-		context.beginPath();
-		const position = Vector2D.newNaN;
-		const length = trunc(width / max(width, height) * audioset.length);
-		for (let offset = 0.5 - length; offset < length; offset++) {
-			const index = trunc(abs(offset));
-			const normProgress = index.lerp(0, length);
-			const normDatumFrequency = normsDataFrequency[trunc(index * 0.7)];
-			const normScale = meanGeometric(normDatumFrequency, normDatumFrequency, normVolume);
-			position.x = width * (normProgress - 0.5);
-			position.y = height * ((1 - normScale) * normShadowAnchor - 0.5 + Number(offset < 0) * normScale);
-			gradientSpectrum.addColorStop(normProgress, new Color(colorSpectrumSeed)
-				.rotate(120 * normProgress + deltaRotation * (normAmplitude * 2 - 1))
-				.illuminate(0.2 + 0.5 * normVolume)
-				.toString()
-			);
-			context.lineTo(position.x, position.y);
-		}
-		context.closePath();
-		context.globalCompositeOperation = "source-in";
-		context.fillStyle = gradientSpectrum;
-		context.fill();
-	}
-
-	#offsetSpectrumRotation: number = 0;
-
-	#runSpectrumRotation(): void {
-		const colorSpectrumSeed = this.#colorSpectrumSeed;
-		const deltaRotation = this.#deltaRotation;
-		const { audioset, delta } = this;
-		const { normAmplitude } = audioset;
-
-		if (!Number.isFinite(delta)) return;
-		const [integer, fractional] = split(this.#offsetSpectrumRotation + deltaRotation * delta * normAmplitude);
-		colorSpectrumSeed.rotate(-integer);
-		this.#offsetSpectrumRotation = fractional;
-	}
-	//#endregion
-	//#region Shadow
-	#colorShadow: Color = Color.newBlack;
-
-	#runShadowDrawing(): void {
-		const normShadowAnchor = this.#normShadowAnchor;
-		const normTopAnchor = normShadowAnchor * 2 / 3;
-		const normBottomAnchor = normTopAnchor + 1 / 3;
-		const colorShadow = this.#colorShadow;
-		const { context } = this;
-		const { width, height } = context.canvas;
-
-		const { a, d, e, f } = context.getTransform();
-		const gradientShadow = context.createLinearGradient(e, -f, e, f);
-		gradientShadow.addColorStop(0, colorShadow.pass(0).toString());
-		gradientShadow.addColorStop(normTopAnchor, colorShadow.pass(0.2).toString());
-		gradientShadow.addColorStop(normShadowAnchor, colorShadow.pass(0.8).toString());
-		gradientShadow.addColorStop(normBottomAnchor, colorShadow.pass(0.4).toString());
-		gradientShadow.addColorStop(1, colorShadow.pass(0).toString());
-		context.globalCompositeOperation = "multiply";
-		context.fillStyle = gradientShadow;
-		context.fillRect(-e / a, -f / d, width / a, height / d);
-	}
-	//#endregion
-
-	update(): void {
-		this.#runContextUpdate();
-
-		this.#runGridDrawing();
-
-		this.#runSpectrumDrawing();
-		this.#runSpectrumRotation();
-
-		this.#runShadowDrawing();
-	}
-});
-//#endregion
 //#region Pulsar
 Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 	//#region Rebuild preparation
@@ -330,6 +173,163 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 		this.#runShadowDrawing();
 
 		this.#runBackgroundDrawing();
+	}
+});
+//#endregion
+//#region Spectrogram
+Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
+	//#region Rebuild preparation
+	#normShadowAnchor: number = 0.8;
+	#deltaRotation: number;
+	#colorGrid: Color;
+
+	#interpolate(value: number): number {
+		const alpha = 0.2;
+		return value * (1 - alpha) + 0.5 * alpha;
+	}
+
+	#runMetadataRebuild(): void {
+		this.#deltaRotation = 360 / 6;
+
+		const colorGrid = this.#colorGrid = Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
+		colorGrid.lightness = this.#interpolate(colorGrid.lightness / 100) * 100;
+	}
+
+	#runContextRebuild(): void {
+		const { context } = this;
+		const { width, height } = context.canvas;
+
+		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
+
+		context.lineWidth = min(width, height) >> 8;
+	}
+	//#endregion
+
+	rebuild(): void {
+		this.#runMetadataRebuild();
+		this.#runContextRebuild();
+	}
+
+	//#region Update preparation
+	#runContextUpdate(): void {
+		const { audioset, context } = this;
+		const { normVolume, normAmplitude } = audioset;
+		const { width, height } = context.canvas;
+
+		let { a, b, c, d, e, f } = context.getTransform();
+		a = 1 + 0.2 * normVolume;
+		d = 1 + 0.4 * normAmplitude;
+		context.setTransform(a, b, c, d, e, f);
+		context.clearRect(-e / a, -f / d, width / a, height / d);
+	}
+	//#endregion
+	//#region Grid
+	#runGridDrawing(): void {
+		const colorGrid = this.#colorGrid;
+		const { context } = this;
+		const { width, height } = context.canvas;
+
+		const step = 4 * context.lineWidth;
+		const position = Vector2D.newNaN;
+		position.y = -height / 2;
+		context.beginPath();
+		// Grid render loop optimization
+		for (position.x = -trunc(width / step) * step / 2; position.x < width; position.x += step) {
+			context.moveTo(position.x, position.y);
+			context.lineTo(position.x, position.y + height);
+		}
+		position.x = -width / 2;
+		for (position.y = -trunc(height / step) * step / 2; position.y < height; position.y += step) {
+			context.moveTo(position.x, position.y);
+			context.lineTo(position.x + width, position.y);
+		}
+		context.globalCompositeOperation = "source-over";
+		context.strokeStyle = colorGrid.toString();
+		context.stroke();
+	}
+	//#endregion
+	//#region Spectrum
+	#colorSpectrumSeed: Color = Color.fromHSL(0, 100, 50);
+
+	#runSpectrumDrawing(): void {
+		const normShadowAnchor = this.#normShadowAnchor;
+		const colorSpectrumSeed = this.#colorSpectrumSeed;
+		const deltaRotation = this.#deltaRotation;
+		const { context, audioset } = this;
+		const { normsDataFrequency, normVolume, normAmplitude } = audioset;
+		const { width, height } = context.canvas;
+
+		const gradientSpectrum = context.createLinearGradient(-width / 2, height / 2, width / 2, height / 2);
+		context.beginPath();
+		const position = Vector2D.newNaN;
+		const length = trunc(width / max(width, height) * audioset.length);
+		for (let offset = 0.5 - length; offset < length; offset++) {
+			const index = trunc(abs(offset));
+			const normProgress = index.lerp(0, length);
+			const normDatumFrequency = normsDataFrequency[trunc(index * 0.7)];
+			const normScale = meanGeometric(normDatumFrequency, normDatumFrequency, normVolume);
+			position.x = width * (normProgress - 0.5);
+			position.y = height * ((1 - normScale) * normShadowAnchor - 0.5 + Number(offset < 0) * normScale);
+			gradientSpectrum.addColorStop(normProgress, new Color(colorSpectrumSeed)
+				.rotate(120 * normProgress + deltaRotation * (normAmplitude * 2 - 1))
+				.illuminate(0.2 + 0.5 * normVolume)
+				.toString()
+			);
+			context.lineTo(position.x, position.y);
+		}
+		context.closePath();
+		context.globalCompositeOperation = "source-in";
+		context.fillStyle = gradientSpectrum;
+		context.fill();
+	}
+
+	#offsetSpectrumRotation: number = 0;
+
+	#runSpectrumRotation(): void {
+		const colorSpectrumSeed = this.#colorSpectrumSeed;
+		const deltaRotation = this.#deltaRotation;
+		const { audioset, delta } = this;
+		const { normAmplitude } = audioset;
+
+		if (!Number.isFinite(delta)) return;
+		const [integer, fractional] = split(this.#offsetSpectrumRotation + deltaRotation * delta * normAmplitude);
+		colorSpectrumSeed.rotate(-integer);
+		this.#offsetSpectrumRotation = fractional;
+	}
+	//#endregion
+	//#region Shadow
+	#colorShadow: Color = Color.newBlack;
+
+	#runShadowDrawing(): void {
+		const normShadowAnchor = this.#normShadowAnchor;
+		const normTopAnchor = normShadowAnchor * 2 / 3;
+		const normBottomAnchor = normTopAnchor + 1 / 3;
+		const colorShadow = this.#colorShadow;
+		const { context } = this;
+		const { width, height } = context.canvas;
+
+		const { a, d, e, f } = context.getTransform();
+		const gradientShadow = context.createLinearGradient(e, -f, e, f);
+		gradientShadow.addColorStop(0, colorShadow.pass(0).toString());
+		gradientShadow.addColorStop(normTopAnchor, colorShadow.pass(0.2).toString());
+		gradientShadow.addColorStop(normShadowAnchor, colorShadow.pass(0.8).toString());
+		gradientShadow.addColorStop(normBottomAnchor, colorShadow.pass(0.4).toString());
+		gradientShadow.addColorStop(1, colorShadow.pass(0).toString());
+		context.globalCompositeOperation = "multiply";
+		context.fillStyle = gradientShadow;
+		context.fillRect(-e / a, -f / d, width / a, height / d);
+	}
+	//#endregion
+
+	update(): void {
+		this.#runContextUpdate();
+
+		this.#runGridDrawing();
+
+		this.#runSpectrumDrawing();
+		this.#runSpectrumRotation();
+
+		this.#runShadowDrawing();
 	}
 });
 //#endregion
