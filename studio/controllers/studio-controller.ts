@@ -38,6 +38,8 @@ class StudioController extends Controller {
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
 		const inputAudioLoader = body.getElement(HTMLInputElement, "input#audio-loader");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
+		await CorsIsolationController.launch();
+		await Promise.asTimeout(5000);
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper });
 
 		const settings = repository.content;
