@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/node";
-import { type InputOption, type RollupOptions } from "rollup";
+import { type InputOption, type OutputOptions, type PreRenderedChunk, type RollupOptions } from "rollup";
 import { type AppType, type BuildEnvironmentOptions, type ESBuildOptions, type ServerOptions, type UserConfig } from "vite";
 import { VitePlugin } from "../plugins/vite-plugin.js";
 import { type OutgoingHttpHeaders } from "node:http";
@@ -12,11 +12,13 @@ export class ViteConfig {
 	#inputs: readonly URL[];
 	#output: URL;
 	#plugins: readonly VitePlugin[];
+	#direct: readonly URL[];
 
-	constructor(inputs: readonly URL[], output: URL, plugins: readonly VitePlugin[]) {
+	constructor(inputs: readonly URL[], output: URL, plugins: readonly VitePlugin[], direct: readonly URL[]) {
 		this.#inputs = inputs;
 		this.#output = output;
 		this.#plugins = plugins;
+		this.#direct = direct;
 	}
 
 	#normalizeInputs(): Record<string, string> {
@@ -34,9 +36,33 @@ export class ViteConfig {
 		return inputs;
 	}
 
+	#normalizeServiceWorkers(): Record<string, string> {
+		const entries: Record<string, string> = {};
+		for (const url of this.#direct) {
+			const path = fileURLToPath(url);
+			const filename = path.replace(/\\/g, "/").split("/").pop()!;
+			const name = filename.replace(/\.[^/.]+$/, String.empty);
+			entries[name] = path;
+		}
+		return entries;
+	}
+
+	#entryFileNames(names: Set<string>, chunk: PreRenderedChunk): string {
+		if (names.has(chunk.name)) return "[name].js";
+		return "assets/[name]-[hash].js";
+	}
+
+	#buildOutput(names: Set<string>): OutputOptions {
+		const entryFileNames = this.#entryFileNames.bind(this, names);
+		return { entryFileNames };
+	}
+
 	#buildRollupOptions(): RollupOptions {
-		const input: InputOption = this.#normalizeInputs();
-		return { input };
+		const recordInputs = this.#normalizeInputs();
+		const recordServiceWorkers = this.#normalizeServiceWorkers();
+		const input: InputOption = { ...recordInputs, ...recordServiceWorkers };
+		const output: OutputOptions = this.#buildOutput(new Set(Object.keys(recordServiceWorkers)));
+		return { input, output };
 	}
 
 	#buildEnvironment(): BuildEnvironmentOptions {
@@ -67,6 +93,11 @@ export class ViteConfig {
 		return { target, keepNames };
 	}
 
+	#buildWorker(): { format?: "es"; } {
+		const format = "es" as const;
+		return { format };
+	}
+
 	build(): UserConfig {
 		const base: string = "./";
 		const appType: AppType = "mpa";
@@ -74,10 +105,8 @@ export class ViteConfig {
 		const build: BuildEnvironmentOptions = this.#buildEnvironment();
 		const server: ServerOptions = this.#buildServer();
 		const esbuild: ESBuildOptions = this.#buildESBuild();
-		const worker = { format: "es" as const };
-
+		const worker = this.#buildWorker();
 		const plugins = this.#plugins.map(plugin => plugin.build());
-
 		return { base, appType, publicDir, build, server, esbuild, worker, plugins };
 	}
 }
