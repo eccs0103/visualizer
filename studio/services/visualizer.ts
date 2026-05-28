@@ -14,12 +14,16 @@ export interface VisualizerEventMap {
 	"rebuild": Event;
 }
 
-export interface VisualizationBundle {
-	get context(): CanvasRenderingContext2D;
-	get audioset(): Audioset;
+export interface VisualizationEnvironment {
 	get isLaunched(): boolean;
 	get delta(): number;
 	get fps(): number;
+}
+
+export interface VisualizationBundle {
+	get context(): CanvasRenderingContext2D;
+	get audioset(): Audioset;
+	get environment(): VisualizationEnvironment;
 	rebuild(): void;
 	update(): void;
 }
@@ -34,20 +38,32 @@ export interface VisualizerOptions {
 
 export class Visualizer extends EventTarget {
 	//#region Visualization
+	static #Environment = class Environment implements VisualizationEnvironment {
+		#engine: Engine;
+
+		constructor(engine: Engine) {
+			this.#engine = engine;
+		}
+
+		get isLaunched(): boolean { return this.#engine.launched; }
+		get delta(): number { return this.#engine.delta; }
+		get fps(): number { return this.#engine.fps; }
+	};
+
 	static #Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
 		#visualizer: Visualizer;
+		#environment: VisualizationEnvironment;
 
 		constructor() {
 			if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
 			if (Visualizer.#ownerVisualization === null) throw new TypeError("Illegal constructor");
 			this.#visualizer = Visualizer.#ownerVisualization;
+			this.#environment = new Visualizer.#Environment(this.#visualizer.#engine);
 		}
 
 		get context(): CanvasRenderingContext2D { return this.#visualizer.#context; }
 		get audioset(): Audioset { return this.#visualizer.#manager.audioset; }
-		get isLaunched(): boolean { return this.#visualizer.#engine.launched; }
-		get delta(): number { return this.#visualizer.#engine.delta; }
-		get fps(): number { return this.#visualizer.#engine.fps; }
+		get environment(): VisualizationEnvironment { return this.#environment; }
 
 		rebuild(): void {
 			return;

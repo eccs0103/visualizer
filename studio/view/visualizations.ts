@@ -95,7 +95,8 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 	#runHaloRotation(): void {
 		const colorHalo = this.#colorHaloOuter;
 		const duration = 6;
-		const { audioset, delta } = this;
+		const { audioset, environment } = this;
+		const { delta } = environment;
 		const { normVolume } = audioset;
 
 		if (!Number.isFinite(delta)) return;
@@ -288,7 +289,8 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	#runSpectrumRotation(): void {
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
 		const deltaRotation = this.#deltaRotation;
-		const { audioset, delta } = this;
+		const { audioset, environment } = this;
+		const { delta } = environment;
 		const { normAmplitude } = audioset;
 
 		if (!Number.isFinite(delta)) return;
