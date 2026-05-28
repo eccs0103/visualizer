@@ -15,7 +15,7 @@ export class CorsIsolationController extends Controller {
 			if (registration.active !== null) resolve();
 		});
 		location.reload();
-		// await Promise.asTimeout(Infinity);
+		await Promise.asTimeout(Infinity);
 	}
 
 	async catch(error: Error): Promise<void> {

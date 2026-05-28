@@ -38,8 +38,6 @@ class StudioController extends Controller {
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
 		const inputAudioLoader = body.getElement(HTMLInputElement, "input#audio-loader");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
-		await CorsIsolationController.launch();
-		await Promise.asTimeout(0);
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper });
 
 		const settings = repository.content;
@@ -67,11 +65,11 @@ class StudioController extends Controller {
 	}
 
 	async catch(error: Error): Promise<void> {
-		await CorsIsolationController.launch();
 		const message = `${error}\n\nAn error occurred. Any further actions may result in errors. To prevent this from happening, would you like to reload?`;
 		if (window.confirm(message)) location.reload();
 	}
 }
 //#endregion
 
+await CorsIsolationController.launch();
 await StudioController.launch();
