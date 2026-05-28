@@ -64,6 +64,7 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 		const buttonsTrainScene = this.#buttonsTrainScene;
 		const spanModelConfidence = this.#spanModelConfidence;
 
+		debugger;
 		for (const [scene, probability] of audioset.probabilities) {
 			const buttonTrainScene = buttonsTrainScene[SceneDefinition.indexOf(scene)];
 			AIController.#setScenePrediction(buttonTrainScene, autoCorrect && scene === audioset.scene);

@@ -11,6 +11,7 @@ import { ClipController } from "./clip-controller.js";
 import "../view/visualizations.js";
 import { MetadataInjector } from "../../environment/services/metadata-injector.js";
 import { AnalyticsController } from "../../environment/controllers/analytics-controller.js";
+import "../controllers/coi-controller.js";
 
 const { baseURI, body } = document;
 
