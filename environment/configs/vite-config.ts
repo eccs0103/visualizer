@@ -55,9 +55,10 @@ export class ViteConfig {
 	}
 
 	#buildServer(): ServerOptions {
+		const open: boolean = true;
 		const strictPort: boolean = true;
 		const headers: OutgoingHttpHeaders = this.#buildOutgoingHeaders();
-		return { strictPort, headers };
+		return { open, strictPort, headers };
 	}
 
 	#buildESBuild(): ESBuildOptions {
