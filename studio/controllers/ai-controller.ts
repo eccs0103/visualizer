@@ -96,8 +96,7 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 		const aiExport = dialogConfigurator.getElement(HTMLElement, "#ai-export");
 		const aiShareSection = dialogConfigurator.getElement(HTMLElement, "#ai-share");
 
-		for (const element of [aiSeparator, aiHeading, aiConfidence, aiScenes, aiAutoTrain, aiProgress, aiReset, aiExport, aiShareSection])
-			element.hidden = false;
+		for (const element of [aiSeparator, aiHeading, aiConfidence, aiScenes, aiAutoTrain, aiProgress, aiReset, aiExport, aiShareSection]) element.hidden = false;
 
 		this.#spanModelConfidence = dialogConfigurator.getElement(HTMLSpanElement, "span#model-confidence");
 		const divSceneControls = dialogConfigurator.getElement(HTMLDivElement, "div#scene-controls");
@@ -134,7 +133,7 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 
 		buttonShareModel.addEventListener("click", (event) => {
 			const title = "Weights submission";
-			const isSuccesfull = (window.open(`https://github.com/eccs0103/Visualizer/issues/new?title=${window.encodeURIComponent(title)}`, "_blank") !== null);
+			const isSuccesfull = (window.open(`https://github.com/eccs0103/visualizer/issues/new?title=${window.encodeURIComponent(title)}`, "_blank") !== null);
 			if (!isSuccesfull) window.alert("Unable to open the submission page.");
 		});
 	}

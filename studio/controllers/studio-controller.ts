@@ -9,12 +9,26 @@ import { AudioController } from "./audio-controller.js";
 import { ConfiguratorController } from "./configurator-controller.js";
 import { ClipController } from "./clip-controller.js";
 import "../view/visualizations.js";
+import { MetadataInjector } from "../../environment/services/metadata-injector.js";
+import { AnalyticsController } from "../../environment/controllers/analytics-controller.js";
 
-const { body } = document;
+const { baseURI, body } = document;
 
 //#region Studio controller
 class StudioController extends Controller {
 	async run(): Promise<void> {
+		MetadataInjector.inject({
+			type: "Application",
+			name: "Visualizer",
+			webpage: new URL("https://eccs0103.github.io/visualizer/"),
+			preview: new URL("../assets/icons/equalizer.png", new URL(baseURI)),
+			category: "MultimediaApplication",
+			os: "Web Browser",
+			description: "AI-powered real-time music visualizer for browsers. Neural-network scene detection, Canvas 2D rendering, and a simple API for custom visualizations.",
+			keywords: ["music visualizer", "web audio", "canvas visualization", "real-time audio", "ai visualizer"],
+		});
+		void AnalyticsController.launch();
+
 		const repository: ArchiveRepository<typeof Settings> = new ArchiveRepository("Visualizer\\Studio\\Settings", Settings, Settings.newDefault);
 		const store: ObjectStore = new ObjectStore("Visualizer", "Audiolist");
 		const search = new URLSearchParams(location.search);
@@ -41,7 +55,7 @@ class StudioController extends Controller {
 		const bPlaybackTime = divInterface.getElement(HTMLElement, "b#playback-time");
 		const bClipTime = divInterface.getElement(HTMLElement, "b#clip-time");
 		const inputPlaybackTrack = divInterface.getElement(HTMLInputElement, "input#playback-track");
-		const dialogConfigurator = document.getElement(HTMLDialogElement, "dialog#configurator");
+		const dialogConfigurator = body.getElement(HTMLDialogElement, "dialog#configurator");
 		const selectVisualizerVisualization = dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization");
 
 		await AudioController.launch(store, audioPlayer, inputAudioLoader, divInterface, buttonAudioDrive, bPlaybackTime, inputPlaybackTrack);
