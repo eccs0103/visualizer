@@ -28,6 +28,10 @@ export interface VisualizationDescriptor {
 	new(): VisualizationBundle;
 }
 
+export interface VisualizerOptions {
+	isDeveloper: boolean;
+}
+
 export class Visualizer extends EventTarget {
 	//#region Visualization
 	static #Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
@@ -78,8 +82,13 @@ export class Visualizer extends EventTarget {
 	#bundles: Map<string, VisualizationBundle> = new Map();
 	#selection: [string, VisualizationBundle];
 
-	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement) {
+	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement);
+	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement, options: Partial<VisualizerOptions>);
+	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement, options: Partial<VisualizerOptions> = {}) {
 		super();
+
+		let { isDeveloper } = options;
+		isDeveloper ??= false;
 
 		const descriptors = Visualizer.#descriptors;
 		if (descriptors.size < 1) throw new Error("No visualization is attached to the visualizer");
@@ -97,7 +106,7 @@ export class Visualizer extends EventTarget {
 		this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
 
 		const manager = this.#manager = new Audioset.Manager(media);
-		this.#analyzer = new AudioAnalyzer(manager.rate);
+		this.#analyzer = new AudioAnalyzer(manager.rate, { isDeveloper });
 		engine.addEventListener("trigger", event => manager.refresh());
 
 		this.#selection = Array.from(this.#bundles)[0];
@@ -155,6 +164,7 @@ export class Visualizer extends EventTarget {
 	}
 
 	get analyzer(): AudioAnalyzer { return this.#analyzer; }
+	get isDeveloper(): boolean { return this.#analyzer.isDeveloper; }
 	get audioset(): Audioset { return this.#manager.audioset; }
 
 	static attach(name: string, visualization: VisualizationDescriptor): void {

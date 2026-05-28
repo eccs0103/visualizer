@@ -16,17 +16,27 @@ export interface AudioAnalyzerEventMap {
 	"auto-progress": CustomEvent<number>;
 }
 
+export interface AudioAnalyzerOptions {
+	isDeveloper: boolean;
+}
+
 export class AudioAnalyzer extends EventTarget {
 	#autoTrain: boolean = false;
+	#isDeveloper: boolean;
 	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
 	#worker: Worker = new Worker(new URL("./controllers/audio-analyzer-worker.ts", baseURI), { type: "module" });
 	#rate: number;
 	#pendingExport: boolean = false;
 
-	constructor(rate: number) {
+	constructor(rate: number);
+	constructor(rate: number, options: Partial<AudioAnalyzerOptions>);
+	constructor(rate: number, options: Partial<AudioAnalyzerOptions> = {}) {
 		super();
+
 		this.#rate = rate;
+		this.#isDeveloper = options.isDeveloper ?? false;
+
 		const { inSAB, outSAB } = this.#bridge;
 		const worker = this.#worker;
 		worker.postMessage(Command.export(new InitializeCommand(inSAB, outSAB)));
@@ -46,11 +56,11 @@ export class AudioAnalyzer extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
-	get autoTrain(): boolean {
-		return this.#autoTrain;
-	}
+	get isDeveloper(): boolean { return this.#isDeveloper; }
+	get autoTrain(): boolean { return this.#autoTrain; }
 
 	set autoTrain(enabled: boolean) {
+		if (!this.#isDeveloper) return;
 		if (this.#autoTrain === enabled) return;
 		this.#autoTrain = enabled;
 		this.#worker.postMessage(Command.export(new SetAutoTrainCommand(enabled)));
@@ -64,21 +74,25 @@ export class AudioAnalyzer extends EventTarget {
 	}
 
 	train(scene: Scene): void {
+		if (!this.#isDeveloper) return;
 		const worker = this.#worker;
 		worker.postMessage(Command.export(new TrainCommand(SceneDefinition.indexOf(scene))));
 		worker.postMessage(Command.export(new SaveWeightsCommand()));
 	}
 
 	teach(scene: Scene): void {
+		if (!this.#isDeveloper) return;
 		this.#worker.postMessage(Command.export(new TrainCommand(SceneDefinition.indexOf(scene))));
 	}
 
 	exportWeights(): void {
+		if (!this.#isDeveloper) return;
 		this.#pendingExport = true;
 		this.#worker.postMessage(Command.export(new SaveWeightsCommand()));
 	}
 
 	resetWeights(): void {
+		if (!this.#isDeveloper) return;
 		this.#worker.postMessage(Command.export(new ResetCommand()));
 		this.#repository.reset();
 	}

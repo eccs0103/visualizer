@@ -10,17 +10,20 @@ import { ConfiguratorController } from "./configurator-controller.js";
 import { ClipController } from "./clip-controller.js";
 import "../view/visualizations.js";
 
+const { body } = document;
+
 //#region Studio controller
 class StudioController extends Controller {
 	async run(): Promise<void> {
 		const repository: ArchiveRepository<typeof Settings> = new ArchiveRepository("Visualizer\\Studio\\Settings", Settings, Settings.newDefault);
 		const store: ObjectStore = new ObjectStore("Visualizer", "Audiolist");
+		const search = new URLSearchParams(location.search);
+		const isDeveloper = search.has("developer");
 
-		const { body } = document;
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
 		const inputAudioLoader = body.getElement(HTMLInputElement, "input#audio-loader");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
-		const visualizer = new Visualizer(canvasDisplay, audioPlayer);
+		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper });
 
 		const settings = repository.content;
 		visualizer.rate = settings.rate;

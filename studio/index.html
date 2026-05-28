@@ -60,77 +60,82 @@
 		<h2>Visualizer</h2>
 		<section class="option">
 			<h4 class="title">Rate</h4>
-			<span class="definition">The maximum frame rate limit in the visualizer, determining how often the graphical display updates per second. A higher value increases smoothness but also raises the system load.</span>
+			<span class="definition">How many times per second the visuals refresh. Higher values look smoother but increase CPU usage.</span>
 			<input id="visualizer-rate" type="number" min="30" max="1200" step="30" class="value rounded depth with-padding">
 		</section>
 		<section class="option">
 			<h4 class="title">AI</h4>
-			<span class="definition">Master AI switch. When enabled, the neural network runs scene inference every frame and applies automatic dB correction per detected scene.</span>
+			<span class="definition">Enables the neural network. When on, the AI detects the current music scene and automatically adjusts the visualization to match.</span>
 			<input id="auto-correct-toggle" type="checkbox" hidden>
 			<label for="auto-correct-toggle" role="checkbox" class="value depth toggle">
 				<span class="layer knob"></span>
 			</label>
 		</section>
-		<hr class="depth">
-		<h2>AI dashboard</h2>
-		<section class="option">
+		<hr id="ai-separator" class="depth" hidden>
+		<h2 id="ai-heading" hidden>AI dashboard</h2>
+		<section id="ai-confidence" class="option" hidden>
 			<h4 class="title">Model confidence</h4>
-			<span class="definition">Rolling average certainty across frames. ≤17% — untrained. 50%+ — decent. 70%+ — well-trained.</span>
+			<span class="definition">How certain the AI is about its current scene prediction. Below 17% means untrained; 50%+ is decent; 70%+ is well-trained.</span>
 			<span id="model-confidence" class="value scene-label">—</span>
 		</section>
-		<section class="option">
+		<section id="ai-scenes" class="option" hidden>
 			<h4 class="title">Scene training</h4>
-			<span class="definition">Each bar shows the model's current probability for that scene. Click a scene to pin it as the active training target — the model trains on it continuously while pinned. Click again to unpin and save.</span>
+			<span class="definition">Each bar shows the AI's confidence for that scene. Click a scene to pin it as the training target — the model continuously learns from it while pinned. Click again to unpin.</span>
 			<div id="scene-controls" class="grid-line flex wrap with-gap"></div>
 		</section>
-		<section class="option">
+		<section id="ai-auto-train" class="option" hidden>
 			<h4 class="title">Auto-training <span class="warn">[Recommended]</span></h4>
-			<span class="definition">The AI labels itself using DSP rules while music plays. Weights are saved automatically every 300 samples.</span>
+			<span class="definition">The AI labels scenes automatically while music plays. Weights are saved in the background.</span>
 			<input id="auto-train-toggle" type="checkbox" hidden>
 			<label for="auto-train-toggle" role="checkbox" class="value depth toggle">
 				<span class="layer knob"></span>
 			</label>
 		</section>
-		<section class="option">
+		<section id="ai-progress" class="option" hidden>
 			<h4 class="title">Samples collected</h4>
-			<span class="definition">Auto-training progress. ~300 samples is well-trained. Persists across sessions.</span>
+			<span class="definition">Auto-training progress. Around 300 samples gives reliable results. Saved across sessions.</span>
 			<span id="auto-train-count" class="value scene-label">0</span>
 		</section>
-		<section class="option">
+		<section id="ai-reset" class="option" hidden>
 			<h4 class="title">Reset model</h4>
-			<span class="definition">Wipes learned weights and restarts from scratch.</span>
+			<span class="definition">Clears all learned weights and resets the AI to its default state.</span>
 			<button id="reset-model" type="button" class="value rounded depth with-padding">Reset</button>
 		</section>
-		<section class="option">
+		<section id="ai-export" class="option" hidden>
 			<h4 class="title">Export weights</h4>
-			<span class="definition">Downloads nn-weights.json. Place in resources/data/ to share on GitHub Pages.</span>
+			<span class="definition">Downloads the AI weights file to your device. Use this to back up your trained model.</span>
 			<button id="export-model" type="button" class="value rounded depth with-padding">Export</button>
+		</section>
+		<section id="ai-share" class="option" hidden>
+			<h4 class="title">Share weights</h4>
+			<span class="definition">Opens a GitHub issue to submit your trained model to the author. Export your weights first, then attach the file to the issue.</span>
+			<button id="share-model" type="button" class="value rounded depth with-padding">Share</button>
 		</section>
 		<hr class="depth">
 		<h2>Visualization</h2>
 		<section class="option">
 			<h4 class="title">Type</h4>
-			<span class="definition">The method of displaying audio analysis in the visualizer. The chosen method affects how sound data is transformed into visual elements.</span>
+			<span class="definition">The visual style used to represent audio. Each style has a different look and feel.</span>
 			<select id="visualizer-visualization" class="value rounded depth with-padding"></select>
 		</section>
 		<section class="option">
 			<h4 class="title">Quality</h4>
-			<span class="definition">The level of detail in audio analysis, where higher values enhance accuracy, producing a more detailed visual representation. Acceptable values range from 5 to 15.</span>
+			<span class="definition">Detail level of the audio analysis. Higher values are more accurate but heavier on the CPU. Acceptable range: 5–15.</span>
 			<input id="visualization-quality" type="number" min="5" max="15" step="1" class="value rounded depth with-padding">
 		</section>
 		<section class="option">
 			<h4 class="title">Smoothing</h4>
-			<span class="definition">The level of smoothing applied to the analysis, ensuring a smoother transition between values. A value of 0 means no smoothing, while 1 indicates maximum smoothing.</span>
+			<span class="definition">How smoothly values transition between frames. 0 means no smoothing; 1 is maximum smoothness.</span>
 			<input id="visualization-smoothing" type="range" min="0" max="1" step="0.1" class="value depth rounded">
 		</section>
 		<section class="option">
 			<h4 class="title">Focus</h4>
-			<span class="definition">The focus level of the audio analysis, adjusting the central volume value for analysis purposes, allowing emphasis on specific frequency ranges or volume levels.</span>
+			<span class="definition">The center volume level the analysis focuses on. Adjust to emphasize specific loudness ranges.</span>
 			<input id="visualization-focus" type="range" min="-100" max="0" step="1" class="value depth rounded">
 		</section>
 		<section class="option">
 			<h4 class="title">Spread</h4>
-			<span class="definition">The volume range for analysis, expanding or contracting the area around the central focus value.</span>
+			<span class="definition">The volume range around the focus point. Wider means more dynamic range is captured.</span>
 			<input id="visualization-spread" type="range" min="1" max="100" step="1" class="value depth rounded">
 		</section>
 	</dialog>

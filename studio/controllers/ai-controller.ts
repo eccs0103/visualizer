@@ -51,8 +51,6 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 		button.classList.add("scene-button", "rounded", "depth", "with-padding");
 		button.textContent = String(scene);
 		button.addEventListener("click", (event) => {
-			event.stopPropagation();
-
 			analyzer.train(scene);
 			const newScene = (this.#sceneSelection === scene ? null : scene);
 			this.#markTrainingSelection(newScene);
@@ -82,9 +80,24 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 	}
 
 	async run(repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
+		if (!visualizer.isDeveloper) return;
+
 		this.#visualizer = visualizer;
 		const { analyzer } = visualizer;
 		const settings = repository.content;
+
+		const aiSeparator = dialogConfigurator.getElement(HTMLElement, "#ai-separator");
+		const aiHeading = dialogConfigurator.getElement(HTMLElement, "#ai-heading");
+		const aiConfidence = dialogConfigurator.getElement(HTMLElement, "#ai-confidence");
+		const aiScenes = dialogConfigurator.getElement(HTMLElement, "#ai-scenes");
+		const aiAutoTrain = dialogConfigurator.getElement(HTMLElement, "#ai-auto-train");
+		const aiProgress = dialogConfigurator.getElement(HTMLElement, "#ai-progress");
+		const aiReset = dialogConfigurator.getElement(HTMLElement, "#ai-reset");
+		const aiExport = dialogConfigurator.getElement(HTMLElement, "#ai-export");
+		const aiShareSection = dialogConfigurator.getElement(HTMLElement, "#ai-share");
+
+		for (const element of [aiSeparator, aiHeading, aiConfidence, aiScenes, aiAutoTrain, aiProgress, aiReset, aiExport, aiShareSection])
+			element.hidden = false;
 
 		this.#spanModelConfidence = dialogConfigurator.getElement(HTMLSpanElement, "span#model-confidence");
 		const divSceneControls = dialogConfigurator.getElement(HTMLDivElement, "div#scene-controls");
@@ -93,6 +106,7 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 		const spanAutoTrainCount = dialogConfigurator.getElement(HTMLSpanElement, "span#auto-train-count");
 		const buttonResetModel = dialogConfigurator.getElement(HTMLButtonElement, "button#reset-model");
 		const buttonExportModel = dialogConfigurator.getElement(HTMLButtonElement, "button#export-model");
+		const buttonShareModel = dialogConfigurator.getElement(HTMLButtonElement, "button#share-model");
 
 		visualizer.addEventListener("update", event => this.#onVisualizerUpdate());
 
@@ -108,7 +122,6 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 		});
 
 		buttonResetModel.addEventListener("click", (event) => {
-			event.stopPropagation();
 			this.#sceneSelection = null;
 			this.#markTrainingSelection(null);
 			analyzer.resetWeights();
@@ -116,8 +129,13 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 		});
 
 		buttonExportModel.addEventListener("click", (event) => {
-			event.stopPropagation();
 			analyzer.exportWeights();
+		});
+
+		buttonShareModel.addEventListener("click", (event) => {
+			const title = "Weights submission";
+			const isSuccesfull = (window.open(`https://github.com/eccs0103/Visualizer/issues/new?title=${window.encodeURIComponent(title)}`, "_blank") !== null);
+			if (!isSuccesfull) window.alert("Unable to open the submission page.");
 		});
 	}
 
