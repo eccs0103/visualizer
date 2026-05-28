@@ -65,8 +65,8 @@ export class Audioset {
 			analyser.fftSize = (1 << value);
 			const length = analyser.frequencyBinCount;
 			audioset.#length = length;
-			audioset.#normsDataFrequency = new Float32Array(length);
-			audioset.#normsDataTemporal = new Float32Array(length);
+			audioset.#dataFrequency = new Float32Array(length);
+			audioset.#dataTemporal = new Float32Array(length);
 			this.#dataTemporary = new Uint8Array(length);
 		}
 
@@ -143,8 +143,8 @@ export class Audioset {
 			const audioset = this.#audioset;
 			const { length } = audioset;
 			const dataTemporary = this.#dataTemporary;
-			const normsDataFrequency = audioset.#normsDataFrequency;
-			const normsDataTemporal = audioset.#normsDataTemporal;
+			const dataFrequency = audioset.#dataFrequency;
+			const dataTemporal = audioset.#dataTemporal;
 
 			let summaryVolume = 0, summaryAmplitude = 0;
 			let minDecibel = Infinity, maxDecibel = -Infinity;
@@ -152,7 +152,7 @@ export class Audioset {
 			analyser.getByteFrequencyData(dataTemporary);
 			for (let index = 0; index < length; index++) {
 				const normDatumFrequency = dataTemporary[index] / 255;
-				normsDataFrequency[index] = normDatumFrequency;
+				dataFrequency[index] = normDatumFrequency;
 				const decibel = minDecibels + normDatumFrequency * range;
 				if (decibel < minDecibel) minDecibel = decibel;
 				if (decibel > maxDecibel) maxDecibel = decibel;
@@ -161,15 +161,15 @@ export class Audioset {
 			analyser.getByteTimeDomainData(dataTemporary);
 			for (let index = 0; index < length; index++) {
 				const normDatumTemporal = dataTemporary[index] / 255;
-				normsDataTemporal[index] = normDatumTemporal;
+				dataTemporal[index] = normDatumTemporal;
 				const bipolarDatumTemporal = normDatumTemporal * 2 - 1;
-				const normAmplitude = abs(bipolarDatumTemporal);
+				const amplitude = abs(bipolarDatumTemporal);
 				summaryVolume += sqpw(bipolarDatumTemporal);
-				summaryAmplitude += sqpw(normAmplitude);
+				summaryAmplitude += sqpw(amplitude);
 			}
 
-			audioset.#normVolume = sqrt(summaryVolume / length);
-			audioset.#normAmplitude = sqrt(summaryAmplitude / length);
+			audioset.#volume = sqrt(summaryVolume / length);
+			audioset.#amplitude = sqrt(summaryAmplitude / length);
 		}
 	};
 
@@ -178,19 +178,19 @@ export class Audioset {
 
 	static #lock: boolean = true;
 	#length: number;
-	#normsDataFrequency: Float32Array;
-	#normsDataTemporal: Float32Array;
-	#normVolume: number;
-	#normAmplitude: number;
+	#dataFrequency: Float32Array;
+	#dataTemporal: Float32Array;
+	#volume: number;
+	#amplitude: number;
 	#features: AudioFeatures = new AudioFeatures();
 
 	constructor(length: number) {
 		if (Audioset.#lock) throw new TypeError("Illegal constructor");
 		this.#length = length;
-		this.#normsDataFrequency = new Float32Array(length);
-		this.#normsDataTemporal = new Float32Array(length);
-		this.#normVolume = 0;
-		this.#normAmplitude = 0;
+		this.#dataFrequency = new Float32Array(length);
+		this.#dataTemporal = new Float32Array(length);
+		this.#volume = 0;
+		this.#amplitude = 0;
 	}
 
 	static #construct(length: number): Audioset {
@@ -201,10 +201,10 @@ export class Audioset {
 	}
 
 	get length(): number { return this.#length; }
-	get normsDataFrequency(): Float32Array { return this.#normsDataFrequency; }
-	get normsDataTemporal(): Float32Array { return this.#normsDataTemporal; }
-	get normVolume(): number { return this.#normVolume; }
-	get normAmplitude(): number { return this.#normAmplitude; }
+	get dataFrequency(): Float32Array { return this.#dataFrequency; }
+	get dataTemporal(): Float32Array { return this.#dataTemporal; }
+	get volume(): number { return this.#volume; }
+	get amplitude(): number { return this.#amplitude; }
 	get spectralFlux(): number { return this.#features.spectralFlux; }
 	get subBass(): number { return this.#features.bandEnergy.subBass; }
 	get bass(): number { return this.#features.bandEnergy.bass; }

@@ -28,9 +28,9 @@ export class SceneDefinition {
 /**
  *inSAB layout:  
  *  Bytes  0–7 : Int32[2]   → [frameCounter, length]  
- *  Bytes  8–19: Float32[3] → [sampleRate, normVolume, normAmplitude]  
- *  Bytes 20.. : Float32[inputMaxLength] normsDataFrequency  
- *             + Float32[inputMaxLength] normsDataTemporal  
+ *  Bytes  8–19: Float32[3] → [sampleRate, volume, amplitude]  
+ *  Bytes 20.. : Float32[inputMaxLength] dataFrequency  
+ *             + Float32[inputMaxLength] dataTemporal  
  *
  *outSAB layout (Float32Array of outputSize = 17 + N floats, N = SceneDefinition.count):  
  *  [0]     frameCounter  

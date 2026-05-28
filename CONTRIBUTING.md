@@ -36,30 +36,30 @@ Visualizer.attach("My custom title", class extends Visualizer.Visualization {
 
 ### `audioset` properties
 
-| Property             | Type                         | Description                                      |
-| :------------------- | :--------------------------- | :----------------------------------------------- |
-| `length`             | `number`                     | Number of frequency bins.                        |
-| `normsDataFrequency` | `Float32Array`               | Normalised frequency-domain data `[0, 1]`.       |
-| `normsDataTemporal`  | `Float32Array`               | Normalised time-domain data `[0, 1]`.            |
-| `normVolume`         | `number`                     | Normalised RMS volume `[0, 1]`.                  |
-| `normAmplitude`      | `number`                     | Normalised peak amplitude `[0, 1]`.              |
-| `spectralFlux`       | `number`                     | Rate of change in the spectrum.                  |
-| `subBass`            | `number`                     | Sub-bass band energy (20–60 Hz).                 |
-| `bass`               | `number`                     | Bass band energy (60–250 Hz).                    |
-| `lowMid`             | `number`                     | Low-mid band energy (250–500 Hz).                |
-| `mid`                | `number`                     | Mid band energy (500 Hz–2 kHz).                  |
-| `highMid`            | `number`                     | High-mid band energy (2–4 kHz).                  |
-| `high`               | `number`                     | High band energy (4–20 kHz).                     |
-| `zeroCrossingRate`   | `number`                     | Zero-crossing rate.                              |
-| `spectralCentroid`   | `number`                     | Weighted mean frequency.                         |
-| `percussiveness`     | `number`                     | Estimated percussive content `[0, 1]`.           |
-| `beatDetected`       | `boolean`                    | `true` on detected beat frames.                  |
-| `scene`              | `Scene`                      | Current scene classification.                    |
-| `confidence`         | `number`                     | Model confidence for the current scene `[0, 1]`. |
-| `probabilities`      | `ReadonlyMap<Scene, number>` | Per-scene softmax probabilities.                 |
-| `dropIntensity`      | `number`                     | Drop intensity estimate.                         |
-| `bassLevel`          | `number`                     | Smoothed bass level.                             |
-| `distortionLevel`    | `number`                     | Estimated distortion level.                      |
+| Property           | Type                         | Description                                      |
+| :----------------- | :--------------------------- | :----------------------------------------------- |
+| `length`           | `number`                     | Number of frequency bins.                        |
+| `dataFrequency`    | `Float32Array`               | Normalised frequency-domain data `[0, 1]`.       |
+| `dataTemporal`     | `Float32Array`               | Normalised time-domain data `[0, 1]`.            |
+| `volume`           | `number`                     | Normalised RMS volume `[0, 1]`.                  |
+| `amplitude`        | `number`                     | Normalised peak amplitude `[0, 1]`.              |
+| `spectralFlux`     | `number`                     | Rate of change in the spectrum.                  |
+| `subBass`          | `number`                     | Sub-bass band energy (20–60 Hz).                 |
+| `bass`             | `number`                     | Bass band energy (60–250 Hz).                    |
+| `lowMid`           | `number`                     | Low-mid band energy (250–500 Hz).                |
+| `mid`              | `number`                     | Mid band energy (500 Hz–2 kHz).                  |
+| `highMid`          | `number`                     | High-mid band energy (2–4 kHz).                  |
+| `high`             | `number`                     | High band energy (4–20 kHz).                     |
+| `zeroCrossingRate` | `number`                     | Zero-crossing rate.                              |
+| `spectralCentroid` | `number`                     | Weighted mean frequency.                         |
+| `percussiveness`   | `number`                     | Estimated percussive content `[0, 1]`.           |
+| `beatDetected`     | `boolean`                    | `true` on detected beat frames.                  |
+| `scene`            | `Scene`                      | Current scene classification.                    |
+| `confidence`       | `number`                     | Model confidence for the current scene `[0, 1]`. |
+| `probabilities`    | `ReadonlyMap<Scene, number>` | Per-scene softmax probabilities.                 |
+| `dropIntensity`    | `number`                     | Drop intensity estimate.                         |
+| `bassLevel`        | `number`                     | Smoothed bass level.                             |
+| `distortionLevel`  | `number`                     | Estimated distortion level.                      |
 
 ### `environment` properties
 

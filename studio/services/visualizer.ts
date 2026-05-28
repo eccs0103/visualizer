@@ -52,18 +52,16 @@ export class Visualizer extends EventTarget {
 
 	static #Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
 		#visualizer: Visualizer;
-		#environment: VisualizationEnvironment;
 
 		constructor() {
 			if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
 			if (Visualizer.#ownerVisualization === null) throw new TypeError("Illegal constructor");
 			this.#visualizer = Visualizer.#ownerVisualization;
-			this.#environment = new Visualizer.#Environment(this.#visualizer.#engine);
 		}
 
+		get environment(): VisualizationEnvironment { return this.#visualizer.#environment; }
 		get context(): CanvasRenderingContext2D { return this.#visualizer.#context; }
 		get audioset(): Audioset { return this.#visualizer.#manager.audioset; }
-		get environment(): VisualizationEnvironment { return this.#environment; }
 
 		rebuild(): void {
 			return;
@@ -92,6 +90,7 @@ export class Visualizer extends EventTarget {
 
 	#engine: Engine;
 	#canvas: HTMLCanvasElement;
+	#environment: VisualizationEnvironment;
 	#context: CanvasRenderingContext2D;
 	#manager: AudiosetManager;
 	#analyzer: AudioAnalyzer;
@@ -115,6 +114,7 @@ export class Visualizer extends EventTarget {
 
 		const engine = this.#engine = new FastEngine({ launch: !document.hidden });
 		document.addEventListener("visibilitychange", event => engine.launched = !document.hidden);
+		this.#environment = new Visualizer.#Environment(engine);
 
 		this.#canvas = canvas;
 		this.#fixCanvasSize();

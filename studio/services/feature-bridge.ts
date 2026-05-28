@@ -29,12 +29,12 @@ export class FeatureBridge {
 	get outSAB(): SharedArrayBuffer { return this.#outSAB; }
 	get output(): Float32Array { return this.#out; }
 
-	writeInput(length: number, sampleRate: number, normVolume: number, normAmplitude: number, normsDataFrequency: Float32Array, normsDataTemporal: Float32Array): void {
+	writeInput(length: number, sampleRate: number, volume: number, amplitude: number, dataFrequency: Float32Array, dataTemporal: Float32Array): void {
 		this.#inMetadata[0] = sampleRate;
-		this.#inMetadata[1] = normVolume;
-		this.#inMetadata[2] = normAmplitude;
-		this.#inFrequency.set(normsDataFrequency);
-		this.#inTemporal.set(normsDataTemporal);
+		this.#inMetadata[1] = volume;
+		this.#inMetadata[2] = amplitude;
+		this.#inFrequency.set(dataFrequency);
+		this.#inTemporal.set(dataTemporal);
 		Atomics.store(this.#inControl, 1, length);
 		Atomics.add(this.#inControl, 0, 1);
 	}

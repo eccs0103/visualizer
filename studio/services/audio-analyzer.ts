@@ -69,8 +69,8 @@ export class AudioAnalyzer extends EventTarget {
 	analyze(manager: AudiosetManager): void {
 		const bridge = this.#bridge;
 		manager.readFeatures(bridge.output);
-		const { length, normVolume, normAmplitude, normsDataFrequency, normsDataTemporal } = manager.audioset;
-		bridge.writeInput(length, this.#rate, normVolume, normAmplitude, normsDataFrequency, normsDataTemporal);
+		const { length, volume, amplitude, dataFrequency, dataTemporal } = manager.audioset;
+		bridge.writeInput(length, this.#rate, volume, amplitude, dataFrequency, dataTemporal);
 	}
 
 	train(scene: Scene): void {

@@ -58,7 +58,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 		const colorHaloOuter = this.#colorHaloOuter;
 		const colorHaloInner = this.#colorHaloInner;
 		const { context, audioset } = this;
-		const { normsDataFrequency, normVolume } = audioset;
+		const { dataFrequency, volume } = audioset;
 		const { length } = audioset;
 		const semiLength = length / 2;
 
@@ -70,10 +70,10 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 			const normOffset = abs(index - semiLength).lerp(0, semiLength + 1);
 			gradientHalo.addColorStop(normProgress, new Color(colorHaloOuter)
 				.rotate(180 * normOffset)
-				.illuminate(0.1 + 0.9 * normVolume)
+				.illuminate(0.1 + 0.9 * volume)
 				.toString()
 			);
-			const normDatumFrequency = normsDataFrequency[trunc(normOffset * semiLength)];
+			const normDatumFrequency = dataFrequency[trunc(normOffset * semiLength)];
 			let normScale = normDatumFrequency;
 			normScale = 1 / (1 + exp(-((normScale - 0.5) * 12))); /** @todo smoothSigmoid */
 			normScale = asin(sqrt(normScale)) * 2 / PI; /** @todo saturateArcsin */
@@ -97,10 +97,10 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 		const duration = 6;
 		const { audioset, environment } = this;
 		const { delta } = environment;
-		const { normVolume } = audioset;
+		const { volume } = audioset;
 
 		if (!Number.isFinite(delta)) return;
-		const [integer, fractional] = split(this.#offsetHaloRotation + (360 / duration) * delta * normVolume);
+		const [integer, fractional] = split(this.#offsetHaloRotation + (360 / duration) * delta * volume);
 		colorHalo.rotate(integer);
 		this.#offsetHaloRotation = fractional;
 	}
@@ -110,7 +110,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 		const radius = this.#radius;
 		const gradientHalo = this.#gradientHalo;
 		const { context, audioset } = this;
-		const { normsDataTemporal, normAmplitude } = audioset;
+		const { dataTemporal, amplitude } = audioset;
 		const { width } = context.canvas;
 		const { length } = audioset;
 
@@ -119,8 +119,8 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 		const position = Vector2D.newNaN;
 		for (let index = 0; index < length; index++) {
 			const normProgress = index.lerp(0, length);
-			const normDatumTemporal = normsDataTemporal[trunc(normProgress * length)] * 2 - 1;
-			const normScale = normDatumTemporal * normAmplitude;
+			const normDatumTemporal = dataTemporal[trunc(normProgress * length)] * 2 - 1;
+			const normScale = normDatumTemporal * amplitude;
 			position.x = width * (normProgress - 0.5);
 			position.y = radius * normScale;
 			context.lineTo(position.x, position.y);
@@ -214,12 +214,12 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	//#region Update preparation
 	#runContextUpdate(): void {
 		const { audioset, context } = this;
-		const { normVolume, normAmplitude } = audioset;
+		const { volume, amplitude } = audioset;
 		const { width, height } = context.canvas;
 
 		let { a, b, c, d, e, f } = context.getTransform();
-		a = 1 + 0.2 * normVolume;
-		d = 1 + 0.4 * normAmplitude;
+		a = 1 + 0.2 * volume;
+		d = 1 + 0.4 * amplitude;
 		context.setTransform(a, b, c, d, e, f);
 		context.clearRect(-e / a, -f / d, width / a, height / d);
 	}
@@ -257,7 +257,7 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
 		const deltaRotation = this.#deltaRotation;
 		const { context, audioset } = this;
-		const { normsDataFrequency, normVolume, normAmplitude } = audioset;
+		const { dataFrequency, volume, amplitude } = audioset;
 		const { width, height } = context.canvas;
 
 		const gradientSpectrum = context.createLinearGradient(-width / 2, height / 2, width / 2, height / 2);
@@ -267,13 +267,13 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 		for (let offset = 0.5 - length; offset < length; offset++) {
 			const index = trunc(abs(offset));
 			const normProgress = index.lerp(0, length);
-			const normDatumFrequency = normsDataFrequency[trunc(index * 0.7)];
-			const normScale = meanGeometric(normDatumFrequency, normDatumFrequency, normVolume);
+			const normDatumFrequency = dataFrequency[trunc(index * 0.7)];
+			const normScale = meanGeometric(normDatumFrequency, normDatumFrequency, volume);
 			position.x = width * (normProgress - 0.5);
 			position.y = height * ((1 - normScale) * normShadowAnchor - 0.5 + Number(offset < 0) * normScale);
 			gradientSpectrum.addColorStop(normProgress, new Color(colorSpectrumSeed)
-				.rotate(120 * normProgress + deltaRotation * (normAmplitude * 2 - 1))
-				.illuminate(0.2 + 0.5 * normVolume)
+				.rotate(120 * normProgress + deltaRotation * (amplitude * 2 - 1))
+				.illuminate(0.2 + 0.5 * volume)
 				.toString()
 			);
 			context.lineTo(position.x, position.y);
@@ -291,10 +291,10 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 		const deltaRotation = this.#deltaRotation;
 		const { audioset, environment } = this;
 		const { delta } = environment;
-		const { normAmplitude } = audioset;
+		const { amplitude } = audioset;
 
 		if (!Number.isFinite(delta)) return;
-		const [integer, fractional] = split(this.#offsetSpectrumRotation + deltaRotation * delta * normAmplitude);
+		const [integer, fractional] = split(this.#offsetSpectrumRotation + deltaRotation * delta * amplitude);
 		colorSpectrumSeed.rotate(-integer);
 		this.#offsetSpectrumRotation = fractional;
 	}
