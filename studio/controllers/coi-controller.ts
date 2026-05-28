@@ -10,8 +10,11 @@ class CorsIsolationController extends Controller {
 	async run(): Promise<void> {
 		if (crossOriginIsolated) return;
 		const registration = await navigator.serviceWorker.register(new URL("../coi-worker.js", baseURI), { type: "module" });
-		registration.addEventListener("updatefound", event => location.reload());
-		if (registration.active !== null) location.reload();
+		await Promise.withSignal((signal, resolve) => {
+			registration.addEventListener("updatefound", event => resolve(), { signal });
+			if (registration.active !== null) resolve();
+		});
+		location.reload();
 	}
 
 	async catch(error: Error): Promise<void> {
