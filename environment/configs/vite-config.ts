@@ -74,10 +74,11 @@ export class ViteConfig {
 		const build: BuildEnvironmentOptions = this.#buildEnvironment();
 		const server: ServerOptions = this.#buildServer();
 		const esbuild: ESBuildOptions = this.#buildESBuild();
+		const worker = { format: "es" as const };
 
 		const plugins = this.#plugins.map(plugin => plugin.build());
 
-		return { base, appType, publicDir, build, server, esbuild, plugins };
+		return { base, appType, publicDir, build, server, esbuild, worker, plugins };
 	}
 }
 //#endregion

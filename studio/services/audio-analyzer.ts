@@ -9,8 +9,6 @@ import { Scene, SceneDefinition } from "../models/audio-features.js";
 import { type AudiosetManager } from "../models/audioset.js";
 import { AutoProgressCommand, Command, InitializeCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, SetAutoTrainCommand, TrainCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
-const { baseURI } = document;
-
 //#region Audio analyser
 export interface AudioAnalyzerEventMap {
 	"auto-progress": CustomEvent<number>;
@@ -25,7 +23,7 @@ export class AudioAnalyzer extends EventTarget {
 	#isDeveloper: boolean;
 	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
-	#worker: Worker = new Worker(new URL("./controllers/audio-analyzer-worker.ts", baseURI), { type: "module" });
+	#worker: Worker = new Worker(new URL("../controllers/audio-analyzer-worker.js", import.meta.url), { type: "module" });
 	#rate: number;
 	#pendingExport: boolean = false;
 
@@ -105,7 +103,7 @@ export class AudioAnalyzer extends EventTarget {
 			return;
 		}
 		const bridge = new ClientBridge();
-		const content = await bridge.read(new URL("../data/nn-weights.json", baseURI));
+		const content = await bridge.read(new URL("../../resources/data/nn-weights.json", import.meta.url));
 		if (content === null) return;
 		weights = NNWeights.import(JSON.parse(content), "nn-weights");
 		worker.postMessage(Command.export(new LoadWeightsCommand(weights)));
