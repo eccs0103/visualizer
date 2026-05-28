@@ -9,7 +9,7 @@ const { baseURI } = document;
 class CorsIsolationController extends Controller {
 	async run(): Promise<void> {
 		if (crossOriginIsolated) return;
-		const registration = await navigator.serviceWorker.register(new URL("../coi-service.js", baseURI));
+		const registration = await navigator.serviceWorker.register(new URL("../coi-worker.js", baseURI));
 		registration.addEventListener("updatefound", event => location.reload());
 		if (registration.active !== null) location.reload();
 	}
