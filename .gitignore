@@ -30,6 +30,9 @@ dist-ssr
 .*
 !.gitignore
 !.npmignore
+!.github
+!.github/**
+.github/**instructions**
 
 # TypeScript / JS build artifacts
 *.tsbuildinfo
