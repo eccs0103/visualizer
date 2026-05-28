@@ -101,6 +101,4 @@ Inputs are normalised frequency-domain and time-domain bins. Outputs are logits 
 
 ### Submitting
 
-Open a **Pull Request** that replaces [`resources/data/nn-weights.json`](./resources/data/nn-weights.json) with your exported file, or open an **Issue** and attach the JSON.
-
-Include a brief description of what audio you trained on and the model confidence you observed.
+In the **AI** section, click the **Share** button — it opens a pre-filled GitHub issue form. Attach the downloaded `nn-weights.json` and include a brief description of what audio you trained on and the model confidence you observed.

@@ -1,3 +1,9 @@
+## 3.0.0 (28.05.2026)
+- Added clip recording — a button in the interface lets you record the visualization and download it as a video file.
+- Auto-correction now uses a neural network that recognizes six audio scenes (Silence, Speech, Ambient, Buildup, Beat, Drop) for more accurate and responsive focus and spread adjustments.
+- Audio analysis runs in a background thread, keeping the interface smooth even on complex visualizations.
+- Program stability and rendering consistency significantly improved.
+
 ## 2.4.5 : Adaptive Core 3.3.6 (31.01.2025)
 - Added an experimental auto-correction feature that adjusts focus and spread for better visualization.
 - Code optimized by approximately 8%.
