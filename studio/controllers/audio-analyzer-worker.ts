@@ -52,6 +52,7 @@ class AudioAnalyzerWorker extends Controller {
 
 		if (command instanceof InitializeCommand) {
 			const { inSAB, outSAB } = command;
+			debugger;
 			this.#inputControl = new Int32Array(inSAB, 0, 2);
 			this.#inputMetadata = new Float32Array(inSAB, 8, 3);
 			this.#inputFrequency = new Float32Array(inSAB, 20, SabLayout.inputMaxLength);
