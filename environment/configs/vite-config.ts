@@ -10,15 +10,15 @@ import { fileURLToPath } from "node:url";
 //#region Vite config
 export class ViteConfig {
 	#inputs: readonly URL[];
+	#directs: readonly URL[];
 	#output: URL;
 	#plugins: readonly VitePlugin[];
-	#direct: readonly URL[];
 
-	constructor(inputs: readonly URL[], output: URL, plugins: readonly VitePlugin[], direct: readonly URL[]) {
+	constructor(inputs: readonly URL[], directs: readonly URL[], output: URL, plugins: readonly VitePlugin[]) {
 		this.#inputs = inputs;
+		this.#directs = directs;
 		this.#output = output;
 		this.#plugins = plugins;
-		this.#direct = direct;
 	}
 
 	#normalizeInputs(): Record<string, string> {
@@ -38,7 +38,7 @@ export class ViteConfig {
 
 	#normalizeServiceWorkers(): Record<string, string> {
 		const entries: Record<string, string> = {};
-		for (const url of this.#direct) {
+		for (const url of this.#directs) {
 			const path = fileURLToPath(url);
 			const filename = path.replace(/\\/g, "/").split("/").pop()!;
 			const name = filename.replace(/\.[^/.]+$/, String.empty);

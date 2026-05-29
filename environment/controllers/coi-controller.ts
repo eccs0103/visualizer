@@ -7,17 +7,19 @@ const { baseURI } = document;
 
 //#region CORS isolation controller
 export class CorsIsolationController extends Controller {
-	static #MAX_32_BIT_INT: number = 2147483647;
+	static #MAX_32_BIT_INTEGER: number = 2_147_483_647;
 
 	async run(): Promise<void> {
 		if (crossOriginIsolated) return;
-		const registration = await navigator.serviceWorker.register(new URL("../coi-worker.js", baseURI), { type: "module" });
+		const { serviceWorker } = navigator;
+		const url = new URL("../coi-worker.js", baseURI);
+		await serviceWorker.register(url, { type: "module" });
 		await Promise.withSignal((signal, resolve) => {
-			registration.addEventListener("updatefound", event => resolve(), { signal });
-			if (registration.active !== null) resolve();
+			serviceWorker.addEventListener("controllerchange", event => resolve(), { signal });
+			if (serviceWorker.controller !== null) resolve();
 		});
 		location.reload();
-		await Promise.asTimeout(CorsIsolationController.#MAX_32_BIT_INT);
+		await Promise.asTimeout(CorsIsolationController.#MAX_32_BIT_INTEGER);
 	}
 
 	async catch(error: Error): Promise<void> {

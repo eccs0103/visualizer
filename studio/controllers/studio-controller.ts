@@ -10,7 +10,7 @@ import { ConfiguratorController } from "./configurator-controller.js";
 import { ClipController } from "./clip-controller.js";
 import { MetadataInjector } from "../../environment/services/metadata-injector.js";
 import { AnalyticsController } from "../../environment/controllers/analytics-controller.js";
-import { CorsIsolationController } from "../controllers/coi-controller.js";
+import { CorsIsolationController } from "../../environment/controllers/coi-controller.js";
 import "../view/visualizations.js";
 
 const { baseURI, body } = document;

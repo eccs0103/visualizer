@@ -8,9 +8,9 @@ const inputs = [
 	new URL("./index.html", root),
 	new URL("./studio/index.html", root),
 ];
-const direct = [
-	new URL("./studio/controllers/coi-worker.ts", root)
+const directs = [
+	new URL("./environment/controllers/coi-worker.ts", root)
 ];
 const output = new URL("./dist", root);
-const config = await DefaultMPAConfig.construct(inputs, output, direct);
+const config = await DefaultMPAConfig.construct(inputs, directs, output);
 export default defineConfig(config.build());

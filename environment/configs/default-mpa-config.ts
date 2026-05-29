@@ -8,14 +8,14 @@ import { VitePlugin } from "../plugins/vite-plugin.js";
 export class DefaultMPAConfig extends ViteConfig {
 	static #lock: boolean = true;
 
-	constructor(inputs: readonly URL[], output: URL, plugins: readonly VitePlugin[], direct: readonly URL[]) {
-		super(inputs, output, plugins, direct);
+	constructor(inputs: readonly URL[], directs: readonly URL[], output: URL, plugins: readonly VitePlugin[]) {
+		super(inputs, directs, output, plugins);
 		if (DefaultMPAConfig.#lock) throw new TypeError("Illegal constructor");
 	}
 
-	static async construct(inputs: readonly URL[], output: URL, direct: readonly URL[]): Promise<DefaultMPAConfig> {
+	static async construct(inputs: readonly URL[], directs: readonly URL[], output: URL): Promise<DefaultMPAConfig> {
 		DefaultMPAConfig.#lock = false;
-		const config = new DefaultMPAConfig(inputs, output, [], direct);
+		const config = new DefaultMPAConfig(inputs, directs, output, []);
 		DefaultMPAConfig.#lock = true;
 		return config;
 	}
