@@ -14,10 +14,7 @@ export class CorsIsolationController extends Controller {
 		const { serviceWorker } = navigator;
 		const url = new URL("../coi-worker.js", baseURI);
 		await serviceWorker.register(url, { type: "module" });
-		await Promise.withSignal((signal, resolve) => {
-			serviceWorker.addEventListener("controllerchange", event => resolve(), { signal });
-			if (serviceWorker.controller !== null) resolve();
-		});
+		await serviceWorker.ready;
 		location.reload();
 		await Promise.asTimeout(CorsIsolationController.#MAX_32_BIT_INTEGER);
 	}
