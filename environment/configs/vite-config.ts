@@ -2,7 +2,7 @@
 
 import "adaptive-extender/node";
 import { type InputOption, type OutputOptions, type PreRenderedChunk, type RollupOptions } from "rollup";
-import { type AppType, type BuildEnvironmentOptions, type ESBuildOptions, type ServerOptions, type UserConfig } from "vite";
+import { type AppType, type BuildEnvironmentOptions, type ESBuildOptions, type PreviewOptions, type ServerOptions, type UserConfig } from "vite";
 import { VitePlugin } from "../plugins/vite-plugin.js";
 import { type OutgoingHttpHeaders } from "node:http";
 import { fileURLToPath } from "node:url";
@@ -11,12 +11,14 @@ import { fileURLToPath } from "node:url";
 export class ViteConfig {
 	#inputs: readonly URL[];
 	#directs: readonly URL[];
+	#relativeDirects: readonly URL[];
 	#output: URL;
 	#plugins: readonly VitePlugin[];
 
-	constructor(inputs: readonly URL[], directs: readonly URL[], output: URL, plugins: readonly VitePlugin[]) {
+	constructor(inputs: readonly URL[], directs: readonly URL[], relativeDirects: readonly URL[], output: URL, plugins: readonly VitePlugin[]) {
 		this.#inputs = inputs;
 		this.#directs = directs;
+		this.#relativeDirects = relativeDirects;
 		this.#output = output;
 		this.#plugins = plugins;
 	}
@@ -47,6 +49,18 @@ export class ViteConfig {
 		return entries;
 	}
 
+	#normalizeRelativeDirects(): Record<string, string> {
+		const root = `${process.cwd().replace(/\\/g, "/")}/`;
+		const entries: Record<string, string> = {};
+		for (const url of this.#relativeDirects) {
+			const input = fileURLToPath(url);
+			const path = input.replace(/\\/g, "/");
+			const name = path.replace(root, String.empty).replace(/\.[^/.]+$/, String.empty);
+			entries[name] = input;
+		}
+		return entries;
+	}
+
 	#entryFileNames(names: Set<string>, chunk: PreRenderedChunk): string {
 		if (names.has(chunk.name)) return "[name].js";
 		return "assets/[name]-[hash].js";
@@ -60,8 +74,10 @@ export class ViteConfig {
 	#buildRollupOptions(): RollupOptions {
 		const recordInputs = this.#normalizeInputs();
 		const recordServiceWorkers = this.#normalizeServiceWorkers();
-		const input: InputOption = { ...recordInputs, ...recordServiceWorkers };
-		const output: OutputOptions = this.#buildOutput(new Set(Object.keys(recordServiceWorkers)));
+		const recordRelativeDirects = this.#normalizeRelativeDirects();
+		const input: InputOption = { ...recordInputs, ...recordServiceWorkers, ...recordRelativeDirects };
+		const names = new Set([...Object.keys(recordServiceWorkers), ...Object.keys(recordRelativeDirects)]);
+		const output: OutputOptions = this.#buildOutput(names);
 		return { input, output };
 	}
 
@@ -98,16 +114,22 @@ export class ViteConfig {
 		return { format };
 	}
 
+	#buildPreview(): PreviewOptions {
+		const headers: OutgoingHttpHeaders = this.#buildOutgoingHeaders();
+		return { headers };
+	}
+
 	build(): UserConfig {
 		const base: string = "./";
 		const appType: AppType = "mpa";
 		const publicDir: string = "resources";
 		const build: BuildEnvironmentOptions = this.#buildEnvironment();
 		const server: ServerOptions = this.#buildServer();
+		const preview: PreviewOptions = this.#buildPreview();
 		const esbuild: ESBuildOptions = this.#buildESBuild();
 		const worker = this.#buildWorker();
 		const plugins = this.#plugins.map(plugin => plugin.build());
-		return { base, appType, publicDir, build, server, esbuild, worker, plugins };
+		return { base, appType, publicDir, build, server, preview, esbuild, worker, plugins };
 	}
 }
 //#endregion

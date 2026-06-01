@@ -11,6 +11,9 @@ const inputs = [
 const directs = [
 	new URL("./environment/controllers/coi-worker.ts", root)
 ];
+const relativeDirects = [
+	new URL("./studio/controllers/audio-analyzer-worker.ts", root)
+];
 const output = new URL("./dist", root);
-const config = await DefaultMPAConfig.construct(inputs, directs, output);
+const config = await DefaultMPAConfig.construct(inputs, directs, relativeDirects, output);
 export default defineConfig(config.build());
