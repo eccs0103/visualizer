@@ -13,7 +13,8 @@ const rootEntries: URL[] = [
 	new URL("./environment/controllers/coi-worker.ts", root)
 ];
 const pathEntries: URL[] = [
-	new URL("./studio/controllers/audio-analyzer-worker.ts", root)
+	new URL("./studio/controllers/audio-analyzer-worker.ts", root),
+	new URL("./studio/services/clip-accumulator-worker.ts", root),
 ];
 const output: URL = new URL("./dist", root);
 const config: ViteConfig = await DefaultMPAConfig.construct(inputs, rootEntries, pathEntries, output);

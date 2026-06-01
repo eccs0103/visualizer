@@ -2,6 +2,9 @@
 
 import "adaptive-extender/web";
 import { Timespan } from "adaptive-extender/web";
+import { ChunkCommand, ClipCommand, DoneCommand, FinishCommand } from "../models/clip-commands.js";
+
+const { baseURI } = document;
 
 //#region Clip file
 export class ClipFile {
@@ -53,11 +56,11 @@ class ClipSession {
 		"video/webm"
 	]);
 
+	#worker: Worker = new Worker(new URL("./services/clip-accumulator-worker.js", baseURI), { type: "module" });
 	#recorder: MediaRecorder;
 	#streamVideo: MediaStream;
 	#streamAudio: MediaStream;
 	#trackVideo: CanvasCaptureMediaStreamTrack | null;
-	#chunks: Blob[] = [];
 
 	constructor(recorder: MediaRecorder, streamVideo: MediaStream, streamAudio: MediaStream) {
 		this.#recorder = recorder;
@@ -104,11 +107,11 @@ class ClipSession {
 
 	begin(): void {
 		const recorder = this.#recorder;
-		const chunks = this.#chunks;
+		const worker = this.#worker;
 		recorder.addEventListener("dataavailable", (event) => {
 			const { data } = event;
 			if (data.size < 1) return;
-			chunks.push(data);
+			worker.postMessage(ClipCommand.export(new ChunkCommand(data)));
 		});
 		recorder.start();
 	}
@@ -119,23 +122,27 @@ class ClipSession {
 
 	finish(): Promise<ClipFile> {
 		const recorder = this.#recorder;
-		const chunks = this.#chunks;
+		const worker = this.#worker;
 
 		return Promise.withSignal<ClipFile>((signal, resolve, reject) => {
-			recorder.addEventListener("stop", (event) => {
+			worker.addEventListener("message", (event: MessageEvent) => {
 				try {
-					const type = recorder.mimeType;
-					resolve(ClipFile.from(new Blob(chunks, { type })));
+					const command = ClipCommand.import(event.data, "command");
+					if (!(command instanceof DoneCommand)) return;
+					resolve(ClipFile.from(command.blob));
 				} catch (reason) {
 					reject(reason);
 				}
 			}, { signal });
+			worker.addEventListener("error", event => reject(new Error(event.message)), { signal });
+			recorder.addEventListener("stop", event => worker.postMessage(ClipCommand.export(new FinishCommand(recorder.mimeType))), { signal });
 			recorder.addEventListener("error", event => reject(event.error ?? event.message), { signal });
 			recorder.stop();
 		});
 	}
 
 	dispose(): void {
+		this.#worker.terminate();
 		this.#streamVideo.getTracks().forEach(track => track.stop());
 		this.#streamAudio.getTracks().forEach(track => track.stop());
 	}
