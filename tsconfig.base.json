@@ -16,8 +16,7 @@
 		"skipLibCheck": false,
 
 		/* Emit & Declarations */
-		"declaration": true,
-		"sourceMap": true,
+		"noEmit": true,
 
 		/* Type Checking & Linting */
 		"strict": true,
@@ -27,11 +26,5 @@
 
 		/* Miscellaneous */
 		"forceConsistentCasingInFileNames": true,
-	},
-	"files": [],
-	"references": [
-		{ "path": "./tsconfig.worker.json" },
-		{ "path": "./tsconfig.web.json" },
-		{ "path": "./tsconfig.node.json" }
-	]
+	}
 }

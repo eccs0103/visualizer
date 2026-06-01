@@ -1,0 +1,15 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"lib": [ "WebWorker", "ESNext" ]
+	},
+	"include": [
+		"environment/controllers/coi-worker.ts",
+		"studio/models/audio-analyzer-commands.ts",
+		"studio/models/audio-features.ts",
+		"studio/models/nn-agent.ts",
+		"studio/services/auto-teacher.ts",
+		"studio/services/frame-processor.ts",
+		"studio/controllers/audio-analyzer-worker.ts"
+	]
+}

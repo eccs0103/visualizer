@@ -1,0 +1,18 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"lib": [ "DOM", "DOM.Iterable", "ESNext" ]
+	},
+	"include": [
+		"environment/models/**/*.ts",
+		"environment/controllers/**/*.ts",
+		"environment/services/**/*.ts",
+		"studio/**/*.ts"
+	],
+	"exclude": [
+		"environment/controllers/coi-worker.ts",
+		"studio/controllers/audio-analyzer-worker.ts",
+		"studio/services/auto-teacher.ts",
+		"studio/services/frame-processor.ts"
+	]
+}

@@ -4,13 +4,6 @@ import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 
 //#region COI service worker
-interface ServiceWorkerGlobalScope {
-	readonly clients: { claim(): Promise<void>; };
-	skipWaiting(): Promise<void>;
-	addEventListener(type: "install" | "activate", listener: (event: { waitUntil(f: PromiseLike<unknown>): void; }) => void): void;
-	addEventListener(type: "fetch", listener: (event: { request: Request; respondWith(r: PromiseLike<Response> | Response): void; }) => void): void;
-}
-
 class CorsIsolationWorker extends Controller {
 	async #tryFetch(request: Request): Promise<Response> {
 		try {
