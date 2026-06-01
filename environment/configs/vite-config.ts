@@ -10,15 +10,15 @@ import { fileURLToPath } from "node:url";
 //#region Vite config
 export class ViteConfig {
 	#inputs: readonly URL[];
-	#directs: readonly URL[];
-	#relativeDirects: readonly URL[];
+	#rootEntries: readonly URL[];
+	#pathEntries: readonly URL[];
 	#output: URL;
 	#plugins: readonly VitePlugin[];
 
-	constructor(inputs: readonly URL[], directs: readonly URL[], relativeDirects: readonly URL[], output: URL, plugins: readonly VitePlugin[]) {
+	constructor(inputs: readonly URL[], rootEntries: readonly URL[], pathEntries: readonly URL[], output: URL, plugins: readonly VitePlugin[]) {
 		this.#inputs = inputs;
-		this.#directs = directs;
-		this.#relativeDirects = relativeDirects;
+		this.#rootEntries = rootEntries;
+		this.#pathEntries = pathEntries;
 		this.#output = output;
 		this.#plugins = plugins;
 	}
@@ -40,7 +40,7 @@ export class ViteConfig {
 
 	#normalizeServiceWorkers(): Record<string, string> {
 		const entries: Record<string, string> = {};
-		for (const url of this.#directs) {
+		for (const url of this.#rootEntries) {
 			const path = fileURLToPath(url);
 			const filename = path.replace(/\\/g, "/").split("/").pop()!;
 			const name = filename.replace(/\.[^/.]+$/, String.empty);
@@ -52,7 +52,7 @@ export class ViteConfig {
 	#normalizeRelativeDirects(): Record<string, string> {
 		const root = `${process.cwd().replace(/\\/g, "/")}/`;
 		const entries: Record<string, string> = {};
-		for (const url of this.#relativeDirects) {
+		for (const url of this.#pathEntries) {
 			const input = fileURLToPath(url);
 			const path = input.replace(/\\/g, "/");
 			const name = path.replace(root, String.empty).replace(/\.[^/.]+$/, String.empty);

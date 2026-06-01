@@ -1,19 +1,20 @@
 "use strict";
 
 import { defineConfig } from "vite";
+import { type ViteConfig } from "./environment/configs/vite-config.js";
 import { DefaultMPAConfig } from "./environment/configs/default-mpa-config.js";
 
-const root = import.meta.url;
-const inputs = [
+const root: URL = new URL(import.meta.url);
+const inputs: URL[] = [
 	new URL("./index.html", root),
 	new URL("./studio/index.html", root),
 ];
-const directs = [
+const rootEntries: URL[] = [
 	new URL("./environment/controllers/coi-worker.ts", root)
 ];
-const relativeDirects = [
+const pathEntries: URL[] = [
 	new URL("./studio/controllers/audio-analyzer-worker.ts", root)
 ];
-const output = new URL("./dist", root);
-const config = await DefaultMPAConfig.construct(inputs, directs, relativeDirects, output);
+const output: URL = new URL("./dist", root);
+const config: ViteConfig = await DefaultMPAConfig.construct(inputs, rootEntries, pathEntries, output);
 export default defineConfig(config.build());
