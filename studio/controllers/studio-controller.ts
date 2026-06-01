@@ -22,7 +22,7 @@ class StudioController extends Controller {
 			type: "Application",
 			name: "Visualizer",
 			webpage: new URL("https://eccs0103.github.io/visualizer/"),
-			preview: new URL("../assets/icons/equalizer.png", new URL(baseURI)),
+			preview: new URL("../icons/equalizer.png", baseURI),
 			category: "MultimediaApplication",
 			os: "Web Browser",
 			description: "AI-powered real-time music visualizer for browsers. Neural-network scene detection, Canvas 2D rendering, and a simple API for custom visualizations.",
