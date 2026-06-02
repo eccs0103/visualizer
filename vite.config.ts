@@ -14,6 +14,7 @@ const rootEntries: URL[] = [
 ];
 const pathEntries: URL[] = [
 	new URL("./studio/controllers/audio-analyzer-worker.ts", root),
+	new URL("./studio/controllers/visualization-worker.ts", root),
 	new URL("./studio/services/clip-accumulator-worker.ts", root),
 ];
 const output: URL = new URL("./dist", root);

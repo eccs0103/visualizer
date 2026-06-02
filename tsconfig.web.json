@@ -12,6 +12,7 @@
 	"exclude": [
 		"environment/controllers/coi-worker.ts",
 		"studio/controllers/audio-analyzer-worker.ts",
+		"studio/controllers/visualization-worker.ts",
 		"studio/services/auto-teacher.ts",
 		"studio/services/frame-processor.ts"
 	]

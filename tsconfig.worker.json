@@ -8,8 +8,13 @@
 		"studio/models/audio-analyzer-commands.ts",
 		"studio/models/audio-features.ts",
 		"studio/models/nn-agent.ts",
+		"studio/models/render-commands.ts",
 		"studio/services/auto-teacher.ts",
 		"studio/services/frame-processor.ts",
-		"studio/controllers/audio-analyzer-worker.ts"
+		"studio/services/render-bridge.ts",
+		"studio/services/visualization-registry.ts",
+		"studio/view/visualizations.ts",
+		"studio/controllers/audio-analyzer-worker.ts",
+		"studio/controllers/visualization-worker.ts"
 	]
 }

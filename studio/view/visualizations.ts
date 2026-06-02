@@ -1,13 +1,13 @@
 "use strict";
 
-import "adaptive-extender/web";
-import { Color, Vector2D } from "adaptive-extender/web";
-import { Visualizer } from "../services/visualizer.js";
+import "adaptive-extender/core";
+import { Color, Vector2D } from "adaptive-extender/core";
+import { Visualization, VisualizationRegistry } from "../services/visualization-registry.js";
 
 const { min, max, split, sin, cos, PI, exp, abs, trunc, sqrt, SQRT1_2, asin, meanGeometric } = Math;
 
 //#region Pulsar
-Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
+VisualizationRegistry.attach("Pulsar", class extends Visualization {
 	//#region Rebuild preparation
 	#radius: number;
 	#colorBackground: Color;
@@ -18,7 +18,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 
 		const radius = this.#radius = min(width, height) / 2;
 
-		const colorBackground = this.#colorBackground = Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
+		const colorBackground = this.#colorBackground = this.environment.colorBackground;
 	}
 
 	#runContextRebuild(): void {
@@ -178,7 +178,7 @@ Visualizer.attach("Pulsar", class extends Visualizer.Visualization {
 });
 //#endregion
 //#region Spectrogram
-Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
+VisualizationRegistry.attach("Spectrogram", class extends Visualization {
 	//#region Rebuild preparation
 	#normShadowAnchor: number = 0.8;
 	#deltaRotation: number;
@@ -192,7 +192,7 @@ Visualizer.attach("Spectrogram", class extends Visualizer.Visualization {
 	#runMetadataRebuild(): void {
 		this.#deltaRotation = 360 / 6;
 
-		const colorGrid = this.#colorGrid = Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
+		const colorGrid = this.#colorGrid = this.environment.colorBackground;
 		colorGrid.lightness = this.#interpolate(colorGrid.lightness / 100) * 100;
 	}
 
