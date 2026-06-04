@@ -2,7 +2,7 @@
 
 import "adaptive-extender/web";
 import { type Scene, AudioFeatures } from "./audio-features.js";
-import { type AudiosetView } from "../services/visualization-registry.js";
+import { type AudiosetView } from "./visualization.js";
 
 const { sqrt, sqpw, abs, log2 } = Math;
 

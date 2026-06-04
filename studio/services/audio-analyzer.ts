@@ -57,6 +57,7 @@ export class AudioAnalyzer extends EventTarget {
 	}
 
 	get isDeveloper(): boolean { return this.#isDeveloper; }
+	get outSAB(): SharedArrayBuffer { return this.#bridge.outSAB; }
 	get autoTrain(): boolean { return this.#autoTrain; }
 
 	set autoTrain(enabled: boolean) {

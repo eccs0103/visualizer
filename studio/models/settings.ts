@@ -3,6 +3,7 @@
 import "adaptive-extender/core";
 import { Model, Field, RecordOf, Optional } from "adaptive-extender/core";
 import { Visualizer } from "../services/visualizer.js";
+import { Registry } from "../services/visualization-registry.js";
 
 //#region Visualization settings
 export class VisualizationSettings extends Model {
@@ -82,9 +83,8 @@ export class Settings extends Model {
 
 	static get newDefault(): Settings {
 		const configuration = new VisualizationSettings(10, 0.6, -60, 30);
-		const visualization = ReferenceError.suppress(Visualizer.visualizations.at(0), "No any visualizations found");
-		const attachments = new Map(Visualizer.visualizations.map(name => [name, configuration]));
-		const settings = new Settings(false, 240, true, undefined, visualization, attachments);
+		const attachments = new Map(Array.from(Registry.names(), name => [name, configuration]));
+		const settings = new Settings(false, 240, true, undefined, Registry.default, attachments);
 		return settings;
 	}
 }

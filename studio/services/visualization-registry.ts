@@ -1,45 +1,9 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { type Color } from "adaptive-extender/core";
+import { type AudiosetView, type VisualizationBundle, type VisualizationDescriptor, type VisualizationEnvironment, type VisualizationHost } from "../models/visualization.js";
 
-//#region Visualization environment
-export interface VisualizationEnvironment {
-	get isLaunched(): boolean;
-	get delta(): number;
-	get fps(): number;
-	get colorBackground(): Color;
-}
-//#endregion
-//#region Audioset view
-export interface AudiosetView {
-	get length(): number;
-	get volume(): number;
-	get amplitude(): number;
-	get dataFrequency(): Float32Array;
-	get dataTemporal(): Float32Array;
-}
-//#endregion
-//#region Visualization host
-export interface VisualizationHost {
-	context: OffscreenCanvasRenderingContext2D;
-	audioset: AudiosetView;
-	environment: VisualizationEnvironment;
-}
-//#endregion
-//#region Visualization 
-export interface VisualizationBundle {
-	get context(): OffscreenCanvasRenderingContext2D;
-	get audioset(): AudiosetView;
-	get environment(): VisualizationEnvironment;
-	rebuild(): void;
-	update(): void;
-}
-
-export interface VisualizationDescriptor {
-	new(host: VisualizationHost): VisualizationBundle;
-}
-
+//#region Registry
 export class Registry {
 	static #descriptors: Map<string, VisualizationDescriptor> = new Map();
 
@@ -75,16 +39,26 @@ export class Registry {
 	}
 	//#endregion
 
+	static get default(): string {
+		const key: IteratorResult<string, BuiltinIteratorReturn> = this.#descriptors.keys().next();
+		if (key.done) throw new Error("No visualization is attached to the visualizer");
+		return key.value;
+	}
+
 	static attach(name: string, descriptor: VisualizationDescriptor): void {
 		if (!this.#descriptors.add(name, descriptor)) throw new Error(`Visualization with name '${name}' already attached`);
 	}
 
-	static *entries(): IterableIterator<[string, VisualizationDescriptor]> {
-		for (const entry of this.#descriptors) yield entry;
+	static names(): IterableIterator<string> {
+		return this.#descriptors.keys();
 	}
 
-	static names(): string[] {
-		return Array.from(this.#descriptors, ([name]) => name);
+	static has(name: string): boolean {
+		return this.#descriptors.has(name);
+	}
+
+	static entries(): IterableIterator<[string, VisualizationDescriptor]> {
+		return this.#descriptors.entries();
 	}
 }
 

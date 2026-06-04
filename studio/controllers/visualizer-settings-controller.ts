@@ -4,6 +4,7 @@ import "adaptive-extender/web";
 import { Controller, ArchiveRepository } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
+import { Registry } from "../services/visualization-registry.js";
 
 //#region Visualizer settings controller
 export class VisualizerSettingsController extends Controller<[ArchiveRepository<typeof Settings>, Visualizer, HTMLDialogElement, HTMLSelectElement]> {
@@ -46,7 +47,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 
 		const settings = repository.content;
 
-		for (const name of Visualizer.visualizations) {
+		for (const name of Registry.names()) {
 			const option = selectVisualizerVisualization.appendChild(document.createElement("option"));
 			option.value = name;
 			option.innerText = name;

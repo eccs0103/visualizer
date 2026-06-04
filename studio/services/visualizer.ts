@@ -5,7 +5,8 @@ import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
 import { Scene, SceneDefinition } from "../models/audio-features.js";
 import { Audioset, type AudiosetManager } from "../models/audioset.js";
 import { AudioAnalyzer } from "./audio-analyzer.js";
-import { type VisualizationEnvironment, Registry } from "./visualization-registry.js";
+import { type VisualizationEnvironment } from "../models/visualization.js";
+import { Registry } from "./visualization-registry.js";
 import { RenderBridge } from "./render-bridge.js";
 import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand } from "../models/render-commands.js";
 
@@ -34,6 +35,7 @@ export class Visualizer extends EventTarget {
 		get isLaunched(): boolean { return this.#engine.launched; }
 		get delta(): number { return this.#engine.delta; }
 		get fps(): number { return this.#engine.fps; }
+
 		get colorBackground(): Color {
 			return Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
 		}
@@ -53,21 +55,20 @@ export class Visualizer extends EventTarget {
 	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
 	#engine: WebEngine = new FastEngine();
 	#environment: VisualizationEnvironment = new Visualizer.#Environment(this.#engine);
+	#visualization: string;
 	#canvas: HTMLCanvasElement;
 	#manager: AudiosetManager;
 	#analyzer: AudioAnalyzer;
-	#visualization: string;
 
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement);
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement, options: Partial<VisualizerOptions>);
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement, options: Partial<VisualizerOptions> = {}) {
 		super();
 
+		this.#visualization = Registry.default;
+
 		let { isDeveloper } = options;
 		isDeveloper ??= false;
-
-		const names = Registry.names();
-		if (names.length < 1) throw new Error("No visualization is attached to the visualizer");
 
 		const engine = this.#engine;
 		engine.launched = !document.hidden;
@@ -81,10 +82,8 @@ export class Visualizer extends EventTarget {
 		this.#analyzer = new AudioAnalyzer(manager.rate, { isDeveloper });
 		engine.addEventListener("trigger", event => manager.refresh());
 
-		this.#visualization = names[0];
-
 		const offscreen = canvas.transferControlToOffscreen();
-		this.#worker.postMessage(RenderCommand.export(new InitializeRenderCommand(this.#bridge.sab, offscreen)), [offscreen]);
+		this.#worker.postMessage(RenderCommand.export(new InitializeRenderCommand(this.#bridge.sab, this.#analyzer.outSAB, offscreen)), [offscreen]);
 
 		this.#rebuild();
 		window.addEventListener("resize", event => this.#rebuild());
@@ -101,10 +100,6 @@ export class Visualizer extends EventTarget {
 	removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 	removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
 		return super.removeEventListener(type, listener, options);
-	}
-
-	static get visualizations(): string[] {
-		return Registry.names();
 	}
 
 	get rate(): number {
@@ -132,8 +127,8 @@ export class Visualizer extends EventTarget {
 	}
 
 	set visualization(value: string) {
-		const name = Registry.names().includes(value) ? value : null;
-		this.#visualization = ReferenceError.suppress(name, `Visualization with name '${value}' is not attached`);
+		if (!Registry.has(value)) throw new Error(`Visualization with name '${value}' is not attached`);
+		this.#visualization = value;
 		this.#rebuild();
 	}
 
