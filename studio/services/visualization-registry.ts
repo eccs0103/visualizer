@@ -32,9 +32,9 @@ export interface VisualizationDescriptor {
 }
 
 export interface VisualizationHost {
-	get context(): OffscreenCanvasRenderingContext2D;
-	get audioset(): AudiosetView;
-	get environment(): VisualizationEnvironment;
+	context: OffscreenCanvasRenderingContext2D;
+	audioset: AudiosetView;
+	environment: VisualizationEnvironment;
 }
 
 export class VisualizationRegistry {

@@ -5,7 +5,7 @@ import { Controller } from "adaptive-extender/worker";
 import { Color } from "adaptive-extender/core";
 import { SabLayout } from "../models/audio-features.js";
 import { type AudiosetView, type VisualizationBundle, type VisualizationEnvironment, type VisualizationHost, VisualizationRegistry } from "../services/visualization-registry.js";
-import { RenderCommand, RebuildRenderCommand } from "../models/render-commands.js";
+import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand } from "../models/render-commands.js";
 import { RenderBridge } from "../services/render-bridge.js";
 import "../view/visualizations.js";
 
@@ -26,7 +26,6 @@ class WorkerAudiosetView implements AudiosetView {
 		this.#temporal = new Float32Array(sab, RenderBridge.temporalOffset(), SabLayout.inputMaxLength);
 	}
 
-	get control(): Int32Array { return this.#control; }
 	get length(): number { return this.#length; }
 	get volume(): number { return this.#metadata[0]; }
 	get amplitude(): number { return this.#metadata[1]; }
@@ -63,77 +62,47 @@ class WorkerEnvironment implements VisualizationEnvironment {
 }
 
 class VisualizationWorker extends Controller {
-	#canvas: OffscreenCanvas | null = null;
-	#context: OffscreenCanvasRenderingContext2D | null = null;
-	#audiosetView: WorkerAudiosetView | null = null;
-	#environment: WorkerEnvironment | null = null;
+	#canvas: OffscreenCanvas;
+	#context: OffscreenCanvasRenderingContext2D;
+	#audiosetView: WorkerAudiosetView;
+	#environment: WorkerEnvironment;
 	#bundles: Map<string, VisualizationBundle> = new Map();
-	#selection: [string, VisualizationBundle] | null = null;
-	#lastFrame: number = -1;
-
-	static #WorkerHost = class WorkerHost implements VisualizationHost {
-		#worker: VisualizationWorker;
-
-		constructor(worker: VisualizationWorker) {
-			this.#worker = worker;
-		}
-
-		get context(): OffscreenCanvasRenderingContext2D { return this.#worker.#context!; }
-		get audioset(): AudiosetView { return this.#worker.#audiosetView!; }
-		get environment(): VisualizationEnvironment { return this.#worker.#environment!; }
-	};
-
-	#poll(): void {
-		const audiosetView = this.#audiosetView;
-		const selection = this.#selection;
-		if (audiosetView === null || selection === null) return;
-
-		const frame = Atomics.load(audiosetView.control, 0);
-		if (frame === this.#lastFrame) return;
-		this.#lastFrame = frame;
-
-		audiosetView.sync();
-		this.#environment!.tick();
-		const [, bundle] = selection;
-		bundle.update();
-	}
+	#selection: [string, VisualizationBundle];
 
 	#onMessage(event: MessageEvent): void {
-		const data = event.data;
+		const command = RenderCommand.import(event.data, "command");
 
-		if (data?.type === "initialize") {
-			const { sab, canvas } = data as { sab: SharedArrayBuffer; canvas: OffscreenCanvas; };
+		if (command instanceof InitializeRenderCommand) {
+			const { sab, canvas } = command;
 			this.#canvas = canvas;
-			this.#context = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+			this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
 			const view = this.#audiosetView = new WorkerAudiosetView(sab);
-			this.#environment = new WorkerEnvironment(view);
-			const host = new VisualizationWorker.#WorkerHost(this);
+			const environment = this.#environment = new WorkerEnvironment(view);
+			const host: VisualizationHost = { context: this.#context, audioset: view, environment };
 			for (const [name, descriptor] of VisualizationRegistry.entries()) {
 				this.#bundles.set(name, VisualizationRegistry.createBundle(host, descriptor));
 			}
-			this.#selection = Array.from(this.#bundles)[0] ?? null;
+			this.#selection = Array.from(this.#bundles)[0];
 			return;
 		}
 
-		const command = RenderCommand.import(data, "command");
+		if (command instanceof TickCommand) {
+			this.#audiosetView.sync();
+			this.#environment.tick();
+			const [, bundle] = this.#selection;
+			bundle.update();
+			return;
+		}
 
 		if (command instanceof RebuildRenderCommand) {
 			const { width, height, visualization: vizName } = command;
-			const canvas = this.#canvas;
-			const context = this.#context;
-			if (canvas === null || context === null || this.#selection === null) return;
-
 			if (vizName !== this.#selection[0]) {
-				const bundle = this.#bundles.get(vizName);
-				if (bundle === undefined) return;
-				this.#selection = [vizName, bundle];
+				this.#selection = [vizName, ReferenceError.suppress(this.#bundles.get(vizName), `Visualization '${vizName}' not found`)];
 			}
-
-			canvas.width = width;
-			canvas.height = height;
-			context.reset();
-			context.resetTransform();
-
+			this.#canvas.width = width;
+			this.#canvas.height = height;
+			this.#context.reset();
+			this.#context.resetTransform();
 			const [, bundle] = this.#selection;
 			bundle.rebuild();
 			bundle.update();
@@ -142,7 +111,6 @@ class VisualizationWorker extends Controller {
 	}
 
 	async run(): Promise<void> {
-		setInterval(this.#poll.bind(this), 4);
 		self.addEventListener("message", this.#onMessage.bind(this));
 	}
 

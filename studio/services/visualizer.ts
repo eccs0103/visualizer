@@ -7,7 +7,7 @@ import { Audioset, type AudiosetManager } from "../models/audioset.js";
 import { AudioAnalyzer } from "./audio-analyzer.js";
 import { type VisualizationEnvironment, type VisualizationBundle, type VisualizationDescriptor, type AudiosetView, type VisualizationHost, VisualizationRegistry } from "./visualization-registry.js";
 import { RenderBridge } from "./render-bridge.js";
-import { RenderCommand, RebuildRenderCommand } from "../models/render-commands.js";
+import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand } from "../models/render-commands.js";
 
 const { round } = Math;
 const { baseURI } = document;
@@ -17,8 +17,6 @@ export interface VisualizerEventMap {
 	"update": Event;
 	"rebuild": Event;
 }
-
-export { type VisualizationEnvironment, type VisualizationBundle, type VisualizationDescriptor };
 
 export interface VisualizerOptions {
 	isDeveloper: boolean;
@@ -127,7 +125,7 @@ export class Visualizer extends EventTarget {
 		const bridge = this.#renderBridge = new RenderBridge();
 		const worker = this.#renderWorker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
 		const offscreen = canvas.transferControlToOffscreen();
-		worker.postMessage({ type: "initialize", sab: bridge.sab, canvas: offscreen }, [offscreen]);
+		worker.postMessage(RenderCommand.export(new InitializeRenderCommand(bridge.sab, offscreen)), [offscreen]);
 
 		this.#rebuild();
 		window.addEventListener("resize", event => this.#rebuild());
@@ -230,6 +228,7 @@ export class Visualizer extends EventTarget {
 		const { length, volume, amplitude, dataFrequency, dataTemporal } = manager.audioset;
 		const color = this.#environment.colorBackground;
 		this.#renderBridge.writeAudioset(length, volume, amplitude, dataFrequency, dataTemporal, color.hue, color.saturation, color.lightness);
+		this.#renderWorker.postMessage(RenderCommand.export(new TickCommand()));
 		this.dispatchEvent(new Event("update"));
 	}
 
