@@ -2,7 +2,6 @@
 
 import "adaptive-extender/core";
 import { Model, Field, RecordOf, Optional } from "adaptive-extender/core";
-import { Visualizer } from "../services/visualizer.js";
 import { Registry } from "../services/visualization-registry.js";
 
 //#region Visualization settings
