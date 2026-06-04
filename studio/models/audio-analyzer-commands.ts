@@ -63,8 +63,14 @@ export class InitializeCommand extends Command {
 	constructor();
 	constructor(inSAB: SharedArrayBuffer, outSAB: SharedArrayBuffer);
 	constructor(inSAB?: SharedArrayBuffer, outSAB?: SharedArrayBuffer) {
+		if (inSAB === undefined || outSAB === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { inSAB, outSAB });
+		this.inSAB = inSAB;
+		this.outSAB = outSAB;
 	}
 }
 //#endregion
@@ -85,8 +91,13 @@ export class TrainCommand extends Command {
 	constructor();
 	constructor(label: number);
 	constructor(label?: number) {
+		if (label === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { label });
+		this.label = label;
 	}
 }
 //#endregion
@@ -119,8 +130,13 @@ export class LoadWeightsCommand extends Command {
 	constructor();
 	constructor(weights: NNWeights);
 	constructor(weights?: NNWeights) {
+		if (weights === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { weights });
+		this.weights = weights;
 	}
 
 }
@@ -142,8 +158,13 @@ export class WeightsCommand extends Command {
 	constructor();
 	constructor(weights: NNWeights);
 	constructor(weights?: NNWeights) {
+		if (weights === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { weights });
+		this.weights = weights;
 	}
 
 }
@@ -165,8 +186,13 @@ export class SetAutoTrainCommand extends Command {
 	constructor();
 	constructor(enabled: boolean);
 	constructor(enabled?: boolean) {
+		if (enabled === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { enabled });
+		this.enabled = enabled;
 	}
 
 }
@@ -200,8 +226,13 @@ export class AutoProgressCommand extends Command {
 	constructor();
 	constructor(count: number);
 	constructor(count?: number) {
+		if (count === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { count });
+		this.count = count;
 	}
 
 }

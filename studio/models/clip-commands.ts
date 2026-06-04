@@ -53,8 +53,13 @@ export class ChunkCommand extends ClipCommand {
 	constructor();
 	constructor(data: Blob);
 	constructor(data?: Blob) {
+		if (data === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { data });
+		this.data = data;
 	}
 }
 //#endregion
@@ -75,8 +80,13 @@ export class FinishCommand extends ClipCommand {
 	constructor();
 	constructor(mimeType: string);
 	constructor(mimeType?: string) {
+		if (mimeType === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { mimeType });
+		this.mimeType = mimeType;
 	}
 }
 //#endregion
@@ -97,8 +107,13 @@ export class DoneCommand extends ClipCommand {
 	constructor();
 	constructor(blob: Blob);
 	constructor(blob?: Blob) {
+		if (blob === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { blob });
+		this.blob = blob;
 	}
 }
 //#endregion

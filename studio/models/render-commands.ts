@@ -71,8 +71,15 @@ export class InitializeRenderCommand extends RenderCommand {
 	constructor();
 	constructor(sabVideo: SharedArrayBuffer, sabAudio: SharedArrayBuffer, canvas: OffscreenCanvas);
 	constructor(sabVideo?: SharedArrayBuffer, sabAudio?: SharedArrayBuffer, canvas?: OffscreenCanvas) {
+		if (sabVideo === undefined || sabAudio === undefined || canvas === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { sabVideo, sabAudio, canvas });
+		this.sabVideo = sabVideo;
+		this.sabAudio = sabAudio;
+		this.canvas = canvas;
 	}
 }
 //#endregion
@@ -113,8 +120,15 @@ export class RebuildRenderCommand extends RenderCommand {
 	constructor();
 	constructor(width: number, height: number, visualization: string);
 	constructor(width?: number, height?: number, visualization?: string) {
+		if (width === undefined || height === undefined || visualization === undefined) {
+			super();
+			return;
+		}
+
 		super();
-		Object.assign(this, { width, height, visualization });
+		this.width = width;
+		this.height = height;
+		this.visualization = visualization;
 	}
 }
 //#endregion
