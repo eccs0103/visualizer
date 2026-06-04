@@ -3,6 +3,7 @@
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model } from "adaptive-extender/core";
 
+//#region Shared array buffer portable
 class SharedArrayBufferPortable {
 	static import(source: unknown, name: string): SharedArrayBuffer {
 		if (source instanceof SharedArrayBuffer) return source;
@@ -13,7 +14,8 @@ class SharedArrayBufferPortable {
 		return source;
 	}
 }
-
+//#endregion
+//#region Offscreen canvas portable
 class OffscreenCanvasPortable {
 	static import(source: unknown, name: string): OffscreenCanvas {
 		if (source instanceof OffscreenCanvas) return source;
@@ -24,6 +26,7 @@ class OffscreenCanvasPortable {
 		return source;
 	}
 }
+//#endregion
 
 //#region Render command
 export interface RenderCommandDiscriminator extends InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator {
@@ -31,8 +34,6 @@ export interface RenderCommandDiscriminator extends InitializeRenderCommandDiscr
 
 export interface RenderCommandScheme {
 	$type: keyof RenderCommandDiscriminator;
-	platform: string;
-	timestamp: number;
 }
 
 @Descendant(Deferred(_ => InitializeRenderCommand))

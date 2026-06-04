@@ -10,15 +10,16 @@ class ClipAccumulatorWorker extends Controller {
 
 	#onMessage(event: MessageEvent): void {
 		const command = ClipCommand.import(event.data, "command");
+		const chunks = this.#chunks;
 
 		if (command instanceof ChunkCommand) {
-			this.#chunks.push(command.data);
+			chunks.push(command.data);
 			return;
 		}
 
 		if (command instanceof FinishCommand) {
-			const blob = new Blob(this.#chunks, { type: command.mimeType });
-			this.#chunks = [];
+			const blob = new Blob(chunks, { type: command.mimeType });
+			chunks.splice(0, chunks.length);
 			self.postMessage(ClipCommand.export(new DoneCommand(blob)));
 			return;
 		}

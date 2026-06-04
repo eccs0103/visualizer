@@ -4,6 +4,7 @@ import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model } from "adaptive-extender/core";
 import { type NNWeights, type NNWeightsSceme } from "./nn-agent.js";
 
+//#region Shared array buffer portable
 class SharedArrayBufferPortable {
 	static import(source: unknown, name: string): SharedArrayBuffer {
 		if (source instanceof SharedArrayBuffer) return source;
@@ -14,6 +15,7 @@ class SharedArrayBufferPortable {
 		return source;
 	}
 }
+//#endregion
 
 //#region Command
 export interface CommandDiscriminator extends InitializeCommandDiscriminator, TrainCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, SetAutoTrainCommandDiscriminator, ResetCommandDiscriminator, AutoProgressCommandDiscriminator {

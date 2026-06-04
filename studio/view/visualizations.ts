@@ -2,12 +2,12 @@
 
 import "adaptive-extender/core";
 import { Color, Vector2D } from "adaptive-extender/core";
-import { Visualization, VisualizationRegistry } from "../services/visualization-registry.js";
+import { Visualization, Registry } from "../services/visualization-registry.js";
 
 const { min, max, split, sin, cos, PI, exp, abs, trunc, sqrt, SQRT1_2, asin, meanGeometric } = Math;
 
 //#region Pulsar
-VisualizationRegistry.attach("Pulsar", class extends Visualization {
+Registry.attach("Pulsar", class extends Visualization {
 	//#region Rebuild preparation
 	#radius: number;
 	#colorBackground: Color;
@@ -178,7 +178,7 @@ VisualizationRegistry.attach("Pulsar", class extends Visualization {
 });
 //#endregion
 //#region Spectrogram
-VisualizationRegistry.attach("Spectrogram", class extends Visualization {
+Registry.attach("Spectrogram", class extends Visualization {
 	//#region Rebuild preparation
 	#normShadowAnchor: number = 0.8;
 	#deltaRotation: number;

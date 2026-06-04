@@ -3,14 +3,15 @@
 import "adaptive-extender/core";
 import { type Color } from "adaptive-extender/core";
 
-//#region Visualization registry
+//#region Visualization environment
 export interface VisualizationEnvironment {
 	get isLaunched(): boolean;
 	get delta(): number;
 	get fps(): number;
 	get colorBackground(): Color;
 }
-
+//#endregion
+//#region Audioset view
 export interface AudiosetView {
 	get length(): number;
 	get volume(): number;
@@ -18,7 +19,15 @@ export interface AudiosetView {
 	get dataFrequency(): Float32Array;
 	get dataTemporal(): Float32Array;
 }
-
+//#endregion
+//#region Visualization host
+export interface VisualizationHost {
+	context: OffscreenCanvasRenderingContext2D;
+	audioset: AudiosetView;
+	environment: VisualizationEnvironment;
+}
+//#endregion
+//#region Visualization 
 export interface VisualizationBundle {
 	get context(): OffscreenCanvasRenderingContext2D;
 	get audioset(): AudiosetView;
@@ -28,26 +37,20 @@ export interface VisualizationBundle {
 }
 
 export interface VisualizationDescriptor {
-	new(): VisualizationBundle;
+	new(host: VisualizationHost): VisualizationBundle;
 }
 
-export interface VisualizationHost {
-	context: OffscreenCanvasRenderingContext2D;
-	audioset: AudiosetView;
-	environment: VisualizationEnvironment;
-}
-
-export class VisualizationRegistry {
-	static #currentHost: VisualizationHost | null = null;
+export class Registry {
 	static #descriptors: Map<string, VisualizationDescriptor> = new Map();
 
-	static Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
+	//#region Visualization
+	static #Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
 		#host: VisualizationHost;
 
-		constructor() {
+		constructor(host: VisualizationHost) {
 			if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
-			if (VisualizationRegistry.#currentHost === null) throw new TypeError("Illegal constructor");
-			this.#host = VisualizationRegistry.#currentHost;
+			if (Registry.#lockDescriptor) throw new TypeError("Illegal constructor");
+			this.#host = host;
 		}
 
 		get context(): OffscreenCanvasRenderingContext2D { return this.#host.context; }
@@ -61,19 +64,23 @@ export class VisualizationRegistry {
 		}
 	};
 
-	static attach(name: string, descriptor: VisualizationDescriptor): void {
-		if (this.#descriptors.add(name, descriptor)) throw new Error(`Visualization with name '${name}' already attached`);
-	}
+	static get Visualization(): VisualizationDescriptor { return this.#Visualization; }
 
+	static #lockDescriptor: boolean = true;
 	static createBundle(host: VisualizationHost, descriptor: VisualizationDescriptor): VisualizationBundle {
-		VisualizationRegistry.#currentHost = host;
-		const bundle = Reflect.construct(descriptor, []);
-		VisualizationRegistry.#currentHost = null;
+		Registry.#lockDescriptor = false;
+		const bundle: VisualizationBundle = Reflect.construct(descriptor, [host]);
+		Registry.#lockDescriptor = true;
 		return bundle;
 	}
+	//#endregion
 
-	static entries(): IterableIterator<[string, VisualizationDescriptor]> {
-		return this.#descriptors.entries();
+	static attach(name: string, descriptor: VisualizationDescriptor): void {
+		if (!this.#descriptors.add(name, descriptor)) throw new Error(`Visualization with name '${name}' already attached`);
+	}
+
+	static *entries(): IterableIterator<[string, VisualizationDescriptor]> {
+		for (const entry of this.#descriptors) yield entry;
 	}
 
 	static names(): string[] {
@@ -81,5 +88,5 @@ export class VisualizationRegistry {
 	}
 }
 
-export const Visualization: VisualizationDescriptor = VisualizationRegistry.Visualization;
+export const Visualization: VisualizationDescriptor = Registry.Visualization;
 //#endregion

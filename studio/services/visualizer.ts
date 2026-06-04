@@ -5,7 +5,7 @@ import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
 import { Scene, SceneDefinition } from "../models/audio-features.js";
 import { Audioset, type AudiosetManager } from "../models/audioset.js";
 import { AudioAnalyzer } from "./audio-analyzer.js";
-import { type VisualizationEnvironment, VisualizationRegistry } from "./visualization-registry.js";
+import { type VisualizationEnvironment, Registry } from "./visualization-registry.js";
 import { RenderBridge } from "./render-bridge.js";
 import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand } from "../models/render-commands.js";
 
@@ -66,7 +66,7 @@ export class Visualizer extends EventTarget {
 		let { isDeveloper } = options;
 		isDeveloper ??= false;
 
-		const names = VisualizationRegistry.names();
+		const names = Registry.names();
 		if (names.length < 1) throw new Error("No visualization is attached to the visualizer");
 
 		const engine = this.#engine;
@@ -104,7 +104,7 @@ export class Visualizer extends EventTarget {
 	}
 
 	static get visualizations(): string[] {
-		return VisualizationRegistry.names();
+		return Registry.names();
 	}
 
 	get rate(): number {
@@ -132,7 +132,7 @@ export class Visualizer extends EventTarget {
 	}
 
 	set visualization(value: string) {
-		const name = VisualizationRegistry.names().includes(value) ? value : null;
+		const name = Registry.names().includes(value) ? value : null;
 		this.#visualization = ReferenceError.suppress(name, `Visualization with name '${value}' is not attached`);
 		this.#rebuild();
 	}

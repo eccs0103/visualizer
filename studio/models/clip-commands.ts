@@ -3,6 +3,7 @@
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model } from "adaptive-extender/core";
 
+//#region Blob portable
 class BlobPortable {
 	static import(source: unknown, name: string): Blob {
 		if (source instanceof Blob) return source;
@@ -13,6 +14,7 @@ class BlobPortable {
 		return source;
 	}
 }
+//#endregion
 
 //#region Clip command
 export interface ClipCommandDiscriminator extends ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
