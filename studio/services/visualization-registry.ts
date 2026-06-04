@@ -41,7 +41,7 @@ export class VisualizationRegistry {
 	static #currentHost: VisualizationHost | null = null;
 	static #descriptors: Map<string, VisualizationDescriptor> = new Map();
 
-	static readonly Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
+	static Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
 		#host: VisualizationHost;
 
 		constructor() {
@@ -55,22 +55,19 @@ export class VisualizationRegistry {
 		get environment(): VisualizationEnvironment { return this.#host.environment; }
 
 		rebuild(): void {
-			return;
 		}
 
 		update(): void {
-			return;
 		}
 	};
 
 	static attach(name: string, descriptor: VisualizationDescriptor): void {
-		if (this.#descriptors.has(name)) throw new Error(`Visualization with name '${name}' already attached`);
-		this.#descriptors.set(name, descriptor);
+		if (this.#descriptors.add(name, descriptor)) throw new Error(`Visualization with name '${name}' already attached`);
 	}
 
 	static createBundle(host: VisualizationHost, descriptor: VisualizationDescriptor): VisualizationBundle {
 		VisualizationRegistry.#currentHost = host;
-		const bundle = new descriptor();
+		const bundle = Reflect.construct(descriptor, []);
 		VisualizationRegistry.#currentHost = null;
 		return bundle;
 	}

@@ -2,6 +2,7 @@
 
 import "adaptive-extender/web";
 import { type Scene, AudioFeatures } from "./audio-features.js";
+import { type AudiosetView } from "../services/visualization-registry.js";
 
 const { sqrt, sqpw, abs, log2 } = Math;
 
@@ -31,7 +32,7 @@ export interface AudiosetManagerConstructor {
 	checkSpread(value: number): boolean;
 }
 
-export class Audioset {
+export class Audioset implements AudiosetView {
 	//#region Manager
 	static #Manager: AudiosetManagerConstructor = class Manager implements AudiosetManager {
 		#context: AudioContext;

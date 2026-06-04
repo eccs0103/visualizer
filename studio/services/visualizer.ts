@@ -1,11 +1,11 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { type Engine, FastEngine, Color } from "adaptive-extender/web";
+import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
 import { Scene, SceneDefinition } from "../models/audio-features.js";
 import { Audioset, type AudiosetManager } from "../models/audioset.js";
 import { AudioAnalyzer } from "./audio-analyzer.js";
-import { type VisualizationEnvironment, type VisualizationBundle, type VisualizationDescriptor, type AudiosetView, type VisualizationHost, VisualizationRegistry } from "./visualization-registry.js";
+import { type VisualizationEnvironment, VisualizationRegistry } from "./visualization-registry.js";
 import { RenderBridge } from "./render-bridge.js";
 import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand } from "../models/render-commands.js";
 
@@ -25,9 +25,9 @@ export interface VisualizerOptions {
 export class Visualizer extends EventTarget {
 	//#region Visualization
 	static #Environment = class Environment implements VisualizationEnvironment {
-		#engine: Engine;
+		#engine: WebEngine;
 
-		constructor(engine: Engine) {
+		constructor(engine: WebEngine) {
 			this.#engine = engine;
 		}
 
@@ -38,35 +38,8 @@ export class Visualizer extends EventTarget {
 			return Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
 		}
 	};
-
-	static #Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
-		#visualizer: Visualizer;
-
-		constructor() {
-			if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
-			if (Visualizer.#ownerVisualization === null) throw new TypeError("Illegal constructor");
-			this.#visualizer = Visualizer.#ownerVisualization;
-		}
-
-		get environment(): VisualizationEnvironment { return this.#visualizer.#environment; }
-		get context(): OffscreenCanvasRenderingContext2D { return this.#visualizer.#context; }
-		get audioset(): AudiosetView { return this.#visualizer.#manager.audioset; }
-
-		rebuild(): void {
-			return;
-		}
-
-		update(): void {
-			return;
-		}
-	};
-
-	static get Visualization(): VisualizationDescriptor { return this.#Visualization; }
-
-	static #ownerVisualization: Visualizer | null = null;
 	//#endregion
 
-	static #instances: Visualizer[] = [];
 	static #targets: Map<Scene, [number, number]> = new Map([
 		[Scene.silence, [-80, 20]],
 		[Scene.speech, [-60, 25]],
@@ -76,16 +49,14 @@ export class Visualizer extends EventTarget {
 		[Scene.drop, [-38, 40]],
 	]);
 
-	#engine: Engine;
+	#bridge: RenderBridge = new RenderBridge();
+	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
+	#engine: WebEngine = new FastEngine();
+	#environment: VisualizationEnvironment = new Visualizer.#Environment(this.#engine);
 	#canvas: HTMLCanvasElement;
-	#environment: VisualizationEnvironment;
-	#context: OffscreenCanvasRenderingContext2D;
 	#manager: AudiosetManager;
 	#analyzer: AudioAnalyzer;
-	#bundles: Map<string, VisualizationBundle> = new Map();
-	#selection: [string, VisualizationBundle];
-	#renderBridge: RenderBridge;
-	#renderWorker: Worker;
+	#visualization: string;
 
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement);
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement, options: Partial<VisualizerOptions>);
@@ -97,11 +68,10 @@ export class Visualizer extends EventTarget {
 
 		const names = VisualizationRegistry.names();
 		if (names.length < 1) throw new Error("No visualization is attached to the visualizer");
-		Visualizer.#instances.push(this);
 
-		const engine = this.#engine = new FastEngine({ launch: !document.hidden });
+		const engine = this.#engine;
+		engine.launched = !document.hidden;
 		document.addEventListener("visibilitychange", event => engine.launched = !document.hidden);
-		const environment = this.#environment = new Visualizer.#Environment(engine);
 
 		this.#canvas = canvas;
 		this.#fixCanvasSize();
@@ -111,21 +81,10 @@ export class Visualizer extends EventTarget {
 		this.#analyzer = new AudioAnalyzer(manager.rate, { isDeveloper });
 		engine.addEventListener("trigger", event => manager.refresh());
 
-		const visualizer = this;
-		const mainHost: VisualizationHost = {
-			get context(): OffscreenCanvasRenderingContext2D { return visualizer.#context; },
-			get audioset(): AudiosetView { return visualizer.#manager.audioset; },
-			get environment(): VisualizationEnvironment { return visualizer.#environment; },
-		};
-		for (const [name, descriptor] of VisualizationRegistry.entries()) {
-			this.#bundles.set(name, VisualizationRegistry.createBundle(mainHost, descriptor));
-		}
-		this.#selection = Array.from(this.#bundles)[0];
+		this.#visualization = names[0];
 
-		const bridge = this.#renderBridge = new RenderBridge();
-		const worker = this.#renderWorker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
 		const offscreen = canvas.transferControlToOffscreen();
-		worker.postMessage(RenderCommand.export(new InitializeRenderCommand(bridge.sab, offscreen)), [offscreen]);
+		this.#worker.postMessage(RenderCommand.export(new InitializeRenderCommand(this.#bridge.sab, offscreen)), [offscreen]);
 
 		this.#rebuild();
 		window.addEventListener("resize", event => this.#rebuild());
@@ -169,32 +128,18 @@ export class Visualizer extends EventTarget {
 	set spread(value: number) { this.#manager.spread = value; }
 
 	get visualization(): string {
-		const [name] = this.#selection;
-		return name;
+		return this.#visualization;
 	}
 
 	set visualization(value: string) {
-		const visualization = ReferenceError.suppress(this.#bundles.get(value), `Visualization with name '${value}' is not attached`);
-		this.#selection = [value, visualization];
+		const name = VisualizationRegistry.names().includes(value) ? value : null;
+		this.#visualization = ReferenceError.suppress(name, `Visualization with name '${value}' is not attached`);
 		this.#rebuild();
 	}
 
 	get analyzer(): AudioAnalyzer { return this.#analyzer; }
 	get isDeveloper(): boolean { return this.#analyzer.isDeveloper; }
 	get audioset(): Audioset { return this.#manager.audioset; }
-
-	static attach(name: string, visualization: VisualizationDescriptor): void {
-		VisualizationRegistry.attach(name, visualization);
-		for (const visualizer of Visualizer.#instances) {
-			const visualizer2 = visualizer;
-			const host: VisualizationHost = {
-				get context(): OffscreenCanvasRenderingContext2D { return visualizer2.#context; },
-				get audioset(): AudiosetView { return visualizer2.#manager.audioset; },
-				get environment(): VisualizationEnvironment { return visualizer2.#environment; },
-			};
-			visualizer.#bundles.set(name, VisualizationRegistry.createBundle(host, visualization));
-		}
-	}
 
 	#fixCanvasSize(): void {
 		const canvas = this.#canvas;
@@ -205,8 +150,7 @@ export class Visualizer extends EventTarget {
 
 	#rebuild(): void {
 		const { width, height } = this.#canvas.getBoundingClientRect();
-		const [vizName] = this.#selection;
-		this.#renderWorker.postMessage(RenderCommand.export(new RebuildRenderCommand(width, height, vizName)));
+		this.#worker.postMessage(RenderCommand.export(new RebuildRenderCommand(width, height, this.#visualization)));
 		this.dispatchEvent(new Event("rebuild"));
 	}
 
@@ -227,8 +171,8 @@ export class Visualizer extends EventTarget {
 		if (manager.autoCorrect) this.#correct();
 		const { length, volume, amplitude, dataFrequency, dataTemporal } = manager.audioset;
 		const color = this.#environment.colorBackground;
-		this.#renderBridge.writeAudioset(length, volume, amplitude, dataFrequency, dataTemporal, color.hue, color.saturation, color.lightness);
-		this.#renderWorker.postMessage(RenderCommand.export(new TickCommand()));
+		this.#bridge.writeAudioset(length, volume, amplitude, dataFrequency, dataTemporal, color.hue, color.saturation, color.lightness);
+		this.#worker.postMessage(RenderCommand.export(new TickCommand()));
 		this.dispatchEvent(new Event("update"));
 	}
 
