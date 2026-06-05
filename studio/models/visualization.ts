@@ -49,15 +49,12 @@ export interface VisualizationHost {
 }
 //#endregion
 //#region Visualization
-export interface VisualizationBundle extends VisualizationHost {
-	get context(): OffscreenCanvasRenderingContext2D;
-	get audioset(): AudiosetView;
-	get environment(): VisualizationEnvironment;
-	rebuild(): void;
-	update(): void;
+export interface VisualizationBundle {
+	rebuild(host: VisualizationHost): void;
+	update(host: VisualizationHost): void;
 }
 
 export interface VisualizationDescriptor {
-	new(host: VisualizationHost): VisualizationBundle;
+	new(): VisualizationBundle;
 }
 //#endregion

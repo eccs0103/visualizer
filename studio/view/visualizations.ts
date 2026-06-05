@@ -2,6 +2,7 @@
 
 import "adaptive-extender/core";
 import { Color, Vector2D } from "adaptive-extender/core";
+import { type AudiosetView, type VisualizationEnvironment, type VisualizationHost } from "../models/visualization.js";
 import { Visualization, Registry } from "../services/visualization-registry.js";
 
 const { min, max, split, sin, cos, PI, exp, abs, trunc, sqrt, SQRT1_2, asin, meanGeometric } = Math;
@@ -12,17 +13,15 @@ Registry.attach("Pulsar", class extends Visualization {
 	#radius: number;
 	#colorBackground: Color;
 
-	#runMetadataRebuild(): void {
-		const { context } = this;
+	#runMetadataRebuild(context: OffscreenCanvasRenderingContext2D, environment: VisualizationEnvironment): void {
 		const { width, height } = context.canvas;
 
 		const radius = this.#radius = min(width, height) / 2;
 
-		const colorBackground = this.#colorBackground = this.environment.colorBackground;
+		const colorBackground = this.#colorBackground = environment.colorBackground;
 	}
 
-	#runContextRebuild(): void {
-		const { context } = this;
+	#runContextRebuild(context: OffscreenCanvasRenderingContext2D): void {
 		const { width, height } = context.canvas;
 		const radius = this.#radius;
 
@@ -32,14 +31,13 @@ Registry.attach("Pulsar", class extends Visualization {
 	}
 	//#endregion
 
-	rebuild(): void {
-		this.#runMetadataRebuild();
-		this.#runContextRebuild();
+	rebuild({ context, environment }: VisualizationHost): void {
+		this.#runMetadataRebuild(context, environment);
+		this.#runContextRebuild(context);
 	}
 
 	//#region Update preparation
-	#runContextUpdate(): void {
-		const { context } = this;
+	#runContextUpdate(context: OffscreenCanvasRenderingContext2D): void {
 		const { width, height } = context.canvas;
 
 		let { a, b, c, d, e, f } = context.getTransform();
@@ -53,11 +51,10 @@ Registry.attach("Pulsar", class extends Visualization {
 	#colorHaloInner: Color = Color.newBlack;
 	#gradientHalo: CanvasGradient;
 
-	#runHaloDrawing(): void {
+	#runHaloDrawing(context: OffscreenCanvasRenderingContext2D, audioset: AudiosetView): void {
 		const radius = this.#radius;
 		const colorHaloOuter = this.#colorHaloOuter;
 		const colorHaloInner = this.#colorHaloInner;
-		const { context, audioset } = this;
 		const { dataFrequency, volume } = audioset;
 		const { length } = audioset;
 		const semiLength = length / 2;
@@ -92,10 +89,9 @@ Registry.attach("Pulsar", class extends Visualization {
 
 	#offsetHaloRotation: number = 0;
 
-	#runHaloRotation(): void {
+	#runHaloRotation(audioset: AudiosetView, environment: VisualizationEnvironment): void {
 		const colorHalo = this.#colorHaloOuter;
 		const duration = 6;
-		const { audioset, environment } = this;
 		const { delta } = environment;
 		const { volume } = audioset;
 
@@ -106,10 +102,9 @@ Registry.attach("Pulsar", class extends Visualization {
 	}
 	//#endregion
 	//#region Wave
-	#runWaveDrawing(): void {
+	#runWaveDrawing(context: OffscreenCanvasRenderingContext2D, audioset: AudiosetView): void {
 		const radius = this.#radius;
 		const gradientHalo = this.#gradientHalo;
-		const { context, audioset } = this;
 		const { dataTemporal, amplitude } = audioset;
 		const { width } = context.canvas;
 		const { length } = audioset;
@@ -136,10 +131,9 @@ Registry.attach("Pulsar", class extends Visualization {
 	//#region Shadow
 	#colorShadow: Color = Color.newBlack;
 
-	#runShadowDrawing(): void {
+	#runShadowDrawing(context: OffscreenCanvasRenderingContext2D): void {
 		const radius = this.#radius;
 		const colorShadow = this.#colorShadow;
-		const { context } = this;
 
 		const gradientShadow = context.createRadialGradient(0, 0, 0, 0, 0, radius);
 		gradientShadow.addColorStop(0, colorShadow.pass(1).toString());
@@ -151,9 +145,8 @@ Registry.attach("Pulsar", class extends Visualization {
 	}
 	//#endregion
 	//#region Background
-	#runBackgroundDrawing(): void {
+	#runBackgroundDrawing(context: OffscreenCanvasRenderingContext2D): void {
 		const colorBackground = this.#colorBackground;
-		const { context } = this;
 		const { a, d, e, f } = context.getTransform();
 		const { width, height } = context.canvas;
 
@@ -163,17 +156,17 @@ Registry.attach("Pulsar", class extends Visualization {
 	}
 	//#endregion
 
-	update(): void {
-		this.#runContextUpdate();
+	update({ context, audioset, environment }: VisualizationHost): void {
+		this.#runContextUpdate(context);
 
-		this.#runHaloDrawing();
-		this.#runHaloRotation();
+		this.#runHaloDrawing(context, audioset);
+		this.#runHaloRotation(audioset, environment);
 
-		this.#runWaveDrawing();
+		this.#runWaveDrawing(context, audioset);
 
-		this.#runShadowDrawing();
+		this.#runShadowDrawing(context);
 
-		this.#runBackgroundDrawing();
+		this.#runBackgroundDrawing(context);
 	}
 });
 //#endregion
@@ -189,15 +182,14 @@ Registry.attach("Spectrogram", class extends Visualization {
 		return value * (1 - alpha) + 0.5 * alpha;
 	}
 
-	#runMetadataRebuild(): void {
+	#runMetadataRebuild(environment: VisualizationEnvironment): void {
 		this.#deltaRotation = 360 / 6;
 
-		const colorGrid = this.#colorGrid = this.environment.colorBackground;
+		const colorGrid = this.#colorGrid = environment.colorBackground;
 		colorGrid.lightness = this.#interpolate(colorGrid.lightness / 100) * 100;
 	}
 
-	#runContextRebuild(): void {
-		const { context } = this;
+	#runContextRebuild(context: OffscreenCanvasRenderingContext2D): void {
 		const { width, height } = context.canvas;
 
 		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
@@ -206,14 +198,13 @@ Registry.attach("Spectrogram", class extends Visualization {
 	}
 	//#endregion
 
-	rebuild(): void {
-		this.#runMetadataRebuild();
-		this.#runContextRebuild();
+	rebuild({ context, environment }: VisualizationHost): void {
+		this.#runMetadataRebuild(environment);
+		this.#runContextRebuild(context);
 	}
 
 	//#region Update preparation
-	#runContextUpdate(): void {
-		const { audioset, context } = this;
+	#runContextUpdate(context: OffscreenCanvasRenderingContext2D, audioset: AudiosetView): void {
 		const { volume, amplitude } = audioset;
 		const { width, height } = context.canvas;
 
@@ -225,9 +216,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 	}
 	//#endregion
 	//#region Grid
-	#runGridDrawing(): void {
+	#runGridDrawing(context: OffscreenCanvasRenderingContext2D): void {
 		const colorGrid = this.#colorGrid;
-		const { context } = this;
 		const { width, height } = context.canvas;
 
 		const step = 4 * context.lineWidth;
@@ -252,11 +242,10 @@ Registry.attach("Spectrogram", class extends Visualization {
 	//#region Spectrum
 	#colorSpectrumSeed: Color = Color.fromHSL(0, 100, 50);
 
-	#runSpectrumDrawing(): void {
+	#runSpectrumDrawing(context: OffscreenCanvasRenderingContext2D, audioset: AudiosetView): void {
 		const normShadowAnchor = this.#normShadowAnchor;
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
 		const deltaRotation = this.#deltaRotation;
-		const { context, audioset } = this;
 		const { dataFrequency, volume, amplitude } = audioset;
 		const { width, height } = context.canvas;
 
@@ -286,10 +275,9 @@ Registry.attach("Spectrogram", class extends Visualization {
 
 	#offsetSpectrumRotation: number = 0;
 
-	#runSpectrumRotation(): void {
+	#runSpectrumRotation(audioset: AudiosetView, environment: VisualizationEnvironment): void {
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
 		const deltaRotation = this.#deltaRotation;
-		const { audioset, environment } = this;
 		const { delta } = environment;
 		const { amplitude } = audioset;
 
@@ -302,12 +290,11 @@ Registry.attach("Spectrogram", class extends Visualization {
 	//#region Shadow
 	#colorShadow: Color = Color.newBlack;
 
-	#runShadowDrawing(): void {
+	#runShadowDrawing(context: OffscreenCanvasRenderingContext2D): void {
 		const normShadowAnchor = this.#normShadowAnchor;
 		const normTopAnchor = normShadowAnchor * 2 / 3;
 		const normBottomAnchor = normTopAnchor + 1 / 3;
 		const colorShadow = this.#colorShadow;
-		const { context } = this;
 		const { width, height } = context.canvas;
 
 		const { a, d, e, f } = context.getTransform();
@@ -323,15 +310,15 @@ Registry.attach("Spectrogram", class extends Visualization {
 	}
 	//#endregion
 
-	update(): void {
-		this.#runContextUpdate();
+	update({ context, audioset, environment }: VisualizationHost): void {
+		this.#runContextUpdate(context, audioset);
 
-		this.#runGridDrawing();
+		this.#runGridDrawing(context);
 
-		this.#runSpectrumDrawing();
-		this.#runSpectrumRotation();
+		this.#runSpectrumDrawing(context, audioset);
+		this.#runSpectrumRotation(audioset, environment);
 
-		this.#runShadowDrawing();
+		this.#runShadowDrawing(context);
 	}
 });
 //#endregion

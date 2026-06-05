@@ -23,12 +23,12 @@ class VisualizationWorker extends Controller {
 		if (command instanceof InitializeRenderCommand) {
 			const { sabVideo, sabAudio, canvas } = command;
 
-			const context = this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
+			this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
 			const audioset = this.#audioset = new WorkerAudioset(sabVideo, sabAudio);
-			const environment = this.#environment = new WorkerEnvironment(audioset);
+			this.#environment = new WorkerEnvironment(audioset);
 			let selection: string | null = null;
 			for (const [name, descriptor] of Registry.entries()) {
-				bundles.set(name, Registry.createBundle({ context, audioset, environment }, descriptor));
+				bundles.set(name, Registry.createBundle(descriptor));
 				if (selection === null) selection = name;
 			}
 			this.#selection = ReferenceError.suppress(selection, "Failed to find any visualization");
@@ -36,16 +36,21 @@ class VisualizationWorker extends Controller {
 		}
 
 		if (command instanceof TickCommand) {
-			this.#audioset.sync();
-			this.#environment.tick();
+			const context = this.#context;
+			const audioset = this.#audioset;
+			const environment = this.#environment;
+			audioset.sync();
+			environment.tick();
 			const selection = this.#selection;
 			const bundle = ReferenceError.suppress(bundles.get(selection), `Visualization with name '${selection}' is not attached`);
-			bundle.update();
+			bundle.update({ context, audioset, environment });
 			return;
 		}
 
 		if (command instanceof RebuildRenderCommand) {
 			const context = this.#context;
+			const audioset = this.#audioset;
+			const environment = this.#environment;
 			const { canvas } = context;
 			const { width, height, visualization } = command;
 
@@ -56,8 +61,8 @@ class VisualizationWorker extends Controller {
 			context.resetTransform();
 			const selection = this.#selection;
 			const bundle = ReferenceError.suppress(bundles.get(selection), `Visualization with name '${selection}' is not attached`);
-			bundle.rebuild();
-			bundle.update();
+			bundle.rebuild({ context, audioset, environment });
+			bundle.update({ context, audioset, environment });
 			return;
 		}
 	}

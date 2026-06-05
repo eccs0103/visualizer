@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { type AudiosetView, type VisualizationBundle, type VisualizationDescriptor, type VisualizationEnvironment, type VisualizationHost } from "../models/visualization.js";
+import { type VisualizationBundle, type VisualizationDescriptor, type VisualizationHost } from "../models/visualization.js";
 
 //#region Registry
 export class Registry {
@@ -9,31 +9,26 @@ export class Registry {
 
 	//#region Visualization
 	static #Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
-		#host: VisualizationHost;
-
-		constructor(host: VisualizationHost) {
+		constructor() {
 			if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
 			if (Registry.#lockDescriptor) throw new TypeError("Illegal constructor");
-			this.#host = host;
 		}
 
-		get context(): OffscreenCanvasRenderingContext2D { return this.#host.context; }
-		get audioset(): AudiosetView { return this.#host.audioset; }
-		get environment(): VisualizationEnvironment { return this.#host.environment; }
-
-		rebuild(): void {
+		rebuild(host: VisualizationHost): void {
+			void host;
 		}
 
-		update(): void {
+		update(host: VisualizationHost): void {
+			void host;
 		}
 	};
 
 	static get Visualization(): VisualizationDescriptor { return this.#Visualization; }
 
 	static #lockDescriptor: boolean = true;
-	static createBundle(host: VisualizationHost, descriptor: VisualizationDescriptor): VisualizationBundle {
+	static createBundle(descriptor: VisualizationDescriptor): VisualizationBundle {
 		Registry.#lockDescriptor = false;
-		const bundle: VisualizationBundle = Reflect.construct(descriptor, [host]);
+		const bundle: VisualizationBundle = Reflect.construct(descriptor, []);
 		Registry.#lockDescriptor = true;
 		return bundle;
 	}
