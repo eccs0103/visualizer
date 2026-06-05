@@ -7,6 +7,72 @@ import { Registry, Visualization } from "../services/visualization-registry.js";
 
 const { min, max, split, sin, cos, PI, exp, abs, trunc, sqrt, SQRT1_2, asin, meanGeometric } = Math;
 
+//#region Shaper
+class Shaper {
+	static #arcsinSaturate: Shaper = new Shaper(x => asin(sqrt(x)) * 2 / PI);
+	static #smoothstep: Shaper = new Shaper(x => x * x * (3 - 2 * x));
+	static #identity: Shaper = new Shaper(x => x);
+
+	#callback: (x: number) => number;
+
+	constructor(callback: (x: number) => number) {
+		this.#callback = callback;
+	}
+
+	static get arcsinSaturate(): Shaper { return this.#arcsinSaturate; }
+	static get smoothstep(): Shaper { return this.#smoothstep; }
+	static get identity(): Shaper { return this.#identity; }
+
+	static sigmoid(steepness: number = 12, center: number = 0.5): Shaper {
+		return new Shaper(x => 1 / (1 + exp(-(steepness * (x - center)))));
+	}
+
+	static power(n: number): Shaper {
+		return new Shaper(x => x ** n);
+	}
+
+	apply(value: number): number {
+		return this.#callback(value);
+	}
+
+	then(next: Shaper): Shaper {
+		const callback = this.#callback;
+		return new Shaper(x => next.apply(callback(x)));
+	}
+
+	blend(other: Shaper, alpha: number = 0.5): Shaper {
+		const callback = this.#callback;
+		return new Shaper(x => callback(x) * (1 - alpha) + other.apply(x) * alpha);
+	}
+
+	mirror(): Shaper {
+		const callback = this.#callback;
+		return new Shaper(x => callback(1 - x));
+	}
+
+	invert(): Shaper {
+		const callback = this.#callback;
+		return new Shaper(x => 1 - callback(x));
+	}
+
+	remap(value: number, min2: number, max2: number): number {
+		return this.#callback(value).lerp(0, 1, min2, max2);
+	}
+}
+//#endregion
+//#region Color rotator
+class ColorRotator {
+	#offset: number = 0;
+
+	tick(color: Color, degreesPerMs: number, delta: number, factor: number = 1): void {
+		if (!Number.isFinite(delta)) return;
+		const [integer, fractional] = split(this.#offset + degreesPerMs * delta * factor);
+		color.rotate(integer);
+		this.#offset = fractional;
+	}
+}
+//#endregion
+
 //#region Pulsar
 Registry.attach("Pulsar", class extends Visualization {
 	//#region Rebuild preparation
