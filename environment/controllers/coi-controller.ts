@@ -18,9 +18,5 @@ export class CorsIsolationController extends Controller {
 		location.reload();
 		await Promise.asTimeout(CorsIsolationController.#MAX_32_BIT_INTEGER);
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion

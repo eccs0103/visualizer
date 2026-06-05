@@ -137,9 +137,5 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 			if (!isSuccesfull) window.alert("Unable to open the submission page.");
 		});
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion

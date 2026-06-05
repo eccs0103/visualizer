@@ -29,10 +29,6 @@ class CorsIsolationWorker extends Controller {
 		scope.addEventListener("activate", event => event.waitUntil(scope.clients.claim()));
 		scope.addEventListener("fetch", event => event.respondWith(this.#buildIsolatedResponse(event.request)));
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion
 

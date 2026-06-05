@@ -26,8 +26,8 @@ export class BatteryCollector extends Controller {
 		if (!navigator.getBattery) return;
 		const battery = await navigator.getBattery();
 		this.#update(battery);
-		battery.addEventListener("levelchange", () => this.#update(battery));
-		battery.addEventListener("chargingchange", () => this.#update(battery));
+		battery.addEventListener("levelchange", event => this.#update(battery));
+		battery.addEventListener("chargingchange", event => this.#update(battery));
 	}
 
 	#update(battery: BatteryManager): void {

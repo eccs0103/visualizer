@@ -56,9 +56,5 @@ export class ConfiguratorController extends Controller<[ArchiveRepository<typeof
 
 		await this.#setActivity(settings.isOpenedConfigurator);
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion

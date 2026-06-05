@@ -163,9 +163,5 @@ export class AudioController extends Controller<[ObjectStore, HTMLAudioElement, 
 			await this.#playToggle(audioPlayer.paused);
 		});
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion

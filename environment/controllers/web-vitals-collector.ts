@@ -40,7 +40,7 @@ export class WebVitalsCollector extends Controller {
 		this.#observeInp();
 		this.#observeLongTasks();
 
-		document.addEventListener("visibilitychange", () => {
+		document.addEventListener("visibilitychange", (event) => {
 			if (document.visibilityState !== "hidden") return;
 			const fcpMs = this.#fcpMs;
 			const lcpMs = this.#lcpMs;

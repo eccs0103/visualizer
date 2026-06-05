@@ -126,9 +126,5 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			selectVisualizerVisualization.dispatchEvent(new Event("change"));
 		});
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion

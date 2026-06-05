@@ -70,10 +70,6 @@ class VisualizationWorker extends Controller {
 	async run(): Promise<void> {
 		self.addEventListener("message", this.#onMessage.bind(this));
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion
 

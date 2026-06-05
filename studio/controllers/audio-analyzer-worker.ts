@@ -90,10 +90,6 @@ class AudioAnalyzerWorker extends Controller {
 		setInterval(this.#poll.bind(this), 4);
 		self.addEventListener("message", this.#onMessage.bind(this));
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion
 

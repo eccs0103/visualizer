@@ -1,14 +1,13 @@
 ﻿"use strict";
 
 import "adaptive-extender/web";
-import { Controller, ArchiveRepository } from "adaptive-extender/web";
+import { Controller, ArchiveRepository, MetadataInjector } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { ObjectStore } from "../services/object-store.js";
 import { AudioController } from "./audio-controller.js";
 import { ConfiguratorController } from "./configurator-controller.js";
 import { ClipController } from "./clip-controller.js";
-import { MetadataInjector } from "../../environment/services/metadata-injector.js";
 import { AnalyticsController } from "../../environment/controllers/analytics-controller.js";
 import { CorsIsolationController } from "../../environment/controllers/coi-controller.js";
 import "../view/visualizations.js";

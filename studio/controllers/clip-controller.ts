@@ -66,9 +66,5 @@ export class ClipController extends Controller<[Visualizer, HTMLCanvasElement, H
 
 		this.#markRecording(recorder.isRecording);
 	}
-
-	async catch(error: Error): Promise<void> {
-		throw error;
-	}
 }
 //#endregion
