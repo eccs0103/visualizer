@@ -60,14 +60,22 @@ class Shaper {
 	}
 }
 //#endregion
-//#region Color rotator
-class ColorRotator {
+//#region Color driver
+class ColorDriver {
+	static #rotation: ColorDriver = new ColorDriver((color, steps) => color.rotate(steps));
 	#offset: number = 0;
+	#callback: (color: Color, steps: number) => void;
 
-	tick(color: Color, degreesPerMs: number, delta: number, factor: number = 1): void {
+	constructor(callback: (color: Color, steps: number) => void) {
+		this.#callback = callback;
+	}
+
+	static get rotation(): ColorDriver { return this.#rotation; }
+
+	tick(color: Color, ratePerMs: number, delta: number, factor: number = 1): void {
 		if (!Number.isFinite(delta)) return;
-		const [integer, fractional] = split(this.#offset + degreesPerMs * delta * factor);
-		color.rotate(integer);
+		const [integer, fractional] = split(this.#offset + ratePerMs * delta * factor);
+		this.#callback(color, integer);
 		this.#offset = fractional;
 	}
 }
@@ -114,6 +122,7 @@ Registry.attach("Pulsar", class extends Visualization {
 	#colorHaloOuter: Color = Color.fromHSL(0, 100, 50);
 	#colorHaloInner: Color = Color.newBlack;
 	#gradientHalo: CanvasGradient;
+	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 
 	#runHaloDrawing({ context, audioset }: VisualizationHost): void {
 		const radius = this.#radius;
@@ -131,14 +140,11 @@ Registry.attach("Pulsar", class extends Visualization {
 			const normOffset = abs(index - semiLength).lerp(0, semiLength + 1);
 			gradientHalo.addColorStop(normProgress, new Color(colorHaloOuter)
 				.rotate(180 * normOffset)
-				.illuminate(0.1 + 0.9 * volume)
+				.illuminate(volume.lerp(0, 1, 0.1, 1.0))
 				.toString()
 			);
-			const normDatumFrequency = dataFrequency[trunc(normOffset * semiLength)];
-			let normScale = normDatumFrequency;
-			normScale = 1 / (1 + exp(-((normScale - 0.5) * 12))); /** @todo smoothSigmoid */
-			normScale = asin(sqrt(normScale)) * 2 / PI; /** @todo saturateArcsin */
-			const distance = (0.6 + 0.4 * normScale) * radius;
+			const normScale = this.#shaperFrequency.apply(dataFrequency[trunc(normOffset * semiLength)]);
+			const distance = normScale.lerp(0, 1, 0.6, 1.0) * radius;
 			position.x = distance * sin(normProgress * 2 * PI);
 			position.y = distance * cos(normProgress * 2 * PI);
 			context.lineTo(position.x, position.y);
@@ -151,18 +157,10 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.stroke();
 	}
 
-	#offsetHaloRotation: number = 0;
+	#driverHalo: ColorDriver = ColorDriver.rotation;
 
 	#runHaloRotation({ audioset, environment }: VisualizationHost): void {
-		const colorHalo = this.#colorHaloOuter;
-		const duration = 6;
-		const { delta } = environment;
-		const { volume } = audioset;
-
-		if (!Number.isFinite(delta)) return;
-		const [integer, fractional] = split(this.#offsetHaloRotation + (360 / duration) * delta * volume);
-		colorHalo.rotate(integer);
-		this.#offsetHaloRotation = fractional;
+		this.#driverHalo.tick(this.#colorHaloOuter, 360 / 6, environment.delta, audioset.volume);
 	}
 	//#endregion
 	//#region Wave
@@ -178,7 +176,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		const position = Vector2D.newNaN;
 		for (let index = 0; index < length; index++) {
 			const normProgress = index.lerp(0, length);
-			const normDatumTemporal = dataTemporal[trunc(normProgress * length)] * 2 - 1;
+			const normDatumTemporal = dataTemporal[trunc(normProgress * length)].lerp(0, 1, -1, 1);
 			const normScale = normDatumTemporal * amplitude;
 			position.x = width * (normProgress - 0.5);
 			position.y = radius * normScale;
@@ -241,16 +239,11 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#deltaRotation: number;
 	#colorGrid: Color;
 
-	#interpolate(value: number): number {
-		const alpha = 0.2;
-		return value * (1 - alpha) + 0.5 * alpha;
-	}
-
 	#runMetadataRebuild({ environment }: VisualizationHost): void {
 		this.#deltaRotation = 360 / 6;
 
 		const colorGrid = this.#colorGrid = environment.colorBackground;
-		colorGrid.lightness = this.#interpolate(colorGrid.lightness / 100) * 100;
+		colorGrid.lightness = (colorGrid.lightness / 100).lerp(0, 1, 0.1, 0.9) * 100;
 	}
 
 	#runContextRebuild({ context }: VisualizationHost): void {
@@ -273,8 +266,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const { width, height } = context.canvas;
 
 		let { a, b, c, d, e, f } = context.getTransform();
-		a = 1 + 0.2 * volume;
-		d = 1 + 0.4 * amplitude;
+		a = volume.lerp(0, 1, 1.0, 1.2);
+		d = amplitude.lerp(0, 1, 1.0, 1.4);
 		context.setTransform(a, b, c, d, e, f);
 		context.clearRect(-e / a, -f / d, width / a, height / d);
 	}
@@ -325,8 +318,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 			position.x = width * (normProgress - 0.5);
 			position.y = height * ((1 - normScale) * normShadowAnchor - 0.5 + Number(offset < 0) * normScale);
 			gradientSpectrum.addColorStop(normProgress, new Color(colorSpectrumSeed)
-				.rotate(120 * normProgress + deltaRotation * (amplitude * 2 - 1))
-				.illuminate(0.2 + 0.5 * volume)
+				.rotate(120 * normProgress + deltaRotation * amplitude.lerp(0, 1, -1, 1))
+				.illuminate(volume.lerp(0, 1, 0.2, 0.7))
 				.toString()
 			);
 			context.lineTo(position.x, position.y);
@@ -337,18 +330,10 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.fill();
 	}
 
-	#offsetSpectrumRotation: number = 0;
+	#driverSpectrum: ColorDriver = ColorDriver.rotation;
 
 	#runSpectrumRotation({ audioset, environment }: VisualizationHost): void {
-		const colorSpectrumSeed = this.#colorSpectrumSeed;
-		const deltaRotation = this.#deltaRotation;
-		const { delta } = environment;
-		const { amplitude } = audioset;
-
-		if (!Number.isFinite(delta)) return;
-		const [integer, fractional] = split(this.#offsetSpectrumRotation + deltaRotation * delta * amplitude);
-		colorSpectrumSeed.rotate(-integer);
-		this.#offsetSpectrumRotation = fractional;
+		this.#driverSpectrum.tick(this.#colorSpectrumSeed, -this.#deltaRotation, environment.delta, audioset.amplitude);
 	}
 	//#endregion
 	//#region Shadow
