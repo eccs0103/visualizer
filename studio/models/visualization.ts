@@ -43,9 +43,9 @@ export interface VisualizationEnvironment {
 //#endregion
 //#region Visualization host
 export interface VisualizationHost {
-	context: OffscreenCanvasRenderingContext2D;
-	audioset: AudiosetView;
-	environment: VisualizationEnvironment;
+	get context(): OffscreenCanvasRenderingContext2D;
+	get audioset(): AudiosetView;
+	get environment(): VisualizationEnvironment;
 }
 //#endregion
 //#region Visualization
