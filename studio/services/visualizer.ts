@@ -76,7 +76,6 @@ export class Visualizer extends EventTarget {
 
 		this.#canvas = canvas;
 		this.#fixCanvasSize();
-		window.addEventListener("resize", event => this.#fixCanvasSize());
 
 		const manager = this.#manager = new Audioset.Manager(media);
 		this.#analyzer = new AudioAnalyzer(manager.rate, { isDeveloper });
