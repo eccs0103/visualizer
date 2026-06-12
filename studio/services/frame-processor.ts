@@ -4,8 +4,9 @@ import "adaptive-extender/worker";
 import { Scene, SceneDefinition, SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { type AutoTeacher } from "./auto-teacher.js";
+import { type PolicyUpdater } from "./policy-updater.js";
 
-const { max, round, min, sqrt } = Math;
+const { abs, max, round, min, sqrt } = Math;
 
 //#region Flux stats
 class FluxStats {
@@ -56,6 +57,9 @@ export class FrameProcessor {
 	#prevRms: number = 0;
 	#beatActive: number = 0;
 	#rmsSlope: number = 0;
+	#lastVisualParams: Float32Array = new Float32Array(4);
+	#lastValueOutput: Float32Array = new Float32Array(1);
+	#rlTarget: Float32Array = new Float32Array(4);
 
 	constructor() {
 		this.#emaVar.fill(1);
@@ -184,7 +188,7 @@ export class FrameProcessor {
 		hist.set(this.#normBuf, (FrameProcessor.#histSize - 1) * count);
 	}
 
-	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array, model: NNAgent, teacher: AutoTeacher): void {
+	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array, model: NNAgent, teacher: AutoTeacher, policy: PolicyUpdater): void {
 		if (frame === this.#lastFrame) return;
 		this.#lastFrame = frame;
 		this.#frameCount++;
@@ -214,7 +218,7 @@ export class FrameProcessor {
 		this.#pushHistory();
 
 		const sceneProbs = new Float32Array(SceneDefinition.count);
-		model.forward(this.#featHistory, sceneProbs);
+		model.forwardFull(this.#featHistory, sceneProbs, this.#lastVisualParams, this.#lastValueOutput);
 		let bestScene = 0;
 		for (let scene = 1; scene < SceneDefinition.count; scene++) {
 			if (sceneProbs[scene] > sceneProbs[bestScene]) bestScene = scene;
@@ -244,7 +248,38 @@ export class FrameProcessor {
 		output[endScene + 1] = bassLevel;
 		output[endScene + 2] = distortionLevel;
 		output[endScene + 3] = autoLabel ?? -1;
+		const visualParams = this.#lastVisualParams;
+		output[endScene + 4] = visualParams[0];
+		output[endScene + 5] = visualParams[1];
+		output[endScene + 6] = visualParams[2];
+		output[endScene + 7] = visualParams[3];
 		output[0] = frame;
+
+		this.#computeRlTarget(bassLevel, dropIntensity, percussiveness, centroid, bandEnergies[0], bandEnergies[1]);
+		const rlReward = this.#computeRlReward(visualParams[2], bassLevel, dropIntensity, percussiveness, beatDetected, bestScene, sceneProbs[bestScene]);
+		output[endScene + 8] = rlReward;
+		policy.consider(this.#featHistory, this.#rlTarget, this.#lastValueOutput[0], rlReward, model, this.#frameCount);
+	}
+
+	#computeRlTarget(bassLevel: number, dropIntensity: number, percussiveness: number, spectralCentroid: number, subBassEnergy: number, bassEnergy: number): void {
+		const audioEnergy = min(1, bassLevel * 0.5 + dropIntensity * 0.3 + percussiveness * 0.2);
+		const bassWeight = min(1, (subBassEnergy + bassEnergy) * 4);
+		this.#rlTarget[0] = audioEnergy;
+		this.#rlTarget[1] = bassWeight;
+		this.#rlTarget[2] = audioEnergy;
+		this.#rlTarget[3] = min(1, spectralCentroid * 2);
+	}
+
+	#computeRlReward(rlIntensity: number, bassLevel: number, dropIntensity: number, percussiveness: number, beatDetected: boolean, sceneIdx: number, sceneConfidence: number): number {
+		const audioEnergy = min(1, bassLevel * 0.5 + dropIntensity * 0.3 + percussiveness * 0.2);
+		const rSync = 1 - 2 * abs(rlIntensity - audioEnergy);
+		const rBeat = beatDetected ? (rlIntensity > 0.5 ? 1 : -0.5) : 0;
+		let rConsistency = 0;
+		if (sceneConfidence > 0.8) {
+			const isHighEnergy = sceneIdx === SceneDefinition.indexOf(Scene.drop) || sceneIdx === SceneDefinition.indexOf(Scene.beat);
+			rConsistency = isHighEnergy === (rlIntensity > 0.5) ? 1 : -0.5;
+		}
+		return 0.7 * rSync + 0.15 * rBeat + 0.15 * rConsistency;
 	}
 
 	#classifyAutoLabel(currentRms: number, zeroCrossingRate: number, bandEnergies: Float32Array, percussiveness: number): number | null {

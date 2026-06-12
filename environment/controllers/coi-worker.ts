@@ -32,4 +32,4 @@ class CorsIsolationWorker extends Controller {
 }
 //#endregion
 
-await CorsIsolationWorker.launch();
+CorsIsolationWorker.launch();

@@ -2,7 +2,6 @@
 
 import "adaptive-extender/web";
 import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
-import { Scene, SceneDefinition } from "../models/audio-features.js";
 import { Audioset, type AudiosetManager } from "../models/audioset.js";
 import { AudioAnalyzer } from "./audio-analyzer.js";
 import { type VisualizationEnvironment } from "../models/visualization.js";
@@ -42,14 +41,6 @@ export class Visualizer extends EventTarget {
 	};
 	//#endregion
 
-	static #targets: Map<Scene, [number, number]> = new Map([
-		[Scene.silence, [-80, 20]],
-		[Scene.speech, [-60, 25]],
-		[Scene.ambient, [-55, 30]],
-		[Scene.buildup, [-50, 35]],
-		[Scene.beat, [-45, 35]],
-		[Scene.drop, [-38, 40]],
-	]);
 
 	#bridge: RenderBridge = new RenderBridge();
 	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
@@ -151,13 +142,9 @@ export class Visualizer extends EventTarget {
 	#correct(): void {
 		const manager = this.#manager;
 		this.#analyzer.analyze(manager);
-		const { dspScene } = manager.audioset;
-		if (dspScene < 0) return;
-		const target = Visualizer.#targets.get(SceneDefinition.fromIndex(dspScene));
-		if (target === undefined) return;
-		const [focus, spread] = target;
-		manager.focus += (focus - manager.focus) * 0.04;
-		manager.spread += (spread - manager.spread) * 0.04;
+		const { rlFocus, rlSpread } = manager.audioset;
+		manager.focus += (rlFocus - manager.focus) * 0.04;
+		manager.spread += (rlSpread - manager.spread) * 0.04;
 	}
 
 	#update(): void {

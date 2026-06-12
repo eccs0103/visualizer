@@ -2,7 +2,7 @@
 
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model } from "adaptive-extender/core";
-import { type NNWeights, type NNWeightsSceme } from "./nn-agent.js";
+import { type NNWeights, type NNWeightsScheme } from "./nn-agent.js";
 
 //#region Shared array buffer portable
 class SharedArrayBufferPortable {
@@ -120,7 +120,7 @@ export interface LoadWeightsCommandDiscriminator {
 
 export interface LoadWeightsCommandScheme extends CommandScheme {
 	$type: keyof LoadWeightsCommandDiscriminator;
-	weights: NNWeightsSceme;
+	weights: NNWeightsScheme;
 }
 
 export class LoadWeightsCommand extends Command {
@@ -138,7 +138,6 @@ export class LoadWeightsCommand extends Command {
 		super();
 		this.weights = weights;
 	}
-
 }
 //#endregion
 //#region Weights command
@@ -148,7 +147,7 @@ export interface WeightsCommandDiscriminator {
 
 export interface WeightsCommandScheme extends CommandScheme {
 	$type: keyof WeightsCommandDiscriminator;
-	weights: NNWeightsSceme;
+	weights: NNWeightsScheme;
 }
 
 export class WeightsCommand extends Command {
@@ -166,7 +165,6 @@ export class WeightsCommand extends Command {
 		super();
 		this.weights = weights;
 	}
-
 }
 //#endregion
 //#region Set auto train command
@@ -194,7 +192,6 @@ export class SetAutoTrainCommand extends Command {
 		super();
 		this.enabled = enabled;
 	}
-
 }
 //#endregion
 //#region Reset command
@@ -234,6 +231,5 @@ export class AutoProgressCommand extends Command {
 		super();
 		this.count = count;
 	}
-
 }
 //#endregion

@@ -6,6 +6,7 @@ import { SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
 import { AutoTeacher } from "../services/auto-teacher.js";
+import { PolicyUpdater } from "../services/policy-updater.js";
 import { Command, InitializeCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, SetAutoTrainCommand, TrainCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 //#region Audio analyzer worker
@@ -19,6 +20,7 @@ class AudioAnalyzerWorker extends Controller {
 	#agent: NNAgent = new NNAgent();
 	#processor: FrameProcessor = new FrameProcessor();
 	#teacher: AutoTeacher = new AutoTeacher();
+	#policy: PolicyUpdater = new PolicyUpdater();
 	#pendingLabel: number | null = null;
 
 	#poll(): void {
@@ -36,7 +38,8 @@ class AudioAnalyzerWorker extends Controller {
 		const agent = this.#agent;
 		const processor = this.#processor;
 		const teacher = this.#teacher;
-		processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer, agent, teacher);
+		const policy = this.#policy;
+		processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer, agent, teacher, policy);
 
 		const pendingLabel = this.#pendingLabel;
 		if (pendingLabel === null) return;
@@ -49,6 +52,7 @@ class AudioAnalyzerWorker extends Controller {
 		const command = Command.import(event.data, "command");
 		const teacher = this.#teacher;
 		const agent = this.#agent;
+		const policy = this.#policy;
 
 		if (command instanceof InitializeCommand) {
 			const { inSAB, outSAB } = command;
@@ -68,6 +72,7 @@ class AudioAnalyzerWorker extends Controller {
 		if (command instanceof ResetCommand) {
 			agent.reset();
 			teacher.reset();
+			policy.reset();
 			return;
 		}
 

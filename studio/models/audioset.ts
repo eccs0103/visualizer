@@ -224,6 +224,8 @@ export class Audioset implements AudiosetView {
 	get bassLevel(): number { return this.#features.bassLevel; }
 	get distortionLevel(): number { return this.#features.distortionLevel; }
 	get dspScene(): number { return this.#features.dspScene; }
+	get rlFocus(): number { return this.#features.rlFocus; }
+	get rlSpread(): number { return this.#features.rlSpread; }
 	isActive(): boolean { return this.#features.isActive(); }
 	isPercussive(): boolean { return this.#features.isPercussive(); }
 }

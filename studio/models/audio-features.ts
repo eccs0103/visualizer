@@ -32,26 +32,31 @@ export class SceneDefinition {
  *  Bytes 20.. : Float32[inputMaxLength] dataFrequency  
  *             + Float32[inputMaxLength] dataTemporal  
  *
- *outSAB layout (Float32Array of outputSize = 17 + N floats, N = SceneDefinition.count):  
- *  [0]     frameCounter  
- *  [1]     spectralFlux  
- *  [2–7]   bandEnergy[6]  (subBass, bass, lowMid, mid, highMid, high)  
- *  [8]     zeroCrossingRate  
- *  [9]     spectralCentroid  
- *  [10]    percussiveness  
- *  [11]    beatDetected   (0 | 1)  
- *  [12]    scene          (scene index 0..N-1)  
- *  [13..13+N-1] sceneProbs[N]  
- *  [13+N]  dropIntensity  
- *  [13+N+1] bassLevel  
- *  [13+N+2] distortionLevel  
- *  [13+N+3] dspScene     (-1 = no confident label, 0..N-1 = DSP label)  
+ *outSAB layout (Float32Array of outputSize = 22 + N floats, N = SceneDefinition.count):
+ *  [0]     frameCounter
+ *  [1]     spectralFlux
+ *  [2–7]   bandEnergy[6]  (subBass, bass, lowMid, mid, highMid, high)
+ *  [8]     zeroCrossingRate
+ *  [9]     spectralCentroid
+ *  [10]    percussiveness
+ *  [11]    beatDetected   (0 | 1)
+ *  [12]    scene          (scene index 0..N-1)
+ *  [13..13+N-1] sceneProbs[N]
+ *  [13+N]  dropIntensity
+ *  [13+N+1] bassLevel
+ *  [13+N+2] distortionLevel
+ *  [13+N+3] dspScene     (-1 = no confident label, 0..N-1 = DSP label)
+ *  [13+N+4] rlFocus      (sigmoid 0..1, mapped to focus range)
+ *  [13+N+5] rlSpread     (sigmoid 0..1, mapped to spread range)
+ *  [13+N+6] rlIntensity  (sigmoid 0..1)
+ *  [13+N+7] rlColorShift (sigmoid 0..1)
+ *  [13+N+8] rlReward     (current frame reward signal)
  */
 export class SabLayout {
 	static #inputMaxLength: number = 16384;
 
 	static get inputMaxLength(): number { return SabLayout.#inputMaxLength; }
-	static get outputSize(): number { return 17 + SceneDefinition.count; }
+	static get outputSize(): number { return 22 + SceneDefinition.count; }
 
 	static inputByteSize(): number {
 		return 20 + SabLayout.#inputMaxLength * 4 * 2;
@@ -108,6 +113,11 @@ export class AudioFeatures {
 	#bassLevel: number = 0;
 	#distortionLevel: number = 0;
 	#dspScene: number = -1;
+	#rlFocusNorm: number = 0.5;
+	#rlSpreadNorm: number = 0.5;
+	#rlIntensity: number = 0.5;
+	#rlColorShift: number = 0.5;
+	#rlReward: number = 0;
 
 	get spectralFlux(): number { return this.#spectralFlux; }
 	get bandEnergy(): BandEnergy { return this.#bandEnergy; }
@@ -122,6 +132,11 @@ export class AudioFeatures {
 	get bassLevel(): number { return this.#bassLevel; }
 	get distortionLevel(): number { return this.#distortionLevel; }
 	get dspScene(): number { return this.#dspScene; }
+	get rlFocus(): number { return -80 + 42 * this.#rlFocusNorm; }
+	get rlSpread(): number { return 20 + 20 * this.#rlSpreadNorm; }
+	get rlIntensity(): number { return this.#rlIntensity; }
+	get rlColorShift(): number { return this.#rlColorShift; }
+	get rlReward(): number { return this.#rlReward; }
 
 	isActive(): boolean {
 		return this.#scene !== Scene.silence;
@@ -141,10 +156,16 @@ export class AudioFeatures {
 		this.#scene = SceneDefinition.fromIndex(out[12]);
 		const scenes = SceneDefinition.values;
 		for (const [index, scene] of scenes.entries()) this.#probabilities.set(scene, out[13 + index]);
-		this.#dropIntensity = out[13 + scenes.length];
-		this.#bassLevel = out[13 + scenes.length + 1];
-		this.#distortionLevel = out[13 + scenes.length + 2];
-		this.#dspScene = out[13 + scenes.length + 3];
+		const endScene = 13 + scenes.length;
+		this.#dropIntensity = out[endScene];
+		this.#bassLevel = out[endScene + 1];
+		this.#distortionLevel = out[endScene + 2];
+		this.#dspScene = out[endScene + 3];
+		this.#rlFocusNorm = out[endScene + 4];
+		this.#rlSpreadNorm = out[endScene + 5];
+		this.#rlIntensity = out[endScene + 6];
+		this.#rlColorShift = out[endScene + 7];
+		this.#rlReward = out[endScene + 8];
 	}
 }
 //#endregion

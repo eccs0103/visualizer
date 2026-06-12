@@ -125,6 +125,10 @@ export class AudioAnalyzer extends EventTarget {
 			cached.bias2 = weights.bias2;
 			cached.matrix3 = weights.matrix3;
 			cached.bias3 = weights.bias3;
+			cached.matrixV = weights.matrixV;
+			cached.biasV = weights.biasV;
+			cached.matrixW = weights.matrixW;
+			cached.biasW = weights.biasW;
 			void repository.save(2000).catch(Function.empty);
 			if (this.#pendingExport) {
 				this.#pendingExport = false;

@@ -7,11 +7,11 @@ import { AutoProgressCommand, Command, WeightsCommand } from "../models/audio-an
 
 //#region Auto teacher
 export class AutoTeacher {
-	static #confirmWindow = 6;
-	static #trainInterval = 12;
-	static #autoSaveInterval = 200;
-	static #progressReportInterval = 1;
-	static #skipThreshold = 0.90;
+	static #confirmWindow: number = 6;
+	static #trainInterval: number = 12;
+	static #autoSaveInterval: number = 200;
+	static #progressReportInterval: number = 1;
+	static #skipThreshold: number = 0.90;
 
 	#enabled: boolean = true;
 	#sampleCount: number = 0;
@@ -32,7 +32,6 @@ export class AutoTeacher {
 		const allAgree = confirmBuffer.length === AutoTeacher.#confirmWindow && confirmBuffer.every(candidate => candidate === label);
 		if (!allAgree || frameCount % AutoTeacher.#trainInterval !== 0) return;
 
-		// Skip if model is already confident about this label — no gradient to apply
 		model.forward(features, this.#tempProbs);
 		if (this.#tempProbs[label] > AutoTeacher.#skipThreshold) return;
 
