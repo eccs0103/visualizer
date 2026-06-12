@@ -29,10 +29,16 @@ class StudioController extends Controller {
 		});
 		void AnalyticsController.launch();
 
-		const repository: ArchiveRepository<typeof Settings> = new ArchiveRepository("Visualizer\\Studio\\Settings", Settings, Settings.newDefault);
+		const repository: ArchiveRepository<typeof Settings> = new ArchiveRepository("Visualizer\\Studio\\Settings\\1.1", Settings, Settings.newDefault);
 		const store: ObjectStore = new ObjectStore("Visualizer", "Audiolist");
-		const search = new URLSearchParams(location.search);
+		const url = new URL(location.href);
+		const search = new URLSearchParams(url.search);
 		const isDeveloper = search.has("developer");
+		if (!isDeveloper) {
+			search.append("developer", "on");
+			url.search = search.toString();
+			console.log(`Are you a developer? Try ${url} for developer settings!`);
+		}
 
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
 		const inputAudioLoader = body.getElement(HTMLInputElement, "input#audio-loader");
