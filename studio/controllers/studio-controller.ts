@@ -29,7 +29,7 @@ class StudioController extends Controller {
 		});
 		void AnalyticsController.launch();
 
-		const repository: ArchiveRepository<typeof Settings> = new ArchiveRepository("Visualizer\\Studio\\Settings\\1.1", Settings, Settings.newDefault);
+		const repository: ArchiveRepository<typeof Settings> = new ArchiveRepository("Visualizer\\Studio\\Settings", Settings, Settings.newDefault);
 		const store: ObjectStore = new ObjectStore("Visualizer", "Audiolist");
 		const url = new URL(location.href);
 		const search = new URLSearchParams(url.search);

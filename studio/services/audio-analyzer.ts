@@ -23,7 +23,7 @@ export interface AudioAnalyzerOptions {
 export class AudioAnalyzer extends EventTarget {
 	#autoTrain: boolean = false;
 	#isDeveloper: boolean;
-	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights", NNWeights, new NNWeights());
+	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights\\1.1", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
 	#worker: Worker = new Worker(new URL("./controllers/audio-analyzer-worker.js", baseURI), { type: "module" });
 	#rate: number;
