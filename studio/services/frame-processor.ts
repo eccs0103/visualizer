@@ -1,9 +1,8 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { Scene, SceneDefinition, SabLayout } from "../models/audio-features.js";
+import { SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
-import { type AutoTeacher } from "./auto-teacher.js";
 import { type PolicyUpdater } from "./policy-updater.js";
 
 const { abs, max, round, min, sqrt } = Math;
@@ -36,6 +35,8 @@ export class FrameProcessor {
 	static #emaAlpha: number = 0.9995;
 	static #emaWarmup: number = 200;
 	static #epsNorm: number = 1e-6;
+	static #feedbackDecay: number = 0.97;
+	static #feedbackStrength: number = 2.0;
 
 	#prevFrequency: Float32Array = new Float32Array(SabLayout.inputMaxLength);
 	#fluxHistory: Float32Array = new Float32Array(FrameProcessor.#fluxWindow);
@@ -53,13 +54,11 @@ export class FrameProcessor {
 	#rawFeats: Float32Array = new Float32Array(FrameProcessor.#featCount);
 	#normBuf: Float32Array = new Float32Array(FrameProcessor.#featCount);
 	#featHistory: Float32Array = new Float32Array(FrameProcessor.#histSize * FrameProcessor.#featCount);
-	#dspHistory: number[] = [];
 	#prevRms: number = 0;
 	#beatActive: number = 0;
-	#rmsSlope: number = 0;
-	#lastVisualParams: Float32Array = new Float32Array(4);
+	#lastControlOutput: Float32Array = new Float32Array(NNAgent.sizeControl);
 	#lastValueOutput: Float32Array = new Float32Array(1);
-	#rlTarget: Float32Array = new Float32Array(4);
+	#feedbackBias: number = 0;
 
 	constructor() {
 		this.#emaVar.fill(1);
@@ -67,6 +66,10 @@ export class FrameProcessor {
 
 	get frameCount(): number { return this.#frameCount; }
 	get lastInputFeatures(): Float32Array { return this.#featHistory; }
+
+	injectFeedback(sign: number): void {
+		this.#feedbackBias = sign * FrameProcessor.#feedbackStrength;
+	}
 
 	#computeBins(length: number, sampleRate: number): [number, number][] {
 		const binWidth = (sampleRate / 2) / length;
@@ -188,7 +191,31 @@ export class FrameProcessor {
 		hist.set(this.#normBuf, (FrameProcessor.#histSize - 1) * count);
 	}
 
-	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array, model: NNAgent, teacher: AutoTeacher, policy: PolicyUpdater): void {
+	#computeRlReward(controlOutput: Float32Array, bassLevel: number, dropIntensity: number, percussiveness: number, beatDetected: boolean): number {
+		// Composite audio energy: how energetic is this frame
+		const audioEnergy = min(1, bassLevel * 0.5 + dropIntensity * 0.3 + percussiveness * 0.2);
+
+		// DJ engagement: average absolute control delta — how much is the AI doing
+		let engagement = 0;
+		for (let param = 0; param < NNAgent.sizeControl; param++) engagement += abs(controlOutput[param]);
+		engagement /= NNAgent.sizeControl;
+
+		// rSync: engagement should match audio energy (quiet = low engagement, loud = high)
+		const rSync = 1 - 2 * abs(engagement - audioEnergy);
+
+		// rBeat: engagement should spike on beats
+		const rBeat = beatDetected ? (engagement > 0.3 ? 1 : -0.5) : 0;
+
+		const rBase = 0.8 * rSync + 0.2 * rBeat;
+
+		// Feedback bias (thumbs up/down), decays per frame
+		const feedbackBias = this.#feedbackBias;
+		this.#feedbackBias *= FrameProcessor.#feedbackDecay;
+
+		return rBase + min(1, max(-1, feedbackBias)) * 0.5;
+	}
+
+	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array, model: NNAgent, policy: PolicyUpdater): void {
 		if (frame === this.#lastFrame) return;
 		this.#lastFrame = frame;
 		this.#frameCount++;
@@ -217,23 +244,14 @@ export class FrameProcessor {
 		this.#fillInput(flux, bandEnergies, zeroCrossingRate, centroid, percussiveness);
 		this.#pushHistory();
 
-		const sceneProbs = new Float32Array(SceneDefinition.count);
-		model.forwardFull(this.#featHistory, sceneProbs, this.#lastVisualParams, this.#lastValueOutput);
-		let bestScene = 0;
-		for (let scene = 1; scene < SceneDefinition.count; scene++) {
-			if (sceneProbs[scene] > sceneProbs[bestScene]) bestScene = scene;
-		}
+		model.forwardControl(this.#featHistory, this.#lastControlOutput, this.#lastValueOutput);
 
 		const dropIntensity = min(1, percussiveness * 3) * bandEnergies[0];
 		const bassLevel = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
 		const distortionLevel = min(1, percussiveness * zeroCrossingRate * 5);
 
-		this.#rmsSlope = 0.9 * this.#rmsSlope + 0.1 * (currentRms - this.#prevRms);
 		this.#prevRms = currentRms;
-
-		const autoLabel = this.#classifyAutoLabel(currentRms, zeroCrossingRate, bandEnergies, percussiveness);
 		if (this.#beatActive > 0) this.#beatActive--;
-		teacher.consider(autoLabel, this.#featHistory, model, this.#frameCount);
 
 		output[1] = flux;
 		for (let bandIndex = 0; bandIndex < 6; bandIndex++) output[2 + bandIndex] = bandEnergies[bandIndex];
@@ -241,64 +259,16 @@ export class FrameProcessor {
 		output[9] = centroid;
 		output[10] = percussiveness;
 		output[11] = beatDetected ? 1 : 0;
-		output[12] = bestScene;
-		for (let scene = 0; scene < SceneDefinition.count; scene++) output[13 + scene] = sceneProbs[scene];
-		const endScene = 13 + SceneDefinition.count;
-		output[endScene] = dropIntensity;
-		output[endScene + 1] = bassLevel;
-		output[endScene + 2] = distortionLevel;
-		output[endScene + 3] = autoLabel ?? -1;
-		const visualParams = this.#lastVisualParams;
-		output[endScene + 4] = visualParams[0];
-		output[endScene + 5] = visualParams[1];
-		output[endScene + 6] = visualParams[2];
-		output[endScene + 7] = visualParams[3];
+		output[12] = dropIntensity;
+		output[13] = bassLevel;
+		output[14] = distortionLevel;
+		for (let param = 0; param < NNAgent.sizeControl; param++) output[15 + param] = this.#lastControlOutput[param];
 		output[0] = frame;
 
-		this.#computeRlTarget(bassLevel, dropIntensity, percussiveness, centroid, bandEnergies[0], bandEnergies[1]);
-		const rlReward = this.#computeRlReward(visualParams[2], bassLevel, dropIntensity, percussiveness, beatDetected, bestScene, sceneProbs[bestScene]);
-		output[endScene + 8] = rlReward;
-		policy.consider(this.#featHistory, this.#rlTarget, this.#lastValueOutput[0], rlReward, model, this.#frameCount);
-	}
+		const reward = this.#computeRlReward(this.#lastControlOutput, bassLevel, dropIntensity, percussiveness, beatDetected);
+		output[20] = reward;
 
-	#computeRlTarget(bassLevel: number, dropIntensity: number, percussiveness: number, spectralCentroid: number, subBassEnergy: number, bassEnergy: number): void {
-		const audioEnergy = min(1, bassLevel * 0.5 + dropIntensity * 0.3 + percussiveness * 0.2);
-		const bassWeight = min(1, (subBassEnergy + bassEnergy) * 4);
-		this.#rlTarget[0] = audioEnergy;
-		this.#rlTarget[1] = bassWeight;
-		this.#rlTarget[2] = audioEnergy;
-		this.#rlTarget[3] = min(1, spectralCentroid * 2);
-	}
-
-	#computeRlReward(rlIntensity: number, bassLevel: number, dropIntensity: number, percussiveness: number, beatDetected: boolean, sceneIdx: number, sceneConfidence: number): number {
-		const audioEnergy = min(1, bassLevel * 0.5 + dropIntensity * 0.3 + percussiveness * 0.2);
-		const rSync = 1 - 2 * abs(rlIntensity - audioEnergy);
-		const rBeat = beatDetected ? (rlIntensity > 0.5 ? 1 : -0.5) : 0;
-		let rConsistency = 0;
-		if (sceneConfidence > 0.8) {
-			const isHighEnergy = sceneIdx === SceneDefinition.indexOf(Scene.drop) || sceneIdx === SceneDefinition.indexOf(Scene.beat);
-			rConsistency = isHighEnergy === (rlIntensity > 0.5) ? 1 : -0.5;
-		}
-		return 0.7 * rSync + 0.15 * rBeat + 0.15 * rConsistency;
-	}
-
-	#classifyAutoLabel(currentRms: number, zeroCrossingRate: number, bandEnergies: Float32Array, percussiveness: number): number | null {
-		let raw: number | null = null;
-		if (currentRms < 0.015) raw = SceneDefinition.indexOf(Scene.silence);
-		else if (zeroCrossingRate > 0.22 && bandEnergies[0] < 0.08 && bandEnergies[1] < 0.12 && bandEnergies[3] > 0.04) raw = SceneDefinition.indexOf(Scene.speech);
-		else if (percussiveness > 0.5 && bandEnergies[0] > 0.18 && currentRms > 0.12) raw = SceneDefinition.indexOf(Scene.drop);
-		else if (this.#beatActive > 0 && percussiveness > 0.3) raw = SceneDefinition.indexOf(Scene.beat);
-		else if (this.#rmsSlope > 0.003 && this.#beatActive === 0 && bandEnergies[3] > 0.06 && currentRms > 0.035) raw = SceneDefinition.indexOf(Scene.buildup);
-		else if (currentRms > 0.025) raw = SceneDefinition.indexOf(Scene.ambient);
-
-		const history = this.#dspHistory;
-		if (raw === null) { history.length = 0; return null; }
-		history.push(raw);
-		if (history.length > 3) history.shift();
-		if (history.length < 2) return null;
-		let votes = 0;
-		for (const past of history) { if (past === raw) votes++; }
-		return votes >= 2 ? raw : null;
+		policy.consider(this.#featHistory, this.#lastControlOutput, this.#lastValueOutput[0], reward, model, this.#frameCount);
 	}
 }
 //#endregion

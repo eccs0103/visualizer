@@ -9,7 +9,6 @@
 		"studio/models/audio-features.ts",
 		"studio/models/nn-agent.ts",
 		"studio/models/render-commands.ts",
-		"studio/services/auto-teacher.ts",
 		"studio/services/frame-processor.ts",
 		"studio/services/render-bridge.ts",
 		"studio/services/visualization-registry.ts",

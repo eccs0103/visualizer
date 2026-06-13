@@ -2,7 +2,6 @@
 
 import "adaptive-extender/core";
 import { type Color } from "adaptive-extender/core";
-import { type Scene } from "./audio-features.js";
 
 //#region Audioset view
 export interface AudiosetView {
@@ -22,13 +21,14 @@ export interface AudiosetView {
 	get spectralCentroid(): number;
 	get percussiveness(): number;
 	get beatDetected(): boolean;
-	get scene(): Scene;
-	get confidence(): number;
-	get probabilities(): ReadonlyMap<Scene, number>;
 	get dropIntensity(): number;
 	get bassLevel(): number;
 	get distortionLevel(): number;
-	get dspScene(): number;
+	get djFocus(): number;
+	get djSpread(): number;
+	get djBoost(): number;
+	get djTilt(): number;
+	get djPunch(): number;
 	isActive(): boolean;
 	isPercussive(): boolean;
 }

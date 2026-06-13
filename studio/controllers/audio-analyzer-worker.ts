@@ -5,9 +5,8 @@ import { Controller } from "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
-import { AutoTeacher } from "../services/auto-teacher.js";
 import { PolicyUpdater } from "../services/policy-updater.js";
-import { Command, InitializeCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, SetAutoTrainCommand, TrainCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
+import { Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 //#region Audio analyzer worker
 class AudioAnalyzerWorker extends Controller {
@@ -19,9 +18,7 @@ class AudioAnalyzerWorker extends Controller {
 
 	#agent: NNAgent = new NNAgent();
 	#processor: FrameProcessor = new FrameProcessor();
-	#teacher: AutoTeacher = new AutoTeacher();
 	#policy: PolicyUpdater = new PolicyUpdater();
-	#pendingLabel: number | null = null;
 
 	#poll(): void {
 		const inputControl = this.#inputControl;
@@ -37,20 +34,13 @@ class AudioAnalyzerWorker extends Controller {
 
 		const agent = this.#agent;
 		const processor = this.#processor;
-		const teacher = this.#teacher;
 		const policy = this.#policy;
-		processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer, agent, teacher, policy);
-
-		const pendingLabel = this.#pendingLabel;
-		if (pendingLabel === null) return;
-		agent.trainStep(processor.lastInputFeatures, pendingLabel);
-		this.#pendingLabel = null;
-		if (processor.frameCount % 300 === 0) self.postMessage(Command.export(new WeightsCommand(agent.getWeights())));
+		processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer, agent, policy);
 	}
 
 	#onMessage(event: MessageEvent): void {
 		const command = Command.import(event.data, "command");
-		const teacher = this.#teacher;
+		const processor = this.#processor;
 		const agent = this.#agent;
 		const policy = this.#policy;
 
@@ -64,20 +54,19 @@ class AudioAnalyzerWorker extends Controller {
 			return;
 		}
 
-		if (command instanceof SetAutoTrainCommand) {
-			teacher.enabled = command.enabled;
+		if (command instanceof FeedbackCommand) {
+			processor.injectFeedback(command.sign);
+			return;
+		}
+
+		if (command instanceof LearningCommand) {
+			policy.enabled = command.enabled;
 			return;
 		}
 
 		if (command instanceof ResetCommand) {
 			agent.reset();
-			teacher.reset();
 			policy.reset();
-			return;
-		}
-
-		if (command instanceof TrainCommand) {
-			this.#pendingLabel = command.label;
 			return;
 		}
 

@@ -66,7 +66,7 @@
 		</section>
 		<section class="option">
 			<h4 class="title">AI</h4>
-			<span class="definition">Enables the neural network. When on, the AI detects the current music scene and automatically adjusts the visualization to match.</span>
+			<span class="definition">Enables the neural network. When on, the AI continuously adjusts the visualization parameters to match the music.</span>
 			<input id="auto-correct-toggle" type="checkbox" hidden>
 			<label for="auto-correct-toggle" role="checkbox" class="value depth toggle">
 				<span class="layer knob"></span>
@@ -74,28 +74,26 @@
 		</section>
 		<hr id="ai-separator" class="depth" hidden>
 		<h2 id="ai-heading" hidden>AI dashboard</h2>
-		<section id="ai-confidence" class="option" hidden>
-			<h4 class="title">Model confidence</h4>
-			<span class="definition">How certain the AI is about its current scene prediction. Below 17% means untrained; 50%+ is decent; 70%+ is well-trained.</span>
-			<span id="model-confidence" class="value scene-label">—</span>
+		<section id="ai-reward" class="option" hidden>
+			<h4 class="title">Learning steps</h4>
+			<span class="definition">How many RL update steps the AI has taken. More steps means more adapted behavior. Saved across sessions.</span>
+			<span id="ai-step-count" class="value">0</span>
 		</section>
-		<section id="ai-scenes" class="option" hidden>
-			<h4 class="title">Scene training</h4>
-			<span class="definition">Each bar shows the AI's confidence for that scene. Click a scene to pin it as the training target — the model continuously learns from it while pinned. Click again to unpin.</span>
-			<div id="scene-controls" class="grid-line flex wrap with-gap"></div>
+		<section id="ai-feedback" class="option" hidden>
+			<h4 class="title">Feedback</h4>
+			<span class="definition">Tell the AI how well it is doing right now. Thumbs up reinforces current behavior; thumbs down pushes parameters back toward neutral. Your feedback is never overwritten.</span>
+			<div class="value flex column with-gap">
+				<button id="feedback-good" type="button" class="rounded depth with-padding">👍</button>
+				<button id="feedback-bad" type="button" class="rounded depth with-padding">👎</button>
+			</div>
 		</section>
-		<section id="ai-auto-train" class="option" hidden>
-			<h4 class="title">Auto-training <span class="warn">[Recommended]</span></h4>
-			<span class="definition">The AI labels scenes automatically while music plays. Weights are saved in the background.</span>
-			<input id="auto-train-toggle" type="checkbox" hidden>
-			<label for="auto-train-toggle" role="checkbox" class="value depth toggle">
+		<section id="ai-learning" class="option" hidden>
+			<h4 class="title">Continuous learning</h4>
+			<span class="definition">When on, the AI keeps updating weights as music plays. Turn off to freeze the current behavior.</span>
+			<input id="learning-toggle" type="checkbox" hidden>
+			<label for="learning-toggle" role="checkbox" class="value depth toggle">
 				<span class="layer knob"></span>
 			</label>
-		</section>
-		<section id="ai-progress" class="option" hidden>
-			<h4 class="title">Samples collected</h4>
-			<span class="definition">Auto-training progress. Around 300 samples gives reliable results. Saved across sessions.</span>
-			<span id="auto-train-count" class="value scene-label">0</span>
 		</section>
 		<section id="ai-reset" class="option" hidden>
 			<h4 class="title">Reset model</h4>
@@ -132,12 +130,27 @@
 		<section class="option">
 			<h4 class="title">Focus</h4>
 			<span class="definition">The center volume level the analysis focuses on. Adjust to emphasize specific loudness ranges.</span>
-			<input id="visualization-focus" type="range" min="-100" max="0" step="1" class="value depth rounded">
+			<input id="visualization-focus" type="range" min="-100" max="-20" step="1" class="value depth rounded">
 		</section>
 		<section class="option">
 			<h4 class="title">Spread</h4>
 			<span class="definition">The volume range around the focus point. Wider means more dynamic range is captured.</span>
-			<input id="visualization-spread" type="range" min="1" max="100" step="1" class="value depth rounded">
+			<input id="visualization-spread" type="range" min="1" max="59" step="1" class="value depth rounded">
+		</section>
+		<section class="option">
+			<h4 class="title">Boost</h4>
+			<span class="definition">Pre-analysis gain applied to the audio signal. Higher values amplify quiet passages; lower values attenuate loud ones. Default: 1×.</span>
+			<input id="visualization-boost" type="range" min="0.25" max="4" step="0.05" class="value depth rounded">
+		</section>
+		<section class="option">
+			<h4 class="title">Tilt</h4>
+			<span class="definition">Tilts the tonal balance of the analysis. Positive values emphasize highs and cut lows (bright); negative values do the opposite (warm). Default: 0.</span>
+			<input id="visualization-tilt" type="range" min="-12" max="12" step="0.5" class="value depth rounded">
+		</section>
+		<section class="option">
+			<h4 class="title">Punch</h4>
+			<span class="definition">Applies dynamic compression to the analysis signal before analysis. 0 means no compression (transparent); 1 is maximum punch. Default: 0.</span>
+			<input id="visualization-punch" type="range" min="0" max="1" step="0.05" class="value depth rounded">
 		</section>
 	</dialog>
 </body>

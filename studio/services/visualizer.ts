@@ -111,6 +111,12 @@ export class Visualizer extends EventTarget {
 	set focus(value: number) { this.#manager.focus = value; }
 	get spread(): number { return this.#manager.spread; }
 	set spread(value: number) { this.#manager.spread = value; }
+	get boost(): number { return this.#manager.boost; }
+	set boost(value: number) { this.#manager.boost = value; }
+	get tilt(): number { return this.#manager.tilt; }
+	set tilt(value: number) { this.#manager.tilt = value; }
+	get punch(): number { return this.#manager.punch; }
+	set punch(value: number) { this.#manager.punch = value; }
 
 	get visualization(): string {
 		return this.#visualization;
@@ -142,9 +148,13 @@ export class Visualizer extends EventTarget {
 	#correct(): void {
 		const manager = this.#manager;
 		this.#analyzer.analyze(manager);
-		const { rlFocus, rlSpread } = manager.audioset;
-		manager.focus += (rlFocus - manager.focus) * 0.04;
-		manager.spread += (rlSpread - manager.spread) * 0.04;
+		const { djFocus, djSpread, djBoost, djTilt, djPunch } = manager.audioset;
+		const rate = 0.04;
+		manager.focus += (djFocus - manager.focus) * rate;
+		manager.spread += (djSpread - manager.spread) * rate;
+		manager.boost += (djBoost - manager.boost) * rate;
+		manager.tilt += (djTilt - manager.tilt) * rate;
+		manager.punch += (djPunch - manager.punch) * rate;
 	}
 
 	#update(): void {

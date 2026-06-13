@@ -18,6 +18,15 @@ export class VisualizationSettings extends Model {
 	@Field(Number, "spread")
 	spread: number;
 
+	@Field(Optional(Number), "boost")
+	boost: number | undefined;
+
+	@Field(Optional(Number), "tilt")
+	tilt: number | undefined;
+
+	@Field(Optional(Number), "punch")
+	punch: number | undefined;
+
 	constructor();
 	constructor(quality: number, smoothing: number, focus: number, spread: number);
 	constructor(quality?: number, smoothing?: number, focus?: number, spread?: number) {

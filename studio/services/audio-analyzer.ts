@@ -5,15 +5,14 @@ import { ArchiveRepository } from "adaptive-extender/web";
 import { NNWeights } from "../models/nn-agent.js";
 import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./client-bridge.js";
-import { Scene, SceneDefinition } from "../models/audio-features.js";
+import { Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadWeightsCommand, ProgressCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 import { type AudiosetManager } from "../models/audioset.js";
-import { AutoProgressCommand, Command, InitializeCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, SetAutoTrainCommand, TrainCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 const { baseURI } = document;
 
 //#region Audio analyser
 export interface AudioAnalyzerEventMap {
-	"auto-progress": CustomEvent<number>;
+	"progress": CustomEvent<number>;
 }
 
 export interface AudioAnalyzerOptions {
@@ -21,7 +20,6 @@ export interface AudioAnalyzerOptions {
 }
 
 export class AudioAnalyzer extends EventTarget {
-	#autoTrain: boolean = false;
 	#isDeveloper: boolean;
 	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights\\1.1", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
@@ -58,32 +56,15 @@ export class AudioAnalyzer extends EventTarget {
 
 	get isDeveloper(): boolean { return this.#isDeveloper; }
 	get outSAB(): SharedArrayBuffer { return this.#bridge.outSAB; }
-	get autoTrain(): boolean { return this.#autoTrain; }
 
-	set autoTrain(enabled: boolean) {
+	feedback(sign: number): void {
 		if (!this.#isDeveloper) return;
-		if (this.#autoTrain === enabled) return;
-		this.#autoTrain = enabled;
-		this.#worker.postMessage(Command.export(new SetAutoTrainCommand(enabled)));
+		this.#worker.postMessage(Command.export(new FeedbackCommand(sign)));
 	}
 
-	analyze(manager: AudiosetManager): void {
-		const bridge = this.#bridge;
-		manager.readFeatures(bridge.output);
-		const { length, volume, amplitude, dataFrequency, dataTemporal } = manager.audioset;
-		bridge.writeInput(length, this.#rate, volume, amplitude, dataFrequency, dataTemporal);
-	}
-
-	train(scene: Scene): void {
+	setLearning(enabled: boolean): void {
 		if (!this.#isDeveloper) return;
-		const worker = this.#worker;
-		worker.postMessage(Command.export(new TrainCommand(SceneDefinition.indexOf(scene))));
-		worker.postMessage(Command.export(new SaveWeightsCommand()));
-	}
-
-	teach(scene: Scene): void {
-		if (!this.#isDeveloper) return;
-		this.#worker.postMessage(Command.export(new TrainCommand(SceneDefinition.indexOf(scene))));
+		this.#worker.postMessage(Command.export(new LearningCommand(enabled)));
 	}
 
 	exportWeights(): void {
@@ -96,6 +77,13 @@ export class AudioAnalyzer extends EventTarget {
 		if (!this.#isDeveloper) return;
 		this.#worker.postMessage(Command.export(new ResetCommand()));
 		this.#repository.reset();
+	}
+
+	analyze(manager: AudiosetManager): void {
+		const bridge = this.#bridge;
+		manager.readFeatures(bridge.output);
+		const { length, volume, amplitude, dataFrequency, dataTemporal } = manager.audioset;
+		bridge.writeInput(length, this.#rate, volume, amplitude, dataFrequency, dataTemporal);
 	}
 
 	async #loadWeights(): Promise<void> {
@@ -123,8 +111,6 @@ export class AudioAnalyzer extends EventTarget {
 			cached.bias1 = weights.bias1;
 			cached.matrix2 = weights.matrix2;
 			cached.bias2 = weights.bias2;
-			cached.matrix3 = weights.matrix3;
-			cached.bias3 = weights.bias3;
 			cached.matrixV = weights.matrixV;
 			cached.biasV = weights.biasV;
 			cached.matrixW = weights.matrixW;
@@ -137,8 +123,8 @@ export class AudioAnalyzer extends EventTarget {
 			return;
 		}
 
-		if (command instanceof AutoProgressCommand) {
-			this.dispatchEvent(new CustomEvent("auto-progress", { detail: command.count }));
+		if (command instanceof ProgressCommand) {
+			this.dispatchEvent(new CustomEvent("progress", { detail: command.count }));
 		}
 	}
 

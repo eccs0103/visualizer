@@ -1,10 +1,10 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { type Scene, AudioFeatures } from "./audio-features.js";
+import { AudioFeatures } from "./audio-features.js";
 import { type AudiosetView } from "./visualization.js";
 
-const { sqrt, sqpw, abs, log2 } = Math;
+const { sqrt, sqpw, abs, log2, min, max } = Math;
 
 //#region Audioset
 export interface AudiosetManager {
@@ -16,6 +16,12 @@ export interface AudiosetManager {
 	set focus(value: number);
 	get spread(): number;
 	set spread(value: number);
+	get boost(): number;
+	set boost(value: number);
+	get tilt(): number;
+	set tilt(value: number);
+	get punch(): number;
+	set punch(value: number);
 	get autoCorrect(): boolean;
 	set autoCorrect(value: boolean);
 	get rate(): number;
@@ -30,6 +36,9 @@ export interface AudiosetManagerConstructor {
 	checkSmoothing(value: number): boolean;
 	checkFocus(value: number): boolean;
 	checkSpread(value: number): boolean;
+	checkBoost(value: number): boolean;
+	checkTilt(value: number): boolean;
+	checkPunch(value: number): boolean;
 }
 
 export class Audioset implements AudiosetView {
@@ -37,6 +46,10 @@ export class Audioset implements AudiosetView {
 	static #Manager: AudiosetManagerConstructor = class Manager implements AudiosetManager {
 		#context: AudioContext;
 		#analyser: AnalyserNode;
+		#gain: GainNode;
+		#lowShelf: BiquadFilterNode;
+		#highShelf: BiquadFilterNode;
+		#compressor: DynamicsCompressorNode;
 		#autoCorrect: boolean = false;
 		#audioset: Audioset;
 		#dataTemporary: Uint8Array<ArrayBuffer>;
@@ -44,11 +57,37 @@ export class Audioset implements AudiosetView {
 		constructor(media: HTMLMediaElement) {
 			const context = this.#context = new AudioContext();
 			media.addEventListener("play", async event => await context.resume());
-			const source = context.createMediaElementSource(media);
-			const analyser = this.#analyser = context.createAnalyser();
 
-			source.connect(analyser);
-			analyser.connect(context.destination);
+			// One source, two connect paths: playback (untouched) + analysis-only branch
+			const source = context.createMediaElementSource(media);
+			source.connect(context.destination);
+
+			const gain = this.#gain = context.createGain();
+			gain.gain.value = 1;
+
+			const lowShelf = this.#lowShelf = context.createBiquadFilter();
+			lowShelf.type = "lowshelf";
+			lowShelf.frequency.value = 250;
+			lowShelf.gain.value = 0;
+
+			const highShelf = this.#highShelf = context.createBiquadFilter();
+			highShelf.type = "highshelf";
+			highShelf.frequency.value = 3000;
+			highShelf.gain.value = 0;
+
+			const compressor = this.#compressor = context.createDynamicsCompressor();
+			// punch = 0 → ratio 1 (transparent), threshold 0 (never triggers)
+			compressor.threshold.value = 0;
+			compressor.ratio.value = 1;
+			compressor.knee.value = 30;
+
+			const analyser = this.#analyser = context.createAnalyser();
+			source.connect(gain);
+			gain.connect(lowShelf);
+			lowShelf.connect(highShelf);
+			highShelf.connect(compressor);
+			compressor.connect(analyser);
+			// analyser NOT connected to destination — analysis tap only
 
 			const length = analyser.frequencyBinCount;
 			this.#audioset = Audioset.#construct(length);
@@ -105,6 +144,38 @@ export class Audioset implements AudiosetView {
 			analyser.maxDecibels = focus + value;
 		}
 
+		get boost(): number {
+			return this.#gain.gain.value;
+		}
+
+		set boost(value: number) {
+			if (!Manager.checkBoost(value)) return;
+			this.#gain.gain.value = value;
+		}
+
+		get tilt(): number {
+			return this.#highShelf.gain.value;
+		}
+
+		set tilt(value: number) {
+			if (!Manager.checkTilt(value)) return;
+			this.#lowShelf.gain.value = -value;
+			this.#highShelf.gain.value = value;
+		}
+
+		get punch(): number {
+			// Reverse-map from ratio back to the [0, 1] punch range
+			return (this.#compressor.ratio.value - 1) / 11;
+		}
+
+		set punch(value: number) {
+			if (!Manager.checkPunch(value)) return;
+			const punch = max(0, min(1, value));
+			this.#compressor.threshold.value = -punch * 24;
+			this.#compressor.ratio.value = 1 + punch * 11;
+			this.#compressor.knee.value = 30 * (1 - punch);
+		}
+
 		get autoCorrect(): boolean { return this.#autoCorrect; }
 		set autoCorrect(value: boolean) { this.#autoCorrect = value; }
 		get rate(): number { return this.#context.sampleRate; }
@@ -137,6 +208,24 @@ export class Audioset implements AudiosetView {
 			return true;
 		}
 
+		static checkBoost(value: number): boolean {
+			if (!Number.isFinite(value)) return false;
+			if (0.25 > value || value > 4) return false;
+			return true;
+		}
+
+		static checkTilt(value: number): boolean {
+			if (!Number.isFinite(value)) return false;
+			if (-12 > value || value > 12) return false;
+			return true;
+		}
+
+		static checkPunch(value: number): boolean {
+			if (!Number.isFinite(value)) return false;
+			if (0 > value || value > 1) return false;
+			return true;
+		}
+
 		refresh(): void {
 			const analyser = this.#analyser;
 			const { minDecibels } = analyser;
@@ -148,15 +237,10 @@ export class Audioset implements AudiosetView {
 			const dataTemporal = audioset.#dataTemporal;
 
 			let summaryVolume = 0, summaryAmplitude = 0;
-			let minDecibel = Infinity, maxDecibel = -Infinity;
 
 			analyser.getByteFrequencyData(dataTemporary);
 			for (let index = 0; index < length; index++) {
-				const normDatumFrequency = dataTemporary[index] / 255;
-				dataFrequency[index] = normDatumFrequency;
-				const decibel = minDecibels + normDatumFrequency * range;
-				if (decibel < minDecibel) minDecibel = decibel;
-				if (decibel > maxDecibel) maxDecibel = decibel;
+				dataFrequency[index] = dataTemporary[index] / 255;
 			}
 
 			analyser.getByteTimeDomainData(dataTemporary);
@@ -217,15 +301,14 @@ export class Audioset implements AudiosetView {
 	get spectralCentroid(): number { return this.#features.spectralCentroid; }
 	get percussiveness(): number { return this.#features.percussiveness; }
 	get beatDetected(): boolean { return this.#features.beatDetected; }
-	get scene(): Scene { return this.#features.scene; }
-	get confidence(): number { return this.#features.confidence; }
-	get probabilities(): ReadonlyMap<Scene, number> { return this.#features.probabilities; }
 	get dropIntensity(): number { return this.#features.dropIntensity; }
 	get bassLevel(): number { return this.#features.bassLevel; }
 	get distortionLevel(): number { return this.#features.distortionLevel; }
-	get dspScene(): number { return this.#features.dspScene; }
-	get rlFocus(): number { return this.#features.rlFocus; }
-	get rlSpread(): number { return this.#features.rlSpread; }
+	get djFocus(): number { return this.#features.djFocus; }
+	get djSpread(): number { return this.#features.djSpread; }
+	get djBoost(): number { return this.#features.djBoost; }
+	get djTilt(): number { return this.#features.djTilt; }
+	get djPunch(): number { return this.#features.djPunch; }
 	isActive(): boolean { return this.#features.isActive(); }
 	isPercussive(): boolean { return this.#features.isPercussive(); }
 }

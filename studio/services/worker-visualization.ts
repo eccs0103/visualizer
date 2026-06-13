@@ -2,7 +2,7 @@
 
 import "adaptive-extender/worker";
 import { Color } from "adaptive-extender/worker";
-import { type Scene, AudioFeatures, SabLayout } from "../models/audio-features.js";
+import { AudioFeatures, SabLayout } from "../models/audio-features.js";
 import { type AudiosetView, type VisualizationEnvironment } from "../models/visualization.js";
 import { RenderBridge } from "./render-bridge.js";
 
@@ -42,13 +42,14 @@ export class WorkerAudioset implements AudiosetView {
 	get spectralCentroid(): number { return this.#features.spectralCentroid; }
 	get percussiveness(): number { return this.#features.percussiveness; }
 	get beatDetected(): boolean { return this.#features.beatDetected; }
-	get scene(): Scene { return this.#features.scene; }
-	get confidence(): number { return this.#features.confidence; }
-	get probabilities(): ReadonlyMap<Scene, number> { return this.#features.probabilities; }
 	get dropIntensity(): number { return this.#features.dropIntensity; }
 	get bassLevel(): number { return this.#features.bassLevel; }
 	get distortionLevel(): number { return this.#features.distortionLevel; }
-	get dspScene(): number { return this.#features.dspScene; }
+	get djFocus(): number { return this.#features.djFocus; }
+	get djSpread(): number { return this.#features.djSpread; }
+	get djBoost(): number { return this.#features.djBoost; }
+	get djTilt(): number { return this.#features.djTilt; }
+	get djPunch(): number { return this.#features.djPunch; }
 	isActive(): boolean { return this.#features.isActive(); }
 	isPercussive(): boolean { return this.#features.isPercussive(); }
 

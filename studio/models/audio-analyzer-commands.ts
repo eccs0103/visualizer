@@ -2,7 +2,7 @@
 
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model } from "adaptive-extender/core";
-import { type NNWeights, type NNWeightsScheme } from "./nn-agent.js";
+import { NNWeights, type NNWeightsScheme } from "./nn-agent.js";
 
 //#region Shared array buffer portable
 class SharedArrayBufferPortable {
@@ -18,23 +18,21 @@ class SharedArrayBufferPortable {
 //#endregion
 
 //#region Command
-export interface CommandDiscriminator extends InitializeCommandDiscriminator, TrainCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, SetAutoTrainCommandDiscriminator, ResetCommandDiscriminator, AutoProgressCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, ResetCommandDiscriminator, FeedbackCommandDiscriminator, LearningCommandDiscriminator, ProgressCommandDiscriminator {
 }
 
 export interface CommandScheme {
 	$type: keyof CommandDiscriminator;
-	platform: string;
-	timestamp: number;
 }
 
 @Descendant(Deferred(_ => InitializeCommand))
-@Descendant(Deferred(_ => TrainCommand))
 @Descendant(Deferred(_ => SaveWeightsCommand))
 @Descendant(Deferred(_ => LoadWeightsCommand))
 @Descendant(Deferred(_ => WeightsCommand))
-@Descendant(Deferred(_ => SetAutoTrainCommand))
 @Descendant(Deferred(_ => ResetCommand))
-@Descendant(Deferred(_ => AutoProgressCommand))
+@Descendant(Deferred(_ => FeedbackCommand))
+@Descendant(Deferred(_ => LearningCommand))
+@Descendant(Deferred(_ => ProgressCommand))
 export abstract class Command extends Model {
 	constructor() {
 		super();
@@ -49,15 +47,15 @@ export interface InitializeCommandDiscriminator {
 
 export interface InitializeCommandScheme extends CommandScheme {
 	$type: keyof InitializeCommandDiscriminator;
-	inSAB: SharedArrayBuffer;
-	outSAB: SharedArrayBuffer;
+	in_sab: SharedArrayBuffer;
+	out_sab: SharedArrayBuffer;
 }
 
 export class InitializeCommand extends Command {
-	@Field(SharedArrayBufferPortable)
+	@Field(SharedArrayBufferPortable, "in_sab")
 	inSAB: SharedArrayBuffer;
 
-	@Field(SharedArrayBufferPortable)
+	@Field(SharedArrayBufferPortable, "out_sab")
 	outSAB: SharedArrayBuffer;
 
 	constructor();
@@ -71,33 +69,6 @@ export class InitializeCommand extends Command {
 		super();
 		this.inSAB = inSAB;
 		this.outSAB = outSAB;
-	}
-}
-//#endregion
-//#region Train command
-export interface TrainCommandDiscriminator {
-	"TrainCommand": TrainCommand;
-}
-
-export interface TrainCommandScheme extends CommandScheme {
-	$type: keyof TrainCommandDiscriminator;
-	label: number;
-}
-
-export class TrainCommand extends Command {
-	@Field(Number)
-	label: number;
-
-	constructor();
-	constructor(label: number);
-	constructor(label?: number) {
-		if (label === undefined) {
-			super();
-			return;
-		}
-
-		super();
-		this.label = label;
 	}
 }
 //#endregion
@@ -124,7 +95,7 @@ export interface LoadWeightsCommandScheme extends CommandScheme {
 }
 
 export class LoadWeightsCommand extends Command {
-	@Field(Object)
+	@Field(NNWeights, "weights")
 	weights: NNWeights;
 
 	constructor();
@@ -151,7 +122,7 @@ export interface WeightsCommandScheme extends CommandScheme {
 }
 
 export class WeightsCommand extends Command {
-	@Field(Object)
+	@Field(NNWeights, "weights")
 	weights: NNWeights;
 
 	constructor();
@@ -167,18 +138,57 @@ export class WeightsCommand extends Command {
 	}
 }
 //#endregion
-//#region Set auto train command
-export interface SetAutoTrainCommandDiscriminator {
-	"SetAutoTrainCommand": SetAutoTrainCommand;
+//#region Reset command
+export interface ResetCommandDiscriminator {
+	"ResetCommand": ResetCommand;
 }
 
-export interface SetAutoTrainCommandScheme extends CommandScheme {
-	$type: keyof SetAutoTrainCommandDiscriminator;
+export interface ResetCommandScheme extends CommandScheme {
+	$type: keyof ResetCommandDiscriminator;
+}
+
+export class ResetCommand extends Command {
+}
+//#endregion
+//#region Feedback command
+export interface FeedbackCommandDiscriminator {
+	"FeedbackCommand": FeedbackCommand;
+}
+
+export interface FeedbackCommandScheme extends CommandScheme {
+	$type: keyof FeedbackCommandDiscriminator;
+	sign: number;
+}
+
+export class FeedbackCommand extends Command {
+	@Field(Number, "sign")
+	sign: number;
+
+	constructor();
+	constructor(sign: number);
+	constructor(sign?: number) {
+		if (sign === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.sign = sign;
+	}
+}
+//#endregion
+//#region Learning command
+export interface LearningCommandDiscriminator {
+	"LearningCommand": LearningCommand;
+}
+
+export interface LearningCommandScheme extends CommandScheme {
+	$type: keyof LearningCommandDiscriminator;
 	enabled: boolean;
 }
 
-export class SetAutoTrainCommand extends Command {
-	@Field(Boolean)
+export class LearningCommand extends Command {
+	@Field(Boolean, "enabled")
 	enabled: boolean;
 
 	constructor();
@@ -194,30 +204,18 @@ export class SetAutoTrainCommand extends Command {
 	}
 }
 //#endregion
-//#region Reset command
-export interface ResetCommandDiscriminator {
-	"ResetCommand": ResetCommand;
+//#region Progress command
+export interface ProgressCommandDiscriminator {
+	"ProgressCommand": ProgressCommand;
 }
 
-export interface ResetCommandScheme extends CommandScheme {
-	$type: keyof ResetCommandDiscriminator;
-}
-
-export class ResetCommand extends Command {
-}
-//#endregion
-//#region Auto progress command
-export interface AutoProgressCommandDiscriminator {
-	"AutoProgressCommand": AutoProgressCommand;
-}
-
-export interface AutoProgressCommandScheme extends CommandScheme {
-	$type: keyof AutoProgressCommandDiscriminator;
+export interface ProgressCommandScheme extends CommandScheme {
+	$type: keyof ProgressCommandDiscriminator;
 	count: number;
 }
 
-export class AutoProgressCommand extends Command {
-	@Field(Number)
+export class ProgressCommand extends Command {
+	@Field(Number, "count")
 	count: number;
 
 	constructor();
