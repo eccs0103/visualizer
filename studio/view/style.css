@@ -140,6 +140,14 @@ button#close-configurator > span.icon {
 	--url: url(../../assets/icons/close.svg);
 }
 
+button#feedback-good > span.icon {
+	--url: url(../../assets/icons/thumbs-up.svg);
+}
+
+button#feedback-bad > span.icon {
+	--url: url(../../assets/icons/thumbs-down.svg);
+}
+
 /* Experimental */
 
 span.scene-label {
