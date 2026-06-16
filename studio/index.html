@@ -62,7 +62,7 @@
 		<section class="option">
 			<h4 class="title">Rate</h4>
 			<span class="definition">How many times per second the visuals refresh. Higher values look smoother but increase CPU usage.</span>
-			<input id="visualizer-rate" type="number" min="30" max="1200" step="30" class="value rounded depth with-padding">
+			<input id="visualizer-rate" type="number" class="value rounded depth with-padding">
 		</section>
 		<section class="option">
 			<h4 class="title">AI</h4>
@@ -124,37 +124,37 @@
 		<section class="option">
 			<h4 class="title">Quality</h4>
 			<span class="definition">Detail level of the audio analysis. Higher values are more accurate but heavier on the CPU. Acceptable range: 5–15.</span>
-			<input id="visualization-quality" type="number" min="5" max="15" step="1" class="value rounded depth with-padding">
+			<input id="visualization-quality" type="number" class="value rounded depth with-padding">
 		</section>
 		<section class="option">
 			<h4 class="title">Smoothing</h4>
 			<span class="definition">How smoothly values transition between frames. 0 means no smoothing; 1 is maximum smoothness.</span>
-			<input id="visualization-smoothing" type="range" min="0" max="1" step="0.1" class="value depth rounded">
+			<input id="visualization-smoothing" type="range" class="value depth rounded">
 		</section>
 		<section class="option">
 			<h4 class="title">Focus</h4>
 			<span class="definition">The center volume level the analysis focuses on. Adjust to emphasize specific loudness ranges.</span>
-			<input id="visualization-focus" type="range" min="-100" max="-20" step="1" class="value depth rounded">
+			<input id="visualization-focus" type="range" class="value depth rounded">
 		</section>
 		<section class="option">
 			<h4 class="title">Spread</h4>
 			<span class="definition">The volume range around the focus point. Wider means more dynamic range is captured.</span>
-			<input id="visualization-spread" type="range" min="1" max="59" step="1" class="value depth rounded">
+			<input id="visualization-spread" type="range" class="value depth rounded">
 		</section>
 		<section class="option">
 			<h4 class="title">Boost</h4>
 			<span class="definition">Pre-analysis gain applied to the audio signal. Higher values amplify quiet passages; lower values attenuate loud ones. Default: 1×.</span>
-			<input id="visualization-boost" type="range" min="0.25" max="4" step="0.05" class="value depth rounded">
+			<input id="visualization-boost" type="range" class="value depth rounded">
 		</section>
 		<section class="option">
 			<h4 class="title">Tilt</h4>
 			<span class="definition">Tilts the tonal balance of the analysis. Positive values emphasize highs and cut lows (bright); negative values do the opposite (warm). Default: 0.</span>
-			<input id="visualization-tilt" type="range" min="-12" max="12" step="0.5" class="value depth rounded">
+			<input id="visualization-tilt" type="range" class="value depth rounded">
 		</section>
 		<section class="option">
 			<h4 class="title">Punch</h4>
 			<span class="definition">Applies dynamic compression to the analysis signal before analysis. 0 means no compression (transparent); 1 is maximum punch. Default: 0.</span>
-			<input id="visualization-punch" type="range" min="0" max="1" step="0.05" class="value depth rounded">
+			<input id="visualization-punch" type="range" class="value depth rounded">
 		</section>
 	</dialog>
 </body>

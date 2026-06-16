@@ -28,9 +28,9 @@ export class VisualizationSettings extends Model {
 	punch: number | undefined;
 
 	constructor();
-	constructor(quality: number, smoothing: number, focus: number, spread: number);
-	constructor(quality?: number, smoothing?: number, focus?: number, spread?: number) {
-		if (quality === undefined || smoothing === undefined || focus === undefined || spread === undefined) {
+	constructor(quality: number, smoothing: number, focus: number, spread: number, boost: number, tilt: number, punch: number);
+	constructor(quality?: number, smoothing?: number, focus?: number, spread?: number, boost?: number, tilt?: number, punch?: number) {
+		if (quality === undefined || smoothing === undefined || focus === undefined || spread === undefined || boost === undefined || tilt === undefined || punch === undefined) {
 			super();
 			return;
 		}
@@ -40,6 +40,20 @@ export class VisualizationSettings extends Model {
 		this.smoothing = smoothing;
 		this.focus = focus;
 		this.spread = spread;
+		this.boost = boost;
+		this.tilt = tilt;
+		this.punch = punch;
+	}
+
+	static get newDefault(): VisualizationSettings {
+		const quality = 10;
+		const smoothing = 0.6;
+		const focus = -60;
+		const spread = 30;
+		const boost = 1;
+		const tilt = 0;
+		const punch = 0;
+		return new VisualizationSettings(quality, smoothing, focus, spread, boost, tilt, punch);
 	}
 }
 //#endregion
@@ -81,18 +95,17 @@ export class Settings extends Model {
 	}
 
 	get configuration(): VisualizationSettings {
-		let config = this.attachments.get(this.visualization);
-		if (config === undefined) {
-			config = new VisualizationSettings(10, 0.8, -60, 30);
-			this.attachments.set(this.visualization, config);
-		}
-		return config;
+		return ReferenceError.suppress(this.attachments.get(this.visualization), `Missing configurations for visualization '${this.visualization}'`);
 	}
 
 	static get newDefault(): Settings {
-		const configuration = new VisualizationSettings(10, 0.6, -60, 30);
-		const attachments = new Map(Array.from(Registry.names(), name => [name, configuration]));
-		const settings = new Settings(false, 240, true, undefined, Registry.default, attachments);
+		const isOpenedConfigurator = false;
+		const rate = 240;
+		const autoCorrect = true;
+		const autoTrain = undefined;
+		const visualization = Registry.default;
+		const attachments = new Map(Array.from(Registry.names(), name => [name, VisualizationSettings.newDefault]));
+		const settings = new Settings(isOpenedConfigurator, rate, autoCorrect, autoTrain, visualization, attachments);
 		return settings;
 	}
 }

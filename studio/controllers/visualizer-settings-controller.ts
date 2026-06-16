@@ -26,19 +26,20 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		const visualizer = this.#visualizer;
 		visualizer.visualization = this.#selectVisualizerVisualization.value;
 		settings.visualization = visualizer.visualization;
-		visualizer.quality = settings.configuration.quality;
+		const { configuration } = settings;
+		visualizer.quality = configuration.quality;
 		this.#inputVisualizationQuality.value = String(visualizer.quality);
-		visualizer.smoothing = settings.configuration.smoothing;
+		visualizer.smoothing = configuration.smoothing;
 		this.#inputVisualizationSmoothing.value = String(visualizer.smoothing);
-		visualizer.focus = settings.configuration.focus;
+		visualizer.focus = configuration.focus;
 		this.#inputVisualizationFocus.value = String(visualizer.focus);
-		visualizer.spread = settings.configuration.spread;
+		visualizer.spread = configuration.spread;
 		this.#inputVisualizationSpread.value = String(visualizer.spread);
-		visualizer.boost = settings.configuration.boost ?? 1;
+		visualizer.boost = configuration.boost ?? 1;
 		this.#inputVisualizationBoost.value = String(visualizer.boost);
-		visualizer.tilt = settings.configuration.tilt ?? 0;
+		visualizer.tilt = configuration.tilt ?? 0;
 		this.#inputVisualizationTilt.value = String(visualizer.tilt);
-		visualizer.punch = settings.configuration.punch ?? 0;
+		visualizer.punch = configuration.punch ?? 0;
 		this.#inputVisualizationPunch.value = String(visualizer.punch);
 	}
 
@@ -67,6 +68,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		selectVisualizerVisualization.value = visualizer.visualization;
 		selectVisualizerVisualization.addEventListener("change", event => this.#applyVisualization());
 
+		inputVisualizerRate.min = String(Visualizer.minRate);
+		inputVisualizerRate.max = String(Visualizer.maxRate);
+		inputVisualizerRate.step = String(30);
 		inputVisualizerRate.value = String(visualizer.rate);
 		inputVisualizerRate.addEventListener("change", async (event) => {
 			visualizer.rate = Number(inputVisualizerRate.value);
@@ -75,6 +79,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			try { await repository.save(500); } catch { }
 		});
 
+		inputVisualizationQuality.min = String(Visualizer.minQuality);
+		inputVisualizationQuality.max = String(Visualizer.maxQuality);
+		inputVisualizationQuality.step = String(1);
 		inputVisualizationQuality.value = String(visualizer.quality);
 		inputVisualizationQuality.addEventListener("change", async (event) => {
 			visualizer.quality = Number(inputVisualizationQuality.value);
@@ -83,6 +90,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			try { await repository.save(500); } catch { }
 		});
 
+		inputVisualizationSmoothing.min = String(Visualizer.minSmoothing);
+		inputVisualizationSmoothing.max = String(Visualizer.maxSmoothing);
+		inputVisualizationSmoothing.step = String(0.1);
 		inputVisualizationSmoothing.value = String(visualizer.smoothing);
 		inputVisualizationSmoothing.addEventListener("input", (event) => {
 			visualizer.smoothing = Number(inputVisualizationSmoothing.value);
@@ -92,6 +102,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			try { await repository.save(500); } catch { }
 		});
 
+		inputVisualizationFocus.min = String(-100);
+		inputVisualizationFocus.max = String(-20);
+		inputVisualizationFocus.step = String(1);
 		inputVisualizationFocus.value = String(visualizer.focus);
 		inputVisualizationFocus.disabled = visualizer.autoCorrect;
 		inputVisualizationFocus.addEventListener("input", (event) => {
@@ -102,6 +115,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			try { await repository.save(500); } catch { }
 		});
 
+		inputVisualizationSpread.min = String(1);
+		inputVisualizationSpread.max = String(59);
+		inputVisualizationSpread.step = String(1);
 		inputVisualizationSpread.value = String(visualizer.spread);
 		inputVisualizationSpread.disabled = visualizer.autoCorrect;
 		inputVisualizationSpread.addEventListener("input", (event) => {
@@ -112,6 +128,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			try { await repository.save(500); } catch { }
 		});
 
+		inputVisualizationBoost.min = String(Visualizer.minBoost);
+		inputVisualizationBoost.max = String(Visualizer.maxBoost);
+		inputVisualizationBoost.step = String(0.05);
 		inputVisualizationBoost.value = String(settings.configuration.boost ?? 1);
 		visualizer.boost = settings.configuration.boost ?? 1;
 		inputVisualizationBoost.disabled = visualizer.autoCorrect;
@@ -123,6 +142,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			try { await repository.save(500); } catch { }
 		});
 
+		inputVisualizationTilt.min = String(Visualizer.minTilt);
+		inputVisualizationTilt.max = String(Visualizer.maxTilt);
+		inputVisualizationTilt.step = String(0.5);
 		inputVisualizationTilt.value = String(settings.configuration.tilt ?? 0);
 		visualizer.tilt = settings.configuration.tilt ?? 0;
 		inputVisualizationTilt.disabled = visualizer.autoCorrect;
@@ -134,6 +156,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			try { await repository.save(500); } catch { }
 		});
 
+		inputVisualizationPunch.min = String(Visualizer.minPunch);
+		inputVisualizationPunch.max = String(Visualizer.maxPunch);
+		inputVisualizationPunch.step = String(0.05);
 		inputVisualizationPunch.value = String(settings.configuration.punch ?? 0);
 		visualizer.punch = settings.configuration.punch ?? 0;
 		inputVisualizationPunch.disabled = visualizer.autoCorrect;

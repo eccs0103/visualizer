@@ -4,7 +4,7 @@ import "adaptive-extender/web";
 import { AudioFeatures } from "./audio-features.js";
 import { type AudiosetView } from "./visualization.js";
 
-const { sqrt, sqpw, abs, log2, min, max } = Math;
+const { trunc, sqrt, sqpw, abs, log2, round } = Math;
 
 //#region Audioset
 export interface AudiosetManager {
@@ -32,18 +32,33 @@ export interface AudiosetManager {
 
 export interface AudiosetManagerConstructor {
 	new(media: HTMLMediaElement): AudiosetManager;
-	checkQuality(value: number): boolean;
-	checkSmoothing(value: number): boolean;
-	checkFocus(value: number): boolean;
-	checkSpread(value: number): boolean;
-	checkBoost(value: number): boolean;
-	checkTilt(value: number): boolean;
-	checkPunch(value: number): boolean;
+	get minQuality(): number;
+	get maxQuality(): number;
+	get minSmoothing(): number;
+	get maxSmoothing(): number;
+	get minSpread(): number;
+	get minBoost(): number;
+	get maxBoost(): number;
+	get minTilt(): number;
+	get maxTilt(): number;
+	get minPunch(): number;
+	get maxPunch(): number;
 }
 
 export class Audioset implements AudiosetView {
 	//#region Manager
 	static #Manager: AudiosetManagerConstructor = class Manager implements AudiosetManager {
+		static #minQuality: number = 5;
+		static #maxQuality: number = 15;
+		static #minSmoothing: number = 0;
+		static #maxSmoothing: number = 1;
+		static #minSpread: number = Number.EPSILON;
+		static #minBoost: number = 0.25;
+		static #maxBoost: number = 4;
+		static #minTilt: number = -12;
+		static #maxTilt: number = 12;
+		static #minPunch: number = 0;
+		static #maxPunch: number = 1;
 		#context: AudioContext;
 		#analyser: AnalyserNode;
 		#gain: GainNode;
@@ -94,12 +109,25 @@ export class Audioset implements AudiosetView {
 			this.#dataTemporary = new Uint8Array(length);
 		}
 
+		static get minQuality(): number { return this.#minQuality; }
+		static get maxQuality(): number { return this.#maxQuality; }
+		static get minSmoothing(): number { return this.#minSmoothing; }
+		static get maxSmoothing(): number { return this.#maxSmoothing; }
+		static get minSpread(): number { return this.#minSpread; }
+		static get minBoost(): number { return this.#minBoost; }
+		static get maxBoost(): number { return this.#maxBoost; }
+		static get minTilt(): number { return this.#minTilt; }
+		static get maxTilt(): number { return this.#maxTilt; }
+		static get minPunch(): number { return this.#minPunch; }
+		static get maxPunch(): number { return this.#maxPunch; }
+
 		get quality(): number {
 			return log2(this.#analyser.fftSize);
 		}
 
 		set quality(value: number) {
-			if (!Manager.checkQuality(value)) return;
+			if (!Number.isFinite(value)) throw new Error(`The quality ${value} must be a finite number`);
+			value = trunc(value).clamp(Manager.minQuality, Manager.#maxQuality);
 			const analyser = this.#analyser;
 			const audioset = this.#audioset;
 			analyser.fftSize = (1 << value);
@@ -115,33 +143,35 @@ export class Audioset implements AudiosetView {
 		}
 
 		set smoothing(value: number) {
-			if (!Manager.checkSmoothing(value)) return;
+			if (!Number.isFinite(value)) throw new Error(`The smoothing ${value} must be a finite number`);
+			value = value.clamp(Manager.#minSmoothing, Manager.#maxSmoothing);
 			this.#analyser.smoothingTimeConstant = value;
 		}
 
 		get focus(): number {
-			const { minDecibels, maxDecibels } = this.#analyser;
-			return (minDecibels + maxDecibels) / 2;
+			const { maxDecibels, minDecibels } = this.#analyser;
+			return (maxDecibels + minDecibels) / 2;
 		}
 
 		set focus(value: number) {
-			if (!Manager.checkFocus(value)) return;
+			if (!Number.isFinite(value)) throw new Error(`The focus ${value} must be a finite number`);
 			const { spread } = this;
 			const analyser = this.#analyser;
-			analyser.minDecibels = value - spread;
-			analyser.maxDecibels = value + spread;
+			analyser.minDecibels = round(value - spread);
+			analyser.maxDecibels = round(value + spread);
 		}
 
 		get spread(): number {
-			const { minDecibels, maxDecibels } = this.#analyser;
+			const { maxDecibels, minDecibels } = this.#analyser;
 			return (maxDecibels - minDecibels) / 2;
 		}
 
 		set spread(value: number) {
-			if (!Manager.checkSpread(value)) return;
+			if (!Number.isFinite(value)) throw new Error(`The spread ${value} must be a finite number`);
+			value = value.clamp(Manager.#minSpread, Infinity);
 			const analyser = this.#analyser, { focus } = this;
-			analyser.minDecibels = focus - value;
-			analyser.maxDecibels = focus + value;
+			analyser.minDecibels = round(focus - value);
+			analyser.maxDecibels = round(focus + value);
 		}
 
 		get boost(): number {
@@ -149,7 +179,8 @@ export class Audioset implements AudiosetView {
 		}
 
 		set boost(value: number) {
-			if (!Manager.checkBoost(value)) return;
+			if (!Number.isFinite(value)) throw new Error(`The boost ${value} must be a finite number`);
+			value = value.clamp(Manager.#minBoost, Manager.#maxBoost);
 			this.#gain.gain.value = value;
 		}
 
@@ -158,22 +189,23 @@ export class Audioset implements AudiosetView {
 		}
 
 		set tilt(value: number) {
-			if (!Manager.checkTilt(value)) return;
+			if (!Number.isFinite(value)) throw new Error(`The tilt ${value} must be a finite number`);
+			value = value.clamp(Manager.#minTilt, Manager.#maxTilt);
 			this.#lowShelf.gain.value = -value;
 			this.#highShelf.gain.value = value;
 		}
 
 		get punch(): number {
-			// Reverse-map from ratio back to the [0, 1] punch range
-			return (this.#compressor.ratio.value - 1) / 11;
+			return (this.#compressor.ratio.value - 1) / 11; /** @todo number.lerp? */
 		}
 
 		set punch(value: number) {
-			if (!Manager.checkPunch(value)) return;
-			const punch = max(0, min(1, value));
-			this.#compressor.threshold.value = -punch * 24;
-			this.#compressor.ratio.value = 1 + punch * 11;
-			this.#compressor.knee.value = 30 * (1 - punch);
+			if (!Number.isFinite(value)) throw new Error(`The punch ${value} must be a finite number`);
+			value = value.clamp(Manager.#minPunch, Manager.#maxPunch);
+			const compressor = this.#compressor;
+			compressor.threshold.value = -value * 24; /** @todo number.lerp? */
+			compressor.ratio.value = 1 + value * 11; /** @todo number.lerp? */
+			compressor.knee.value = 30 * (1 - value); /** @todo number.lerp? */
 		}
 
 		get autoCorrect(): boolean { return this.#autoCorrect; }
@@ -185,51 +217,8 @@ export class Audioset implements AudiosetView {
 			this.#audioset.#features.readFrom(out);
 		}
 
-		static checkQuality(value: number): boolean {
-			if (!Number.isInteger(value)) return false;
-			if (5 > value || value > 15) return false;
-			return true;
-		}
-
-		static checkSmoothing(value: number): boolean {
-			if (!Number.isFinite(value)) return false;
-			if (0 > value || value > 1) return false;
-			return true;
-		}
-
-		static checkFocus(value: number): boolean {
-			if (!Number.isFinite(value)) return false;
-			return true;
-		}
-
-		static checkSpread(value: number): boolean {
-			if (!Number.isFinite(value)) return false;
-			if (0 >= value) return false;
-			return true;
-		}
-
-		static checkBoost(value: number): boolean {
-			if (!Number.isFinite(value)) return false;
-			if (0.25 > value || value > 4) return false;
-			return true;
-		}
-
-		static checkTilt(value: number): boolean {
-			if (!Number.isFinite(value)) return false;
-			if (-12 > value || value > 12) return false;
-			return true;
-		}
-
-		static checkPunch(value: number): boolean {
-			if (!Number.isFinite(value)) return false;
-			if (0 > value || value > 1) return false;
-			return true;
-		}
-
 		refresh(): void {
 			const analyser = this.#analyser;
-			const { minDecibels } = analyser;
-			const range = analyser.maxDecibels - minDecibels;
 			const audioset = this.#audioset;
 			const { length } = audioset;
 			const dataTemporary = this.#dataTemporary;

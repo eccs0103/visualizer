@@ -23,7 +23,7 @@ export interface VisualizerOptions {
 }
 
 export class Visualizer extends EventTarget {
-	//#region Visualization
+	//#region Environment
 	static #Environment = class Environment implements VisualizationEnvironment {
 		#engine: WebEngine;
 
@@ -41,7 +41,8 @@ export class Visualizer extends EventTarget {
 	};
 	//#endregion
 
-
+	static #minRate: number = 30;
+	static #maxRate: number = 1200;
 	#bridge: RenderBridge = new RenderBridge();
 	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
 	#engine: WebEngine = new FastEngine();
@@ -92,13 +93,28 @@ export class Visualizer extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
+	static get minRate(): number { return this.#minRate; }
+	static get maxRate(): number { return this.#maxRate; }
+	static get minQuality(): number { return Audioset.Manager.minQuality; }
+	static get maxQuality(): number { return Audioset.Manager.maxQuality; }
+	static get minSmoothing(): number { return Audioset.Manager.minSmoothing; }
+	static get maxSmoothing(): number { return Audioset.Manager.maxSmoothing; }
+	static get minSpread(): number { return Audioset.Manager.minSpread; }
+	static get minBoost(): number { return Audioset.Manager.minBoost; }
+	static get maxBoost(): number { return Audioset.Manager.maxBoost; }
+	static get minTilt(): number { return Audioset.Manager.minTilt; }
+	static get maxTilt(): number { return Audioset.Manager.maxTilt; }
+	static get minPunch(): number { return Audioset.Manager.minPunch; }
+	static get maxPunch(): number { return Audioset.Manager.maxPunch; }
+
 	get rate(): number {
 		return round(this.#engine.limit);
 	}
 
 	set rate(value: number) {
-		if (!Visualizer.checkRate(value)) return;
-		this.#engine.limit = round(value);
+		if (!Number.isFinite(value)) throw new Error(`The rate ${value} must be a finite number`);
+		value = (round(value / 30) * 30).clamp(Visualizer.#minRate, Visualizer.#maxRate); /** @todo Add to adaptive-extender number.snap(value, step) */
+		this.#engine.limit = value;
 	}
 
 	get autoCorrect(): boolean { return this.#manager.autoCorrect; }
@@ -165,13 +181,6 @@ export class Visualizer extends EventTarget {
 		this.#bridge.writeAudioset(length, volume, amplitude, dataFrequency, dataTemporal, color.hue, color.saturation, color.lightness);
 		this.#worker.postMessage(RenderCommand.export(new TickCommand()));
 		this.dispatchEvent(new Event("update"));
-	}
-
-	static checkRate(value: number): boolean {
-		if (!Number.isFinite(value)) return false;
-		if (30 > value || value > 1200) return false;
-		if (value % 30 !== 0) return false;
-		return true;
 	}
 }
 //#endregion
