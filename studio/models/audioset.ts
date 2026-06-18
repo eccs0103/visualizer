@@ -156,9 +156,7 @@ export class Audioset implements AudiosetView {
 		set focus(value: number) {
 			if (!Number.isFinite(value)) throw new Error(`The focus ${value} must be a finite number`);
 			const { spread } = this;
-			const analyser = this.#analyser;
-			analyser.minDecibels = round(value - spread);
-			analyser.maxDecibels = round(value + spread);
+			this.#applyDecibels(round(value - spread), round(value + spread));
 		}
 
 		get spread(): number {
@@ -169,9 +167,19 @@ export class Audioset implements AudiosetView {
 		set spread(value: number) {
 			if (!Number.isFinite(value)) throw new Error(`The spread ${value} must be a finite number`);
 			value = value.clamp(Manager.#minSpread, Infinity);
-			const analyser = this.#analyser, { focus } = this;
-			analyser.minDecibels = round(focus - value);
-			analyser.maxDecibels = round(focus + value);
+			const { focus } = this;
+			this.#applyDecibels(round(focus - value), round(focus + value));
+		}
+
+		#applyDecibels(minDecibels: number, maxDecibels: number): void {
+			const analyser = this.#analyser;
+			if (minDecibels >= analyser.maxDecibels) {
+				analyser.maxDecibels = maxDecibels;
+				analyser.minDecibels = minDecibels;
+			} else {
+				analyser.minDecibels = minDecibels;
+				analyser.maxDecibels = maxDecibels;
+			}
 		}
 
 		get boost(): number {

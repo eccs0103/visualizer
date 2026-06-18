@@ -15,6 +15,28 @@ class VisualizationWorker extends Controller {
 	#audioset: WorkerAudioset;
 	#environment: WorkerEnvironment;
 	#selection: string;
+	#width: number = 0;
+	#height: number = 0;
+	#rebuilt: boolean = false;
+
+	#rebuild(): void {
+		const width = this.#width;
+		const height = this.#height;
+		if (width === 0 || height === 0) return;
+		const context = this.#context;
+		const audioset = this.#audioset;
+		const environment = this.#environment;
+		const { canvas } = context;
+		canvas.width = width;
+		canvas.height = height;
+		context.reset();
+		context.resetTransform();
+		const selection = this.#selection;
+		const bundle = ReferenceError.suppress(this.#bundles.get(selection), `Visualization with name '${selection}' is not attached`);
+		bundle.rebuild({ context, audioset, environment });
+		bundle.update({ context, audioset, environment });
+		this.#rebuilt = true;
+	}
 
 	#onMessage(event: MessageEvent): void {
 		const command = RenderCommand.import(event.data, "command");
@@ -32,10 +54,13 @@ class VisualizationWorker extends Controller {
 				if (selection === null) selection = name;
 			}
 			this.#selection = ReferenceError.suppress(selection, "Failed to find any visualization");
+			canvas.addEventListener("contextlost", event => this.#rebuilt = false);
+			canvas.addEventListener("contextrestored", event => this.#rebuild());
 			return;
 		}
 
 		if (command instanceof TickCommand) {
+			if (!this.#rebuilt) return;
 			const context = this.#context;
 			const audioset = this.#audioset;
 			const environment = this.#environment;
@@ -48,21 +73,11 @@ class VisualizationWorker extends Controller {
 		}
 
 		if (command instanceof RebuildRenderCommand) {
-			const context = this.#context;
-			const audioset = this.#audioset;
-			const environment = this.#environment;
-			const { canvas } = context;
 			const { width, height, visualization } = command;
-
 			if (visualization !== this.#selection) this.#selection = visualization;
-			canvas.width = width;
-			canvas.height = height;
-			context.reset();
-			context.resetTransform();
-			const selection = this.#selection;
-			const bundle = ReferenceError.suppress(bundles.get(selection), `Visualization with name '${selection}' is not attached`);
-			bundle.rebuild({ context, audioset, environment });
-			bundle.update({ context, audioset, environment });
+			this.#width = width;
+			this.#height = height;
+			this.#rebuild();
 			return;
 		}
 	}

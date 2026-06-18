@@ -157,6 +157,7 @@ export class Visualizer extends EventTarget {
 
 	#rebuild(): void {
 		const { width, height } = this.#canvas.getBoundingClientRect();
+		if (width === 0 || height === 0) return;
 		this.#worker.postMessage(RenderCommand.export(new RebuildRenderCommand(width, height, this.#visualization)));
 		this.dispatchEvent(new Event("rebuild"));
 	}
