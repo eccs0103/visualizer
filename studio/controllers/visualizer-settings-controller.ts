@@ -35,11 +35,11 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		this.#inputVisualizationFocus.value = String(visualizer.focus);
 		visualizer.spread = configuration.spread;
 		this.#inputVisualizationSpread.value = String(visualizer.spread);
-		visualizer.boost = configuration.boost;
+		visualizer.boost = configuration.boost ?? 1;
 		this.#inputVisualizationBoost.value = String(visualizer.boost);
-		visualizer.tilt = configuration.tilt;
+		visualizer.tilt = configuration.tilt ?? 0;
 		this.#inputVisualizationTilt.value = String(visualizer.tilt);
-		visualizer.punch = configuration.punch;
+		visualizer.punch = configuration.punch ?? 0;
 		this.#inputVisualizationPunch.value = String(visualizer.punch);
 	}
 
@@ -132,7 +132,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		inputVisualizationBoost.max = String(Visualizer.maxBoost);
 		inputVisualizationBoost.step = String(0.05);
 		inputVisualizationBoost.value = String(settings.configuration.boost);
-		visualizer.boost = settings.configuration.boost;
+		visualizer.boost = settings.configuration.boost ?? 1;
 		inputVisualizationBoost.disabled = visualizer.autoCorrect;
 		inputVisualizationBoost.addEventListener("input", (event) => {
 			visualizer.boost = Number(inputVisualizationBoost.value);
@@ -146,7 +146,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		inputVisualizationTilt.max = String(Visualizer.maxTilt);
 		inputVisualizationTilt.step = String(0.5);
 		inputVisualizationTilt.value = String(settings.configuration.tilt);
-		visualizer.tilt = settings.configuration.tilt;
+		visualizer.tilt = settings.configuration.tilt ?? 0;
 		inputVisualizationTilt.disabled = visualizer.autoCorrect;
 		inputVisualizationTilt.addEventListener("input", (event) => {
 			visualizer.tilt = Number(inputVisualizationTilt.value);
@@ -160,7 +160,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		inputVisualizationPunch.max = String(Visualizer.maxPunch);
 		inputVisualizationPunch.step = String(0.05);
 		inputVisualizationPunch.value = String(settings.configuration.punch);
-		visualizer.punch = settings.configuration.punch;
+		visualizer.punch = settings.configuration.punch ?? 0;
 		inputVisualizationPunch.disabled = visualizer.autoCorrect;
 		inputVisualizationPunch.addEventListener("input", (event) => {
 			visualizer.punch = Number(inputVisualizationPunch.value);
