@@ -15,7 +15,7 @@
 		"vite": "^7.1.2"
 	},
 	"dependencies": {
-		"adaptive-extender": "^0.11.2"
+		"adaptive-extender": "^0.11.3"
 	},
 	"overrides": {
 		"esbuild": "^0.28.1"
