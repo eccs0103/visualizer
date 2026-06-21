@@ -1,15 +1,15 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller, ArchiveRepository } from "adaptive-extender/web";
+import { Controller, BufferedCell } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { Registry } from "../services/visualization-registry.js";
 
 //#region Visualizer settings controller
-export class VisualizerSettingsController extends Controller<[ArchiveRepository<typeof Settings>, Visualizer, HTMLDialogElement, HTMLSelectElement]> {
+export class VisualizerSettingsController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement, HTMLSelectElement]> {
 	#visualizer: Visualizer;
-	#repository: ArchiveRepository<typeof Settings>;
+	#cell: BufferedCell<typeof Settings>;
 	#selectVisualizerVisualization: HTMLSelectElement;
 	#inputVisualizerRate: HTMLInputElement;
 	#inputAutocorrectToggle: HTMLInputElement;
@@ -22,7 +22,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 	#inputVisualizationPunch: HTMLInputElement;
 
 	#applyVisualization(): void {
-		const settings = this.#repository.content;
+		const settings = this.#cell.content;
 		const visualizer = this.#visualizer;
 		visualizer.visualization = this.#selectVisualizerVisualization.value;
 		settings.visualization = visualizer.visualization;
@@ -43,9 +43,9 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		this.#inputVisualizationPunch.value = String(visualizer.punch);
 	}
 
-	async run(repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
+	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
 		this.#visualizer = visualizer;
-		this.#repository = repository;
+		this.#cell = cell;
 		this.#selectVisualizerVisualization = selectVisualizerVisualization;
 
 		const inputVisualizerRate = this.#inputVisualizerRate = dialogConfigurator.getElement(HTMLInputElement, "input#visualizer-rate");
@@ -58,7 +58,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		const inputVisualizationTilt = this.#inputVisualizationTilt = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-tilt");
 		const inputVisualizationPunch = this.#inputVisualizationPunch = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-punch");
 
-		const settings = repository.content;
+		const settings = cell.content;
 
 		for (const name of Registry.names()) {
 			const option = selectVisualizerVisualization.appendChild(document.createElement("option"));
@@ -76,7 +76,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			visualizer.rate = Number(inputVisualizerRate.value);
 			inputVisualizerRate.value = String(visualizer.rate);
 			settings.rate = visualizer.rate;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		inputVisualizationQuality.min = String(Visualizer.minQuality);
@@ -87,7 +87,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 			visualizer.quality = Number(inputVisualizationQuality.value);
 			inputVisualizationQuality.value = String(visualizer.quality);
 			settings.configuration.quality = visualizer.quality;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		inputVisualizationSmoothing.min = String(Visualizer.minSmoothing);
@@ -99,7 +99,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		});
 		inputVisualizationSmoothing.addEventListener("change", async (event) => {
 			settings.configuration.smoothing = visualizer.smoothing;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		inputVisualizationFocus.min = String(-100);
@@ -112,7 +112,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		});
 		inputVisualizationFocus.addEventListener("change", async (event) => {
 			settings.configuration.focus = visualizer.focus;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		inputVisualizationSpread.min = String(1);
@@ -125,7 +125,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		});
 		inputVisualizationSpread.addEventListener("change", async (event) => {
 			settings.configuration.spread = visualizer.spread;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		inputVisualizationBoost.min = String(Visualizer.minBoost);
@@ -139,7 +139,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		});
 		inputVisualizationBoost.addEventListener("change", async (event) => {
 			settings.configuration.boost = visualizer.boost;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		inputVisualizationTilt.min = String(Visualizer.minTilt);
@@ -153,7 +153,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		});
 		inputVisualizationTilt.addEventListener("change", async (event) => {
 			settings.configuration.tilt = visualizer.tilt;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		inputVisualizationPunch.min = String(Visualizer.minPunch);
@@ -167,7 +167,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		});
 		inputVisualizationPunch.addEventListener("change", async (event) => {
 			settings.configuration.punch = visualizer.punch;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		visualizer.addEventListener("update", async (event) => {
@@ -195,7 +195,7 @@ export class VisualizerSettingsController extends Controller<[ArchiveRepository<
 		});
 		inputAutocorrectToggle.addEventListener("change", async (event) => {
 			settings.autoCorrect = visualizer.autoCorrect;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		window.addEventListener("keydown", (event) => {

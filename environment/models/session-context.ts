@@ -6,51 +6,51 @@ import { Field, Model, Optional } from "adaptive-extender/core";
 //#region Session context
 export class SessionContext extends Model {
 	/** Full URL that navigated to this page. "direct" when document.referrer is empty (typed URL, bookmark, or referrer policy stripped it). */
-	@Field(String, "referrer_url")
+	@Field(String, { name: "referrer_url" })
 	referrerUrl: string;
 
 	/** Hostname of the referring page (e.g. "google.com", "t.me"). "direct" when there is no referrer. "unknown" if the referrer URL could not be parsed. */
-	@Field(String, "referrer_domain")
+	@Field(String, { name: "referrer_domain" })
 	referrerDomain: string;
 
 	/** PerformanceNavigationTiming.type — how the current document was reached: "navigate" (fresh load), "reload", "back_forward" (history traversal), or "prerender". Falls back to "navigate" when Navigation Timing API is unavailable. */
-	@Field(String, "navigation_type")
+	@Field(String, { name: "navigation_type" })
 	navigationType: string;
 
 	/** Full navigator.languages list joined by comma (e.g. "en-US,ru,fr"). Ordered by priority; the first entry matches primary_language in user properties. */
-	@Field(String, "all_languages")
+	@Field(String, { name: "all_languages" })
 	allLanguages: string;
 
 	/** NetworkInformation.type — physical connection category: "wifi", "cellular", "ethernet", "bluetooth", "wimax", "other", "none", or "unknown". Available in Chromium only; absent in Firefox and Safari. */
-	@Field(Optional(String), "connection_type")
+	@Field(Optional.Of(String), { name: "connection_type" })
 	connectionType: string | undefined;
 
 	/** NetworkInformation.effectiveType — estimated quality bracket: "4g", "3g", "2g", or "slow-2g". Derived from RTT and downlink measurements. Chromium only. */
-	@Field(Optional(String), "effective_connection")
+	@Field(Optional.Of(String), { name: "effective_connection" })
 	effectiveConnection: string | undefined;
 
 	/** NetworkInformation.downlink in Mbit/s, rounded to 25 kbit/s granularity and capped at 10 Mbit/s. Chromium only. */
-	@Field(Optional(Number), "downlink_mbps")
+	@Field(Optional.Of(Number), { name: "downlink_mbps" })
 	downlinkMbps: number | undefined;
 
 	/** NetworkInformation.rtt — estimated round-trip time in milliseconds, rounded to the nearest 25 ms. Chromium only. */
-	@Field(Optional(Number), "round_trip_time_ms")
+	@Field(Optional.Of(Number), { name: "round_trip_time_ms" })
 	roundTripTimeMs: number | undefined;
 
 	/** NetworkInformation.saveData — true when the user has enabled "Lite mode" or data-saving in browser / OS settings. Chromium only. */
-	@Field(Optional(Boolean), "data_saver_enabled")
+	@Field(Optional.Of(Boolean), { name: "data_saver_enabled" })
 	dataSaverEnabled: boolean | undefined;
 
 	/** utm_source query parameter from the landing URL. Present only when the user arrived via a tracked campaign link. */
-	@Field(Optional(String), "utm_source")
+	@Field(Optional.Of(String), { name: "utm_source" })
 	utmSource: string | undefined;
 
 	/** utm_medium query parameter from the landing URL (e.g. "email", "social", "cpc"). */
-	@Field(Optional(String), "utm_medium")
+	@Field(Optional.Of(String), { name: "utm_medium" })
 	utmMedium: string | undefined;
 
 	/** utm_campaign query parameter from the landing URL. */
-	@Field(Optional(String), "utm_campaign")
+	@Field(Optional.Of(String), { name: "utm_campaign" })
 	utmCampaign: string | undefined;
 
 	constructor();

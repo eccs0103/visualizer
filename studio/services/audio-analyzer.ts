@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { ArchiveRepository } from "adaptive-extender/web";
+import { BufferedCell } from "adaptive-extender/web";
 import { NNWeights } from "../models/nn-agent.js";
 import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./client-bridge.js";
@@ -21,7 +21,7 @@ export interface AudioAnalyzerOptions {
 
 export class AudioAnalyzer extends EventTarget {
 	#isDeveloper: boolean;
-	#repository: ArchiveRepository<typeof NNWeights> = new ArchiveRepository("Visualizer\\Studio\\NN weights\\1.1", NNWeights, new NNWeights());
+	#cell: BufferedCell<typeof NNWeights> = localStorage.openBufferedCell("Visualizer\\Studio\\NN weights\\1.1", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
 	#worker: Worker = new Worker(new URL("./controllers/audio-analyzer-worker.js", baseURI), { type: "module" });
 	#rate: number;
@@ -76,7 +76,7 @@ export class AudioAnalyzer extends EventTarget {
 	resetWeights(): void {
 		if (!this.#isDeveloper) return;
 		this.#worker.postMessage(Command.export(new ResetCommand()));
-		this.#repository.reset();
+		this.#cell.reset();
 	}
 
 	analyze(manager: AudiosetManager): void {
@@ -88,7 +88,7 @@ export class AudioAnalyzer extends EventTarget {
 
 	async #loadWeights(): Promise<void> {
 		const worker = this.#worker;
-		let weights = this.#repository.content;
+		let weights = this.#cell.content;
 		if (weights.matrix1.length > 0) {
 			worker.postMessage(Command.export(new LoadWeightsCommand(weights)));
 			return;
@@ -104,8 +104,8 @@ export class AudioAnalyzer extends EventTarget {
 		const command = Command.import(event.data, "command");
 
 		if (command instanceof WeightsCommand) {
-			const repository = this.#repository;
-			const cached = repository.content;
+			const cell = this.#cell;
+			const cached = cell.content;
 			const { weights } = command;
 			cached.matrix1 = weights.matrix1;
 			cached.bias1 = weights.bias1;
@@ -115,7 +115,7 @@ export class AudioAnalyzer extends EventTarget {
 			cached.biasV = weights.biasV;
 			cached.matrixW = weights.matrixW;
 			cached.biasW = weights.biasW;
-			void repository.save(2000).catch(Function.empty);
+			void cell.save(2000);
 			if (this.#pendingExport) {
 				this.#pendingExport = false;
 				this.#downloadFile("nn-weights.json", JSON.stringify(NNWeights.export(weights)));

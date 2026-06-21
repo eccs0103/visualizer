@@ -1,7 +1,7 @@
 ﻿"use strict";
 
 import "adaptive-extender/web";
-import { Controller, ArchiveRepository, MetadataInjector } from "adaptive-extender/web";
+import { Controller, BufferedCell, MetadataInjector } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { ObjectStore } from "../services/object-store.js";
@@ -29,7 +29,7 @@ class StudioController extends Controller {
 		});
 		void AnalyticsController.launch();
 
-		const repository: ArchiveRepository<typeof Settings> = new ArchiveRepository("Visualizer\\Studio\\Settings", Settings, Settings.newDefault);
+		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Studio\\Settings", Settings, Settings.newDefault);
 		const store: ObjectStore = new ObjectStore("Visualizer", "Audiolist");
 		const url = new URL(location.href);
 		const search = new URLSearchParams(url.search);
@@ -45,7 +45,7 @@ class StudioController extends Controller {
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper });
 
-		const settings = repository.content;
+		const settings = cell.content;
 		visualizer.rate = settings.rate;
 		visualizer.autoCorrect = settings.autoCorrect;
 		visualizer.visualization = settings.visualization;
@@ -66,7 +66,7 @@ class StudioController extends Controller {
 
 		await AudioController.launch(store, audioPlayer, inputAudioLoader, divInterface, buttonAudioDrive, bPlaybackTime, inputPlaybackTrack);
 		await ClipController.launch(visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
-		await ConfiguratorController.launch(repository, visualizer, dialogConfigurator, buttonOpenConfigurator, selectVisualizerVisualization);
+		await ConfiguratorController.launch(cell, visualizer, dialogConfigurator, buttonOpenConfigurator, selectVisualizerVisualization);
 	}
 
 	async catch(error: Error): Promise<void> {

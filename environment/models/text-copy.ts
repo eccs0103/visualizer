@@ -6,7 +6,7 @@ import { Field, Model } from "adaptive-extender/core";
 //#region Text copy
 export class TextCopy extends Model {
 	/** Trimmed text selected and copied by the user. Not recorded when the selection collapses to an empty string (accidental ctrl+c without a selection). */
-	@Field(String, "copy_text")
+	@Field(String, { name: "copy_text" })
 	text: string;
 
 	constructor();

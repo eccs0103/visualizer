@@ -6,11 +6,11 @@ import { Field, Model } from "adaptive-extender/core";
 //#region Battery context
 export class BatteryContext extends Model {
 	/** Battery charge as an integer percentage 0–100. Derived from BatteryManager.level × 100, rounded. */
-	@Field(Number, "battery_level")
+	@Field(Number, { name: "battery_level" })
 	batteryLevel: number;
 
 	/** true when the device is currently plugged in and the battery is gaining charge. */
-	@Field(Boolean, "battery_charging")
+	@Field(Boolean, { name: "battery_charging" })
 	batteryCharging: boolean;
 
 	constructor();

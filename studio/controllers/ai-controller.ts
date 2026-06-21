@@ -1,17 +1,17 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { ArchiveRepository, Controller } from "adaptive-extender/web";
+import { BufferedCell, Controller } from "adaptive-extender/web";
 import { Visualizer } from "../services/visualizer.js";
 import { type Settings } from "../models/settings.js";
 
 //#region AI controller
-export class AIController extends Controller<[ArchiveRepository<typeof Settings>, Visualizer, HTMLDialogElement]> {
-	async run(repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
+export class AIController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement]> {
+	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
 		if (!visualizer.isDeveloper) return;
 
 		const { analyzer } = visualizer;
-		const settings = repository.content;
+		const settings = cell.content;
 
 		const aiSeparator = dialogConfigurator.getElement(HTMLElement, "#ai-separator");
 		const aiHeading = dialogConfigurator.getElement(HTMLElement, "#ai-heading");
@@ -51,7 +51,7 @@ export class AIController extends Controller<[ArchiveRepository<typeof Settings>
 			const checked = inputLearningToggle.checked
 			analyzer.setLearning(checked);
 			settings.autoTrain = checked;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		buttonResetModel.addEventListener("click", (event) => {

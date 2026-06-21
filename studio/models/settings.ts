@@ -1,30 +1,30 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field, RecordOf, Optional } from "adaptive-extender/core";
+import { Model, Field, Optional } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
 
 //#region Visualization settings
 export class VisualizationSettings extends Model {
-	@Field(Number, "quality")
+	@Field(Number, { name: "quality" })
 	quality: number;
 
-	@Field(Number, "smoothing")
+	@Field(Number, { name: "smoothing" })
 	smoothing: number;
 
-	@Field(Number, "focus")
+	@Field(Number, { name: "focus" })
 	focus: number;
 
-	@Field(Number, "spread")
+	@Field(Number, { name: "spread" })
 	spread: number;
 
-	@Field(Optional(Number), "boost")
+	@Field(Optional.Of(Number), { name: "boost" })
 	boost: number | undefined;
 
-	@Field(Optional(Number), "tilt")
+	@Field(Optional.Of(Number), { name: "tilt" })
 	tilt: number | undefined;
 
-	@Field(Optional(Number), "punch")
+	@Field(Optional.Of(Number), { name: "punch" })
 	punch: number | undefined;
 
 	constructor();
@@ -59,22 +59,22 @@ export class VisualizationSettings extends Model {
 //#endregion
 //#region Settings
 export class Settings extends Model {
-	@Field(Boolean, "is_opened_configurator")
+	@Field(Boolean, { name: "is_opened_configurator" })
 	isOpenedConfigurator: boolean;
 
-	@Field(Number, "rate")
+	@Field(Number, { name: "rate" })
 	rate: number;
 
-	@Field(Boolean, "auto_correct")
+	@Field(Boolean, { name: "auto_correct" })
 	autoCorrect: boolean;
 
-	@Field(Optional(Boolean), "auto_train")
+	@Field(Optional.Of(Boolean), { name: "auto_train" })
 	autoTrain: boolean | undefined;
 
-	@Field(String, "visualization")
+	@Field(String, { name: "visualization" })
 	visualization: string;
 
-	@Field(RecordOf(VisualizationSettings), "attachments")
+	@Field(Map.AsRecord(VisualizationSettings), { name: "attachments" })
 	attachments: Map<string, VisualizationSettings>;
 
 	constructor();

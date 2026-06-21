@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field, ArrayOf, Random } from "adaptive-extender/core";
+import { Model, Field, Random } from "adaptive-extender/core";
 
 const { sqrt, abs, tanh } = Math;
 const random = Random.global;
@@ -19,28 +19,28 @@ export interface NNWeightsScheme {
 }
 
 export class NNWeights extends Model {
-	@Field(ArrayOf(Number), "matrix_1")
+	@Field(Array.Of(Number), { name: "matrix_1" })
 	matrix1: number[] = [];
 
-	@Field(ArrayOf(Number), "bias_1")
+	@Field(Array.Of(Number), { name: "bias_1" })
 	bias1: number[] = [];
 
-	@Field(ArrayOf(Number), "matrix_2")
+	@Field(Array.Of(Number), { name: "matrix_2" })
 	matrix2: number[] = [];
 
-	@Field(ArrayOf(Number), "bias_2")
+	@Field(Array.Of(Number), { name: "bias_2" })
 	bias2: number[] = [];
 
-	@Field(ArrayOf(Number), "matrix_v")
+	@Field(Array.Of(Number), { name: "matrix_v" })
 	matrixV: number[] = [];
 
-	@Field(ArrayOf(Number), "bias_v")
+	@Field(Array.Of(Number), { name: "bias_v" })
 	biasV: number[] = [];
 
-	@Field(ArrayOf(Number), "matrix_w")
+	@Field(Array.Of(Number), { name: "matrix_w" })
 	matrixW: number[] = [];
 
-	@Field(ArrayOf(Number), "bias_w")
+	@Field(Array.Of(Number), { name: "bias_w" })
 	biasW: number[] = [];
 }
 //#endregion

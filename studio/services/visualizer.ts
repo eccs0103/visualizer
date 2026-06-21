@@ -113,7 +113,7 @@ export class Visualizer extends EventTarget {
 
 	set rate(value: number) {
 		if (!Number.isFinite(value)) throw new Error(`The rate ${value} must be a finite number`);
-		value = (round(value / 30) * 30).clamp(Visualizer.#minRate, Visualizer.#maxRate); /** @todo Add to adaptive-extender number.snap(value, step) */
+		value = value.snap(30).clamp(Visualizer.#minRate, Visualizer.#maxRate);
 		this.#engine.limit = value;
 	}
 

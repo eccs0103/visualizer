@@ -6,11 +6,11 @@ import { Field, Model } from "adaptive-extender/core";
 //#region Outbound click
 export class OutboundClick extends Model {
 	/** Full absolute URL of the clicked link (anchor.href). Always an external destination — only anchors with target="_blank" are tracked. */
-	@Field(String, "link_url")
+	@Field(String, { name: "link_url" })
 	linkUrl: string;
 
 	/** Trimmed textContent of the clicked anchor element. Empty string when the link contains only an image, icon, or SVG with no visible text. */
-	@Field(String, "link_text")
+	@Field(String, { name: "link_text" })
 	linkText: string;
 
 	constructor();

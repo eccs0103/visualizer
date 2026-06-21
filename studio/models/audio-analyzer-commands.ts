@@ -52,10 +52,10 @@ export interface InitializeCommandScheme extends CommandScheme {
 }
 
 export class InitializeCommand extends Command {
-	@Field(SharedArrayBufferPortable, "in_sab")
+	@Field(SharedArrayBufferPortable, { name: "in_sab" })
 	inSAB: SharedArrayBuffer;
 
-	@Field(SharedArrayBufferPortable, "out_sab")
+	@Field(SharedArrayBufferPortable, { name: "out_sab" })
 	outSAB: SharedArrayBuffer;
 
 	constructor();
@@ -95,7 +95,7 @@ export interface LoadWeightsCommandScheme extends CommandScheme {
 }
 
 export class LoadWeightsCommand extends Command {
-	@Field(NNWeights, "weights")
+	@Field(NNWeights, { name: "weights" })
 	weights: NNWeights;
 
 	constructor();
@@ -122,7 +122,7 @@ export interface WeightsCommandScheme extends CommandScheme {
 }
 
 export class WeightsCommand extends Command {
-	@Field(NNWeights, "weights")
+	@Field(NNWeights, { name: "weights" })
 	weights: NNWeights;
 
 	constructor();
@@ -161,7 +161,7 @@ export interface FeedbackCommandScheme extends CommandScheme {
 }
 
 export class FeedbackCommand extends Command {
-	@Field(Number, "sign")
+	@Field(Number, { name: "sign" })
 	sign: number;
 
 	constructor();
@@ -188,7 +188,7 @@ export interface LearningCommandScheme extends CommandScheme {
 }
 
 export class LearningCommand extends Command {
-	@Field(Boolean, "enabled")
+	@Field(Boolean, { name: "enabled" })
 	enabled: boolean;
 
 	constructor();
@@ -215,7 +215,7 @@ export interface ProgressCommandScheme extends CommandScheme {
 }
 
 export class ProgressCommand extends Command {
-	@Field(Number, "count")
+	@Field(Number, { name: "count" })
 	count: number;
 
 	constructor();

@@ -1,14 +1,14 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller, ArchiveRepository } from "adaptive-extender/web";
+import { Controller, BufferedCell } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
 import { AIController } from "./ai-controller.js";
 
 //#region Configurator controller
-export class ConfiguratorController extends Controller<[ArchiveRepository<typeof Settings>, Visualizer, HTMLDialogElement, HTMLButtonElement, HTMLSelectElement]> {
+export class ConfiguratorController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement, HTMLButtonElement, HTMLSelectElement]> {
 	#dialogConfigurator: HTMLDialogElement;
 
 	async #setActivity(value: boolean): Promise<void> {
@@ -24,26 +24,26 @@ export class ConfiguratorController extends Controller<[ArchiveRepository<typeof
 		}
 	}
 
-	async run(repository: ArchiveRepository<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, buttonOpenConfigurator: HTMLButtonElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
+	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, buttonOpenConfigurator: HTMLButtonElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
 		this.#dialogConfigurator = dialogConfigurator;
 
 		const buttonCloseConfigurator = dialogConfigurator.getElement(HTMLButtonElement, "button#close-configurator");
-		const settings = repository.content;
+		const settings = cell.content;
 
-		await VisualizerSettingsController.launch(repository, visualizer, dialogConfigurator, selectVisualizerVisualization);
-		await AIController.launch(repository, visualizer, dialogConfigurator);
+		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
+		await AIController.launch(cell, visualizer, dialogConfigurator);
 
 		buttonOpenConfigurator.addEventListener("click", async (event) => {
 			event.stopPropagation();
 			await this.#setActivity(true);
 			settings.isOpenedConfigurator = dialogConfigurator.open;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		buttonCloseConfigurator.addEventListener("click", async (event) => {
 			await this.#setActivity(false);
 			settings.isOpenedConfigurator = dialogConfigurator.open;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		window.addEventListener("keydown", async (event) => {
@@ -51,7 +51,7 @@ export class ConfiguratorController extends Controller<[ArchiveRepository<typeof
 			event.preventDefault();
 			await this.#setActivity(!dialogConfigurator.open);
 			settings.isOpenedConfigurator = dialogConfigurator.open;
-			try { await repository.save(500); } catch { }
+			await cell.save(500);
 		});
 
 		await this.#setActivity(settings.isOpenedConfigurator);
