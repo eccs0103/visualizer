@@ -18,14 +18,14 @@ export class VisualizationSettings extends Model {
 	@Field(Number, { name: "spread" })
 	spread: number;
 
-	@Field(Optional.Of(Number), { name: "boost" })
-	boost: number | undefined;
+	@Field(Number, { name: "boost", fallback: 1 })
+	boost: number;
 
-	@Field(Optional.Of(Number), { name: "tilt" })
-	tilt: number | undefined;
+	@Field(Number, { name: "tilt", fallback: 0 })
+	tilt: number;
 
-	@Field(Optional.Of(Number), { name: "punch" })
-	punch: number | undefined;
+	@Field(Number, { name: "punch", fallback: 0 })
+	punch: number;
 
 	constructor();
 	constructor(quality: number, smoothing: number, focus: number, spread: number, boost: number, tilt: number, punch: number);
