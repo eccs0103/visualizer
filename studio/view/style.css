@@ -148,40 +148,13 @@ input#feedback-bad + label[for="feedback-bad"] > span.icon {
 	--url: url(../../assets/icons/thumbs-down.svg);
 }
 
-/* Experimental */
-
-span.scene-label {
-	font-weight: bold;
-}
-
-button.scene-button {
-	position: relative;
-	overflow: hidden;
-}
-
-button.scene-button::before {
-	content: '';
-	position: absolute;
-	inset: 0 auto 0 0;
-	width: calc(var(--probability, 0) * 100%);
-	background-color: var(--color-light-negative);
-	opacity: 0.14;
-	transition: width var(--time-duration) ease-out;
-	pointer-events: none;
-}
-
-button.scene-button[data-active]::before {
-	opacity: 0.28;
-}
-
-button.scene-button[data-active] {
+input#feedback-good:checked + label[for="feedback-good"],
+input#feedback-bad:checked + label[for="feedback-bad"] {
+	background-color: initial;
 	outline: var(--size-separator) solid var(--color-light-negative);
-	outline-offset: 0;
 }
 
-button.scene-button[data-predicted] {
-	color: var(--color-highlight);
-}
+/* Experimental */
 
 dialog.loader img[alt="Logo"] {
 	content: url(../../assets/icons/loading.gif);
