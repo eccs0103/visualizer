@@ -7,25 +7,25 @@ import { Registry } from "../services/visualization-registry.js";
 //#region Visualization settings
 export class VisualizationSettings extends Model {
 	@Field(Number, { name: "quality" })
-	quality: number;
+	quality: number = 10;
 
 	@Field(Number, { name: "smoothing" })
-	smoothing: number;
+	smoothing: number = 0.6;
 
 	@Field(Number, { name: "focus" })
-	focus: number;
+	focus: number = -60;
 
 	@Field(Number, { name: "spread" })
-	spread: number;
+	spread: number = 30;
 
-	@Field(Number, { name: "boost", fallback: 1 })
-	boost: number;
+	@Field(Number, { name: "boost" })
+	boost: number = 1;
 
-	@Field(Number, { name: "tilt", fallback: 0 })
-	tilt: number;
+	@Field(Number, { name: "tilt" })
+	tilt: number = 0;
 
-	@Field(Number, { name: "punch", fallback: 0 })
-	punch: number;
+	@Field(Number, { name: "punch" })
+	punch: number = 0;
 
 	constructor();
 	constructor(quality: number, smoothing: number, focus: number, spread: number, boost: number, tilt: number, punch: number);
@@ -44,38 +44,27 @@ export class VisualizationSettings extends Model {
 		this.tilt = tilt;
 		this.punch = punch;
 	}
-
-	static get newDefault(): VisualizationSettings {
-		const quality = 10;
-		const smoothing = 0.6;
-		const focus = -60;
-		const spread = 30;
-		const boost = 1;
-		const tilt = 0;
-		const punch = 0;
-		return new VisualizationSettings(quality, smoothing, focus, spread, boost, tilt, punch);
-	}
 }
 //#endregion
 //#region Settings
 export class Settings extends Model {
 	@Field(Boolean, { name: "is_opened_configurator" })
-	isOpenedConfigurator: boolean;
+	isOpenedConfigurator: boolean = false;
 
 	@Field(Number, { name: "rate" })
-	rate: number;
+	rate: number = 240;
 
 	@Field(Boolean, { name: "auto_correct" })
-	autoCorrect: boolean;
+	autoCorrect: boolean = true;
 
 	@Field(Optional.Of(Boolean), { name: "auto_train" })
 	autoTrain: boolean | undefined;
 
 	@Field(String, { name: "visualization" })
-	visualization: string;
+	visualization: string = Registry.default;
 
 	@Field(Map.AsRecord(VisualizationSettings), { name: "attachments" })
-	attachments: Map<string, VisualizationSettings>;
+	attachments: Map<string, VisualizationSettings> = new Map(Array.from(Registry.names(), name => [name, new VisualizationSettings()]));
 
 	constructor();
 	constructor(isOpenedConfigurator: boolean, rate: number, autoCorrect: boolean, autoTrain: boolean | undefined, visualization: string, attachments: Map<string, VisualizationSettings>);
@@ -96,17 +85,6 @@ export class Settings extends Model {
 
 	get configuration(): VisualizationSettings {
 		return ReferenceError.suppress(this.attachments.get(this.visualization), `Missing configurations for visualization '${this.visualization}'`);
-	}
-
-	static get newDefault(): Settings {
-		const isOpenedConfigurator = false;
-		const rate = 240;
-		const autoCorrect = true;
-		const autoTrain = undefined;
-		const visualization = Registry.default;
-		const attachments = new Map(Array.from(Registry.names(), name => [name, VisualizationSettings.newDefault]));
-		const settings = new Settings(isOpenedConfigurator, rate, autoCorrect, autoTrain, visualization, attachments);
-		return settings;
 	}
 }
 //#endregion

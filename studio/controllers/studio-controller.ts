@@ -29,7 +29,7 @@ class StudioController extends Controller {
 		});
 		void AnalyticsController.launch();
 
-		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Studio\\Settings", Settings, Settings.newDefault);
+		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Studio\\Settings", Settings, new Settings());
 		const store: ObjectStore = new ObjectStore("Visualizer", "Audiolist");
 		const url = new URL(location.href);
 		const search = new URLSearchParams(url.search);
