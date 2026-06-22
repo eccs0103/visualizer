@@ -81,14 +81,16 @@
 		</section>
 		<section id="ai-feedback" class="option" hidden>
 			<h4 class="title">Feedback</h4>
-			<span class="definition">Tell the AI how well it is doing right now. Thumbs up reinforces current behavior; thumbs down pushes parameters back toward neutral. Your feedback is never overwritten.</span>
+			<span class="definition">Hold feedback on the AI. The longer a thumb stays active, the stronger it learns; thumb up reinforces the current behavior, thumb down pushes it back toward neutral. Press an active thumb again to release.</span>
 			<div class="value flex column with-gap">
-				<button id="feedback-good" type="button" class="rounded depth with-padding flex">
+				<input id="feedback-good" type="checkbox" hidden>
+				<label for="feedback-good" role="checkbox" class="rounded depth with-padding flex">
 					<span class="icon in-line highlight">Thumb up</span>
-				</button>
-				<button id="feedback-bad" type="button" class="rounded depth with-padding flex">
+				</label>
+				<input id="feedback-bad" type="checkbox" hidden>
+				<label for="feedback-bad" role="checkbox" class="rounded depth with-padding flex">
 					<span class="icon in-line invalid">Thumb down</span>
-				</button>
+				</label>
 			</div>
 		</section>
 		<section id="ai-learning" class="option" hidden>

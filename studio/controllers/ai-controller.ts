@@ -25,8 +25,8 @@ export class AIController extends Controller<[BufferedCell<typeof Settings>, Vis
 		for (const element of [aiSeparator, aiHeading, aiReward, aiFeedback, aiLearning, aiReset, aiExport, aiShareSection]) element.hidden = false;
 
 		const spanAiStepCount = dialogConfigurator.getElement(HTMLSpanElement, "span#ai-step-count");
-		const buttonFeedbackGood = dialogConfigurator.getElement(HTMLButtonElement, "button#feedback-good");
-		const buttonFeedbackBad = dialogConfigurator.getElement(HTMLButtonElement, "button#feedback-bad");
+		const inputFeedbackGood = dialogConfigurator.getElement(HTMLInputElement, "input#feedback-good");
+		const inputFeedbackBad = dialogConfigurator.getElement(HTMLInputElement, "input#feedback-bad");
 		const inputLearningToggle = dialogConfigurator.getElement(HTMLInputElement, "input#learning-toggle");
 		const buttonResetModel = dialogConfigurator.getElement(HTMLButtonElement, "button#reset-model");
 		const buttonExportModel = dialogConfigurator.getElement(HTMLButtonElement, "button#export-model");
@@ -36,12 +36,14 @@ export class AIController extends Controller<[BufferedCell<typeof Settings>, Vis
 			spanAiStepCount.textContent = String(event.detail);
 		});
 
-		buttonFeedbackGood.addEventListener("click", (event) => {
-			analyzer.feedback(1);
+		inputFeedbackGood.addEventListener("input", (event) => {
+			if (inputFeedbackGood.checked) inputFeedbackBad.checked = false;
+			analyzer.feedback(inputFeedbackGood.checked ? 1 : 0);
 		});
 
-		buttonFeedbackBad.addEventListener("click", (event) => {
-			analyzer.feedback(-1);
+		inputFeedbackBad.addEventListener("input", (event) => {
+			if (inputFeedbackBad.checked) inputFeedbackGood.checked = false;
+			analyzer.feedback(inputFeedbackBad.checked ? -1 : 0);
 		});
 
 		const autoTrain = settings.autoTrain === true;

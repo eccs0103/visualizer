@@ -151,9 +151,9 @@ export class NNAgent {
 		return x >= 0 ? x : NNAgent.#alpha * x;
 	}
 
-	static #adamStep(param: Float32Array, grad: Float32Array, mean: Float32Array, variance: Float32Array, bias1Scale: number, bias2Scale: number): void {
+	static #adamStep(param: Float32Array, grad: Float32Array, mean: Float32Array, variance: Float32Array, bias1Scale: number, bias2Scale: number, rateScale: number = 1): void {
 		const beta1 = NNAgent.#adamBeta1, beta2 = NNAgent.#adamBeta2;
-		const epsilon = NNAgent.#adamEpsilon, rate = NNAgent.#adamRate;
+		const epsilon = NNAgent.#adamEpsilon, rate = NNAgent.#adamRate * rateScale;
 		for (let index = 0; index < param.length; index++) {
 			const gradient = grad[index];
 			mean[index] = beta1 * mean[index] + (1 - beta1) * gradient;
@@ -206,7 +206,8 @@ export class NNAgent {
 	// storedControl: the control output recorded at the time this experience was collected.
 	// When advantage > 0 (good action): push control head toward storedControl (reinforce).
 	// When advantage ≤ 0 (bad action): push control head toward 0 (neutralize — return to default).
-	rlStep(input: Float32Array, storedControl: Float32Array, tdTarget: number, advantage: number): void {
+	// feedbackSign: non-zero when held thumb overrides; feedbackGain: triangular ramp scale for control-head Adam rate.
+	rlStep(input: Float32Array, storedControl: Float32Array, tdTarget: number, advantage: number, feedbackSign: number, feedbackGain: number): void {
 		const sizeHidden2 = NNAgent.#sizeHidden2, sizeControl = NNAgent.#sizeControl;
 		const matrixV = this.#matrixV, biasV = this.#biasV;
 		const matrixW = this.#matrixW, biasW = this.#biasW;
@@ -218,9 +219,11 @@ export class NNAgent {
 
 		this.#forward(input);
 
-		const weight = abs(advantage);
-		const isPositive = advantage > 0;
-		if (weight > 0.001) {
+		const isFeedback = feedbackSign !== 0;
+		const weight = isFeedback ? 1 : abs(advantage);
+		const isPositive = isFeedback ? feedbackSign > 0 : advantage > 0;
+		const scale = isFeedback ? feedbackGain : 1;
+		if (isFeedback || weight > 0.001) {
 			const gradMatrixV = this.#gradMatrixV, gradBiasV = this.#gradBiasV;
 			gradMatrixV.fill(0);
 			gradBiasV.fill(0);
@@ -234,8 +237,8 @@ export class NNAgent {
 				gradBiasV[param] = grad;
 				for (let source = 0; source < sizeHidden2; source++) gradMatrixV[row + source] = grad * layer2[source];
 			}
-			NNAgent.#adamStep(matrixV, gradMatrixV, this.#meanMatrixV, this.#varMatrixV, b1, b2);
-			NNAgent.#adamStep(biasV, gradBiasV, this.#meanBiasV, this.#varBiasV, b1, b2);
+			NNAgent.#adamStep(matrixV, gradMatrixV, this.#meanMatrixV, this.#varMatrixV, b1, b2, scale);
+			NNAgent.#adamStep(biasV, gradBiasV, this.#meanBiasV, this.#varBiasV, b1, b2, scale);
 		}
 
 		const gradMatrixW = this.#gradMatrixW, gradBiasW = this.#gradBiasW;

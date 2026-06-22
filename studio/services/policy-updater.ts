@@ -15,6 +15,8 @@ export class PolicyUpdater {
 	#controls: Float32Array = new Float32Array(PolicyUpdater.#bufferSize * NNAgent.sizeControl);
 	#rewards: Float32Array = new Float32Array(PolicyUpdater.#bufferSize);
 	#values: Float32Array = new Float32Array(PolicyUpdater.#bufferSize);
+	#feedbackSigns: Float32Array = new Float32Array(PolicyUpdater.#bufferSize);
+	#feedbackGains: Float32Array = new Float32Array(PolicyUpdater.#bufferSize);
 	#cursor: number = 0;
 	#filled: number = 0;
 	#updateCount: number = 0;
@@ -23,32 +25,40 @@ export class PolicyUpdater {
 	get enabled(): boolean { return this.#enabled; }
 	set enabled(value: boolean) { this.#enabled = value; }
 
-	consider(features: Float32Array, control: Float32Array, value: number, reward: number, model: NNAgent, frameCount: number): void {
+	consider(feature: Float32Array, control: Float32Array, value: number, reward: number, model: NNAgent, frameCount: number, feedbackSign: number, feedbackGain: number): void {
 		const cursor = this.#cursor;
-		this.#features.set(features, cursor * NNAgent.sizeInput);
-		this.#controls.set(control, cursor * NNAgent.sizeControl);
-		this.#rewards[cursor] = reward;
-		this.#values[cursor] = value;
-		this.#cursor = (cursor + 1) % PolicyUpdater.#bufferSize;
-		if (this.#filled < PolicyUpdater.#bufferSize) this.#filled++;
+		const features = this.#features;
+		const controls = this.#controls;
+		const rewards = this.#rewards;
+		const values = this.#values
+		const feedbackSigns = this.#feedbackSigns
+		const feedbackGains = this.#feedbackGains;
+		const bufferSize = PolicyUpdater.#bufferSize;
+
+		features.set(feature, cursor * NNAgent.sizeInput);
+		controls.set(control, cursor * NNAgent.sizeControl);
+		rewards[cursor] = reward;
+		values[cursor] = value;
+		feedbackSigns[cursor] = feedbackSign;
+		feedbackGains[cursor] = feedbackGain;
+		this.#cursor = (cursor + 1) % bufferSize;
+		if (this.#filled < bufferSize) this.#filled++;
 
 		if (!this.#enabled) return;
 		if (frameCount % PolicyUpdater.#updateInterval !== 0) return;
-		if (this.#filled < PolicyUpdater.#bufferSize) return;
+		if (this.#filled < bufferSize) return;
 
-		const bufferSize = PolicyUpdater.#bufferSize;
 		const gamma = PolicyUpdater.#gamma;
 		const inputSize = NNAgent.sizeInput;
 		const controlSize = NNAgent.sizeControl;
 		for (let index = 0; index < bufferSize; index++) {
 			const next = (index + 1) % bufferSize;
-			const tdTarget = this.#rewards[index] + gamma * this.#values[next];
-			model.rlStep(
-				this.#features.subarray(index * inputSize, index * inputSize + inputSize),
-				this.#controls.subarray(index * controlSize, index * controlSize + controlSize),
-				tdTarget,
-				tdTarget - this.#values[index]
-			);
+			const input = features.subarray(index * inputSize, index * inputSize + inputSize);
+			const storedControl = controls.subarray(index * controlSize, index * controlSize + controlSize);
+			const tdTarget = rewards[index] + gamma * values[next];
+			const feedbackSign = feedbackSigns[index];
+			const feedbackGain = feedbackGains[index];
+			model.rlStep(input, storedControl, tdTarget, tdTarget - values[index], feedbackSign, feedbackGain);
 		}
 
 		this.#updateCount++;

@@ -5,7 +5,7 @@ import { SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { type PolicyUpdater } from "./policy-updater.js";
 
-const { abs, max, round, min, sqrt } = Math;
+const { abs, max, round, min, sqrt, trunc } = Math;
 
 //#region Flux stats
 class FluxStats {
@@ -35,8 +35,9 @@ export class FrameProcessor {
 	static #emaAlpha: number = 0.9995;
 	static #emaWarmup: number = 200;
 	static #epsNorm: number = 1e-6;
-	static #feedbackDecay: number = 0.97;
-	static #feedbackStrength: number = 2.0;
+	static #feedbackStep: number = 64;
+	static #feedbackMaxGain: number = 15;
+	static #heuristicScale: number = 0.2;
 
 	#prevFrequency: Float32Array = new Float32Array(SabLayout.inputMaxLength);
 	#fluxHistory: Float32Array = new Float32Array(FrameProcessor.#fluxWindow);
@@ -58,7 +59,9 @@ export class FrameProcessor {
 	#beatActive: number = 0;
 	#lastControlOutput: Float32Array = new Float32Array(NNAgent.sizeControl);
 	#lastValueOutput: Float32Array = new Float32Array(1);
-	#feedbackBias: number = 0;
+	#feedbackSign: number = 0;
+	#feedbackHold: number = 0;
+	#feedbackEngaged: boolean = false;
 
 	constructor() {
 		this.#emaVar.fill(1);
@@ -68,7 +71,11 @@ export class FrameProcessor {
 	get lastInputFeatures(): Float32Array { return this.#featHistory; }
 
 	injectFeedback(sign: number): void {
-		this.#feedbackBias = sign * FrameProcessor.#feedbackStrength;
+		if (sign !== this.#feedbackSign) {
+			this.#feedbackSign = sign;
+			this.#feedbackHold = 0;
+		}
+		if (sign !== 0) this.#feedbackEngaged = true;
 	}
 
 	#computeBins(length: number, sampleRate: number): [number, number][] {
@@ -191,7 +198,19 @@ export class FrameProcessor {
 		hist.set(this.#normBuf, (FrameProcessor.#histSize - 1) * count);
 	}
 
-	#computeRlReward(controlOutput: Float32Array, bassLevel: number, dropIntensity: number, percussiveness: number, beatDetected: boolean): number {
+	#computeFeedbackGain(sign: number): number {
+		if (sign === 0) return 0;
+		const hold = this.#feedbackHold;
+		this.#feedbackHold = hold + 1;
+		const step = trunc(hold / FrameProcessor.#feedbackStep) + 1;
+		const gain = step * (step + 1) / 2;
+		return gain.clamp(0, FrameProcessor.#feedbackMaxGain);
+	}
+
+	#computeRlReward(sign: number, controlOutput: Float32Array, bassLevel: number, dropIntensity: number, percussiveness: number, beatDetected: boolean): number {
+		// While a thumb is held, the human signal is the sole reward — fully authoritative
+		if (sign !== 0) return sign.clamp(-1, 1);
+
 		// Composite audio energy: how energetic is this frame
 		const audioEnergy = min(1, bassLevel * 0.5 + dropIntensity * 0.3 + percussiveness * 0.2);
 
@@ -208,11 +227,9 @@ export class FrameProcessor {
 
 		const rBase = 0.8 * rSync + 0.2 * rBeat;
 
-		// Feedback bias (thumbs up/down), decays per frame
-		const feedbackBias = this.#feedbackBias;
-		this.#feedbackBias *= FrameProcessor.#feedbackDecay;
-
-		return rBase + min(1, max(-1, feedbackBias)) * 0.5;
+		// After the user has given feedback at least once, soften the heuristic so taught
+		// behavior is not slowly overwritten when no thumb is held
+		return this.#feedbackEngaged ? rBase * FrameProcessor.#heuristicScale : rBase;
 	}
 
 	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array, model: NNAgent, policy: PolicyUpdater): void {
@@ -265,10 +282,13 @@ export class FrameProcessor {
 		for (let param = 0; param < NNAgent.sizeControl; param++) output[15 + param] = this.#lastControlOutput[param];
 		output[0] = frame;
 
-		const reward = this.#computeRlReward(this.#lastControlOutput, bassLevel, dropIntensity, percussiveness, beatDetected);
+		const sign = this.#feedbackSign;
+		const gain = this.#computeFeedbackGain(sign);
+
+		const reward = this.#computeRlReward(sign, this.#lastControlOutput, bassLevel, dropIntensity, percussiveness, beatDetected);
 		output[20] = reward;
 
-		policy.consider(this.#featHistory, this.#lastControlOutput, this.#lastValueOutput[0], reward, model, this.#frameCount);
+		policy.consider(this.#featHistory, this.#lastControlOutput, this.#lastValueOutput[0], reward, model, this.#frameCount, sign, gain);
 	}
 }
 //#endregion
