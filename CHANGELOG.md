@@ -1,3 +1,11 @@
+## 3.1.0 (02.07.2026)
+- Auto-correction upgraded from a static scene classifier to a self-teaching DJ that continuously adjusts focus, spread, boost, tilt, and punch in real time via reinforcement learning.
+- Added gain boost, spectral tilt, and compressor punch controls to the Configurator, giving direct access to the five parameters the DJ head learns to tune automatically.
+- Visualization rendering moved to a dedicated Web Worker with an OffscreenCanvas, keeping the main thread free and improving frame consistency under load.
+- Visualization authoring API updated: custom visualizations now extend `Visualization` and register via `Registry.attach()`; `rebuild()` and `update()` receive a `VisualizationHost` parameter instead of accessing properties via `this`.
+- Core updated to Adaptive Extender 1.0.3.
+- Project retargeted to ES2025.
+
 ## 3.0.0 (28.05.2026)
 - Added clip recording — a button in the interface lets you record the visualization and download it as a video file.
 - Auto-correction now uses a neural network that recognizes six audio scenes (Silence, Speech, Ambient, Buildup, Beat, Drop) for more accurate and responsive focus and spread adjustments.

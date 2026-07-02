@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
 		/* Language & Environment */
-		"target": "ES2022",
+		"target": "ES2025",
 		"module": "ESNext",
 		"useDefineForClassFields": true,
 

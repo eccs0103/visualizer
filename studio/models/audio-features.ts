@@ -100,11 +100,11 @@ export class AudioFeatures {
 
 	// DJ control outputs — bipolar delta d ∈ [-1, 1] mapped to parameter space.
 	// A freshly-initialized network outputs d ≈ 0 (tanh(0) = 0), keeping every param at its default.
-	get djFocus(): number { return -60 + this.#djControl[0] * 40; }     // default –60 dB, range [–100, –20]
-	get djSpread(): number { return 30 + this.#djControl[1] * 29; }     // default 30 dB, range [1, 59]
-	get djBoost(): number { return 1 + this.#djControl[2] * 0.75; }     // default 1.0×, range [0.25, 1.75]
-	get djTilt(): number { return this.#djControl[3] * 12; }            // default 0 dB, range [–12, +12]
-	get djPunch(): number { return max(0, this.#djControl[4]); }         // default 0 (transparent), range [0, 1]
+	get djFocus(): number { return this.#djControl[0].lerp(-1, 1, -100, -20); }  // default –60 dB, range [–100, –20]
+	get djSpread(): number { return this.#djControl[1].lerp(-1, 1, 1, 59); }     // default 30 dB, range [1, 59]
+	get djBoost(): number { return this.#djControl[2].lerp(-1, 1, 0.25, 1.75); } // default 1.0×, range [0.25, 1.75]
+	get djTilt(): number { return this.#djControl[3].lerp(-1, 1, -12, 12); }     // default 0 dB, range [–12, +12]
+	get djPunch(): number { return max(0, this.#djControl[4]); }                  // default 0 (transparent), range [0, 1]
 	get reward(): number { return this.#reward; }
 
 	isActive(): boolean {

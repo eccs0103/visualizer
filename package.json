@@ -2,7 +2,7 @@
 	"private": true,
 	"name": "visualizer",
 	"author": "eccs0103",
-	"version": "3.0.0",
+	"version": "3.1.0",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -15,7 +15,7 @@
 		"vite": "^7.1.2"
 	},
 	"dependencies": {
-		"adaptive-extender": "^0.12.0"
+		"adaptive-extender": "^1.0.3"
 	},
 	"overrides": {
 		"esbuild": "^0.28.1"

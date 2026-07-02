@@ -204,16 +204,16 @@ export class Audioset implements AudiosetView {
 		}
 
 		get punch(): number {
-			return (this.#compressor.ratio.value - 1) / 11; /** @todo number.lerp? */
+			return this.#compressor.ratio.value.lerp(1, 12, 0, 1);
 		}
 
 		set punch(value: number) {
 			if (!Number.isFinite(value)) throw new Error(`The punch ${value} must be a finite number`);
 			value = value.clamp(Manager.#minPunch, Manager.#maxPunch);
 			const compressor = this.#compressor;
-			compressor.threshold.value = -value * 24; /** @todo number.lerp? */
-			compressor.ratio.value = 1 + value * 11; /** @todo number.lerp? */
-			compressor.knee.value = 30 * (1 - value); /** @todo number.lerp? */
+			compressor.threshold.value = value.lerp(0, 1, 0, -24);
+			compressor.ratio.value = value.lerp(0, 1, 1, 12);
+			compressor.knee.value = value.lerp(0, 1, 30, 0);
 		}
 
 		get autoCorrect(): boolean { return this.#autoCorrect; }
