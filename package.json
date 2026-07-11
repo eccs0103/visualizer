@@ -4,6 +4,9 @@
 	"author": "eccs0103",
 	"version": "3.1.0",
 	"type": "module",
+	"engines": {
+		"node": ">=22"
+	},
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
