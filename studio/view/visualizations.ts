@@ -1,12 +1,13 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Color, Vector2D } from "adaptive-extender/core";
+import { Color, Random, Vector2D } from "adaptive-extender/core";
 import { type VisualizationHost } from "../models/visualization.js";
 import { Registry, Visualization } from "../services/visualization-registry.js";
 import { ColorDriver, Shaper } from "../services/visualization-tools.js";
 
 const { min, max, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
+const random = Random.global;
 
 //#region Pulsar
 Registry.attach("Pulsar", class extends Visualization {
@@ -14,16 +15,18 @@ Registry.attach("Pulsar", class extends Visualization {
 	#radius: number;
 	#colorBackground: Color;
 
-	#runMetadataRebuild({ context, environment }: VisualizationHost): void {
+	#runMetadataRebuild(host: VisualizationHost): void {
+		const { context, environment } = host;
 		const { width, height } = context.canvas;
 
 		this.#radius = min(width, height) / 2;
 		this.#colorBackground = environment.colorBackground;
 	}
 
-	#runContextRebuild({ context }: VisualizationHost): void {
-		const { width, height } = context.canvas;
+	#runContextRebuild(host: VisualizationHost): void {
 		const radius = this.#radius;
+		const { context } = host;
+		const { width, height } = context.canvas;
 
 		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
 		context.lineWidth = radius >> 8;
@@ -36,11 +39,16 @@ Registry.attach("Pulsar", class extends Visualization {
 	}
 
 	//#region Update preparation
-	#runContextUpdate({ context }: VisualizationHost): void {
+	#runContextUpdate(host: VisualizationHost): void {
+		const radius = this.#radius;
+		const { context, audioset } = host;
 		const { width, height } = context.canvas;
+		const { dropIntensity, djPunch } = audioset;
 
 		let { a, b, c, d, e, f } = context.getTransform();
-		/** @todo Any actions? */
+		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, radius >> 6) * (1 + djPunch);
+		e = width / 2 + random.number(-1, 1) * shake;
+		f = height / 2 + random.number(-1, 1) * shake;
 		context.setTransform(a, b, c, d, e, f);
 		context.clearRect(-e / a, -f / d, width / a, height / d);
 	}
@@ -51,13 +59,15 @@ Registry.attach("Pulsar", class extends Visualization {
 	#gradientHalo: CanvasGradient;
 	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 
-	#runHaloDrawing({ context, audioset }: VisualizationHost): void {
+	#runHaloDrawing(host: VisualizationHost): void {
 		const radius = this.#radius;
 		const colorHaloOuter = this.#colorHaloOuter;
 		const colorHaloInner = this.#colorHaloInner;
-		const { dataFrequency, volume } = audioset;
-		const { length } = audioset;
+		const { context, audioset } = host;
+		const { dataFrequency, volume, bassLevel, spectralCentroid, djTilt, djBoost, length } = audioset;
 		const semiLength = length / 2;
+		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -30, 30) + djTilt.lerp(-12, 12, -20, 20);
+		const normIllumination = meanGeometric(volume.lerp(0, 1, 0.1, 1.0), bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0.3, 1.0));
 
 		const gradientHalo = this.#gradientHalo = context.createConicGradient(PI / 2, 0, 0);
 		context.beginPath();
@@ -66,8 +76,8 @@ Registry.attach("Pulsar", class extends Visualization {
 			const normProgress = index.lerp(0, length);
 			const normOffset = abs(index - semiLength).lerp(0, semiLength + 1);
 			gradientHalo.addColorStop(normProgress, new Color(colorHaloOuter)
-				.rotate(180 * normOffset)
-				.illuminate(volume.lerp(0, 1, 0.1, 1.0))
+				.rotate(180 * normOffset + hueBias)
+				.illuminate(normIllumination)
 				.toString()
 			);
 			const normScale = this.#shaperFrequency.apply(dataFrequency[trunc(normOffset * semiLength)]);
@@ -81,22 +91,29 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.fillStyle = colorHaloInner.toString();
 		context.fill();
 		context.strokeStyle = gradientHalo;
+		context.shadowOffsetX = 0;
+		context.shadowOffsetY = 0;
+		context.shadowColor = colorHaloOuter.toString();
+		context.shadowBlur = bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 7, radius >> 4) * djBoost.lerp(0.25, 1.75, 0.8, 1.2);
 		context.stroke();
+		context.shadowBlur = 0;
 	}
 
 	#driverHalo: ColorDriver = ColorDriver.rotation;
 
-	#runHaloRotation({ audioset, environment }: VisualizationHost): void {
+	#runHaloRotation(host: VisualizationHost): void {
+		const { audioset, environment } = host;
 		this.#driverHalo.tick(this.#colorHaloOuter, 360 / 6, environment.delta, audioset.volume);
 	}
 	//#endregion
 	//#region Wave
-	#runWaveDrawing({ context, audioset }: VisualizationHost): void {
+	#runWaveDrawing(host: VisualizationHost): void {
 		const radius = this.#radius;
 		const gradientHalo = this.#gradientHalo;
-		const { dataTemporal, amplitude } = audioset;
+		const { context, audioset } = host;
+		const { dataTemporal, amplitude, percussiveness, length } = audioset;
 		const { width } = context.canvas;
-		const { length } = audioset;
+		const scalePercussive = percussiveness.lerp(0, 1, 1.0, 1.15);
 
 		context.beginPath();
 		context.moveTo(-width / 2, 0);
@@ -104,7 +121,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		for (let index = 0; index < length; index++) {
 			const normProgress = index.lerp(0, length);
 			const normDatumTemporal = dataTemporal[trunc(normProgress * length)].lerp(0, 1, -1, 1);
-			const normScale = normDatumTemporal * amplitude;
+			const normScale = normDatumTemporal * amplitude * scalePercussive;
 			position.x = width * (normProgress - 0.5);
 			position.y = radius * normScale;
 			context.lineTo(position.x, position.y);
@@ -120,9 +137,10 @@ Registry.attach("Pulsar", class extends Visualization {
 	//#region Shadow
 	#colorShadow: Color = Color.newBlack;
 
-	#runShadowDrawing({ context }: VisualizationHost): void {
+	#runShadowDrawing(host: VisualizationHost): void {
 		const radius = this.#radius;
 		const colorShadow = this.#colorShadow;
+		const { context } = host;
 
 		const gradientShadow = context.createRadialGradient(0, 0, 0, 0, 0, radius);
 		gradientShadow.addColorStop(0, colorShadow.pass(1).toString());
@@ -134,10 +152,11 @@ Registry.attach("Pulsar", class extends Visualization {
 	}
 	//#endregion
 	//#region Background
-	#runBackgroundDrawing({ context }: VisualizationHost): void {
+	#runBackgroundDrawing(host: VisualizationHost): void {
 		const colorBackground = this.#colorBackground;
-		const { a, d, e, f } = context.getTransform();
+		const { context } = host;
 		const { width, height } = context.canvas;
+		const { a, d, e, f } = context.getTransform();
 
 		context.globalCompositeOperation = "destination-atop";
 		context.fillStyle = colorBackground.toString();
@@ -166,14 +185,16 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#deltaRotation: number;
 	#colorGrid: Color;
 
-	#runMetadataRebuild({ environment }: VisualizationHost): void {
+	#runMetadataRebuild(host: VisualizationHost): void {
+		const { environment } = host;
 		this.#deltaRotation = 360 / 6;
 
 		const colorGrid = this.#colorGrid = environment.colorBackground;
 		colorGrid.lightness = (colorGrid.lightness / 100).lerp(0, 1, 0.1, 0.9) * 100;
 	}
 
-	#runContextRebuild({ context }: VisualizationHost): void {
+	#runContextRebuild(host: VisualizationHost): void {
+		const { context } = host;
 		const { width, height } = context.canvas;
 
 		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
@@ -188,23 +209,28 @@ Registry.attach("Spectrogram", class extends Visualization {
 	}
 
 	//#region Update preparation
-	#runContextUpdate({ context, audioset }: VisualizationHost): void {
-		const { volume, amplitude } = audioset;
+	#runContextUpdate(host: VisualizationHost): void {
+		const { context, audioset } = host;
+		const { volume, amplitude, dropIntensity, djPunch } = audioset;
 		const { width, height } = context.canvas;
 
 		let { a, b, c, d, e, f } = context.getTransform();
 		a = volume.lerp(0, 1, 1.0, 1.2);
 		d = amplitude.lerp(0, 1, 1.0, 1.4);
+		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, min(width, height) >> 7) * (1 + djPunch);
+		e = width / 2 + random.number(-1, 1) * shake;
+		f = height / 2 + random.number(-1, 1) * shake;
 		context.setTransform(a, b, c, d, e, f);
 		context.clearRect(-e / a, -f / d, width / a, height / d);
 	}
 	//#endregion
 	//#region Grid
-	#runGridDrawing({ context }: VisualizationHost): void {
+	#runGridDrawing(host: VisualizationHost): void {
 		const colorGrid = this.#colorGrid;
+		const { context } = host;
 		const { width, height } = context.canvas;
-
 		const step = 4 * context.lineWidth;
+
 		const position = Vector2D.newNaN;
 		position.y = -height / 2;
 		context.beginPath();
@@ -226,12 +252,17 @@ Registry.attach("Spectrogram", class extends Visualization {
 	//#region Spectrum
 	#colorSpectrumSeed: Color = Color.fromHSL(0, 100, 50);
 
-	#runSpectrumDrawing({ context, audioset }: VisualizationHost): void {
+	#runSpectrumDrawing(host: VisualizationHost): void {
 		const normShadowAnchor = this.#normShadowAnchor;
 		const colorSpectrumSeed = this.#colorSpectrumSeed;
 		const deltaRotation = this.#deltaRotation;
-		const { dataFrequency, volume, amplitude } = audioset;
+		const { context, audioset } = host;
+		const { dataFrequency, volume, amplitude, bassLevel, spectralCentroid, djTilt, djBoost, djSpread } = audioset;
 		const { width, height } = context.canvas;
+		const lineWidth = context.lineWidth;
+		const hueSpread = djSpread.lerp(1, 59, 90, 150);
+		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -40, 40) + djTilt.lerp(-12, 12, -25, 25);
+		const normLightness = meanGeometric(volume.lerp(0, 1, 0.2, 0.7), spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, 0.25, 0.75));
 
 		const gradientSpectrum = context.createLinearGradient(-width / 2, height / 2, width / 2, height / 2);
 		context.beginPath();
@@ -245,8 +276,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 			position.x = width * (normProgress - 0.5);
 			position.y = height * ((1 - normScale) * normShadowAnchor - 0.5 + Number(offset < 0) * normScale);
 			gradientSpectrum.addColorStop(normProgress, new Color(colorSpectrumSeed)
-				.rotate(120 * normProgress + deltaRotation * amplitude.lerp(0, 1, -1, 1))
-				.illuminate(volume.lerp(0, 1, 0.2, 0.7))
+				.rotate(hueSpread * normProgress + deltaRotation * amplitude.lerp(0, 1, -1, 1) + hueBias)
+				.illuminate(normLightness)
 				.toString()
 			);
 			context.lineTo(position.x, position.y);
@@ -254,26 +285,33 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.closePath();
 		context.globalCompositeOperation = "source-in";
 		context.fillStyle = gradientSpectrum;
+		context.shadowOffsetX = 0;
+		context.shadowOffsetY = 0;
+		context.shadowColor = colorSpectrumSeed.toString();
+		context.shadowBlur = bassLevel.clamp(0, 0.6).lerp(0, 0.6, lineWidth * 2, lineWidth * 10) * djBoost.lerp(0.25, 1.75, 0.8, 1.2);
 		context.fill();
+		context.shadowBlur = 0;
 	}
 
 	#driverSpectrum: ColorDriver = ColorDriver.rotation;
 
-	#runSpectrumRotation({ audioset, environment }: VisualizationHost): void {
+	#runSpectrumRotation(host: VisualizationHost): void {
+		const { audioset, environment } = host;
 		this.#driverSpectrum.tick(this.#colorSpectrumSeed, -this.#deltaRotation, environment.delta, audioset.amplitude);
 	}
 	//#endregion
 	//#region Shadow
 	#colorShadow: Color = Color.newBlack;
 
-	#runShadowDrawing({ context }: VisualizationHost): void {
+	#runShadowDrawing(host: VisualizationHost): void {
+		const colorShadow = this.#colorShadow;
 		const normShadowAnchor = this.#normShadowAnchor;
 		const normTopAnchor = normShadowAnchor * 2 / 3;
 		const normBottomAnchor = normTopAnchor + 1 / 3;
-		const colorShadow = this.#colorShadow;
+		const { context } = host;
 		const { width, height } = context.canvas;
-
 		const { a, d, e, f } = context.getTransform();
+
 		const gradientShadow = context.createLinearGradient(e, -f, e, f);
 		gradientShadow.addColorStop(0, colorShadow.pass(0).toString());
 		gradientShadow.addColorStop(normTopAnchor, colorShadow.pass(0.2).toString());
