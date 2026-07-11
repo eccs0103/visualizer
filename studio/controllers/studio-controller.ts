@@ -24,7 +24,7 @@ class StudioController extends Controller {
 			preview: new URL("../icons/equalizer.png", baseURI),
 			category: "MultimediaApplication",
 			os: "Web Browser",
-			description: "AI-powered real-time music visualizer for browsers. Neural-network scene detection, Canvas 2D rendering, and a simple API for custom visualizations.",
+			description: "AI-powered real-time music visualizer for browsers. A self-teaching DJ that auto-tunes the audio in real time, Canvas 2D rendering, and a simple API for custom visualizations.",
 			keywords: ["music visualizer", "web audio", "canvas visualization", "real-time audio", "ai visualizer"],
 		});
 		void AnalyticsController.launch();

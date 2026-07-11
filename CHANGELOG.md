@@ -1,8 +1,9 @@
-## 3.1.0 (02.07.2026)
+## 3.1.0 (12.07.2026)
 - Auto-correction upgraded from a static scene classifier to a self-teaching DJ that continuously adjusts focus, spread, boost, tilt, and punch in real time via reinforcement learning.
 - Added gain boost, spectral tilt, and compressor punch controls to the Configurator, giving direct access to the five parameters the DJ head learns to tune automatically.
 - Visualization rendering moved to a dedicated Web Worker with an OffscreenCanvas, keeping the main thread free and improving frame consistency under load.
 - Visualization authoring API updated: custom visualizations now extend `Visualization` and register via `Registry.attach()`; `rebuild()` and `update()` receive a `VisualizationHost` parameter instead of accessing properties via `this`.
+- The built-in Pulsar and Spectrogram visualizations now respond to the richer audio analysis — beat-drop shake, bass-driven glow, and spectral hue shifts driven by the DJ's boost, tilt, spread, and punch.
 - Core updated to Adaptive Extender 1.0.3.
 - Project retargeted to ES2025.
 
