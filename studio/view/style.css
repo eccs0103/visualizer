@@ -81,6 +81,7 @@ input#playback-track {
 	width: 100%;
 	height: var(--size-standart);
 	position: relative;
+	touch-action: none;
 	--track-value: 0%;
 
 	&::-webkit-slider-thumb {

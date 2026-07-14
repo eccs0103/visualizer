@@ -66,7 +66,10 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 			option.innerText = name;
 		}
 		selectVisualizerVisualization.value = visualizer.visualization;
-		selectVisualizerVisualization.addEventListener("change", event => this.#applyVisualization());
+		selectVisualizerVisualization.addEventListener("change", async (event) => {
+			this.#applyVisualization();
+			await cell.save(500);
+		});
 
 		inputVisualizerRate.min = String(Visualizer.minRate);
 		inputVisualizerRate.max = String(Visualizer.maxRate);

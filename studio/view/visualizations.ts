@@ -12,7 +12,7 @@ const random = Random.global;
 //#region Pulsar
 Registry.attach("Pulsar", class extends Visualization {
 	#radius: number;
-	#colorHaloOuter: Color = Color.fromHSL(0, 100, 50);
+	#colorHaloOuter: Color = Color.fromHSL(0, 100, 60);
 	#colorHaloInner: Color;
 	#gradientHalo: CanvasGradient;
 	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
@@ -36,7 +36,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		const { width, height } = context.canvas;
 
 		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
-		context.lineWidth = radius >> 8;
+		context.lineWidth = radius >> 7;
 	}
 
 	rebuild(host: VisualizationHost): void {
@@ -67,7 +67,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		const { dataFrequency, volume, bassLevel, spectralCentroid, djTilt, djBoost, length } = audioset;
 		const semiLength = length / 2;
 		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -30, 30) + djTilt.lerp(-12, 12, -20, 20);
-		const normIllumination = meanGeometric(volume.lerp(0, 1, 0.1, 1.0), bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0.3, 1.0));
+		const normIllumination = meanGeometric(volume.lerp(0, 1, 0.1, 1.0), bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0.5, 1.0));
 
 		const gradientHalo = this.#gradientHalo = context.createConicGradient(PI / 2, 0, 0);
 		context.beginPath();
@@ -94,7 +94,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.shadowOffsetX = 0;
 		context.shadowOffsetY = 0;
 		context.shadowColor = colorHaloOuter.toString();
-		context.shadowBlur = bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 7, radius >> 4) * djBoost.lerp(0.25, 1.75, 0.8, 1.2);
+		context.shadowBlur = bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 6, radius >> 3) * djBoost.lerp(0.25, 1.75, 0.8, 1.2);
 		context.stroke();
 		context.shadowBlur = 0;
 	}
@@ -171,7 +171,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#side: number;
 	#normPulseEnergy: number = 0;
 	#count: number;
-	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
+	#shaperFrequency: Shaper = Shaper.sigmoid(6, 0.55).then(Shaper.smoothstep);
 	#normHeightFactor: number = 0.4;
 	#colorRidgeSeed: Color = Color.fromHSL(0, 100, 50);
 	#driverRidge: ColorDriver = ColorDriver.rotation;
@@ -246,7 +246,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 			const normEdge = abs(normProgress - 0.5) * 2;
 			const dataIndex = trunc((exp(normEdge * 3) - 1) / (exp(3) - 1) * (length - 1));
 			const focusWeight = 1 - abs(dataIndex - focusBin).lerp(0, length, 0, 1) * 0.3;
-			const magnitude = (dataFrequency[dataIndex] * normEdge.lerp(0, 1, 1.0, 2.4)).clamp(-Infinity, 1);
+			const magnitude = (dataFrequency[dataIndex] * normEdge.lerp(0, 1, 1.0, 2.4)).lerp(0, 1.8);
 			const normScale = shaper.apply(magnitude) * envelope * focusWeight;
 			position.x = width * (normProgress - 0.5);
 			position.y = direction * normScale * peak;
@@ -348,7 +348,6 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.fillStyle = environment.colorBackground.toString();
 		context.fillRect(-e / a, -f / d, width / a, height / d);
 	}
-	
 
 	update(host: VisualizationHost): void {
 		this.#runContextUpdate(host);
