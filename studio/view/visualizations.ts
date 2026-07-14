@@ -11,16 +11,23 @@ const random = Random.global;
 
 //#region Pulsar
 Registry.attach("Pulsar", class extends Visualization {
-	//#region Rebuild preparation
 	#radius: number;
-	#colorBackground: Color;
+	#colorHaloOuter: Color = Color.fromHSL(0, 100, 50);
+	#colorHaloInner: Color;
+	#gradientHalo: CanvasGradient;
+	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
+	#driverHalo: ColorDriver = ColorDriver.rotation;
+	#colorShadow: Color;
 
+	//#region Rebuild
 	#runMetadataRebuild(host: VisualizationHost): void {
 		const { context, environment } = host;
 		const { width, height } = context.canvas;
+		const { colorBackground } = environment;
 
 		this.#radius = min(width, height) / 2;
-		this.#colorBackground = environment.colorBackground;
+		this.#colorHaloInner = Color.fromHSL(colorBackground.hue, colorBackground.saturation, colorBackground.lightness.snap(100));
+		this.#colorShadow = Color.fromHSL(colorBackground.hue, colorBackground.saturation, colorBackground.lightness.snap(100));
 	}
 
 	#runContextRebuild(host: VisualizationHost): void {
@@ -31,14 +38,13 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
 		context.lineWidth = radius >> 8;
 	}
-	//#endregion
 
 	rebuild(host: VisualizationHost): void {
 		this.#runMetadataRebuild(host);
 		this.#runContextRebuild(host);
 	}
-
-	//#region Update preparation
+	//#endregion
+	//#region Update
 	#runContextUpdate(host: VisualizationHost): void {
 		const radius = this.#radius;
 		const { context, audioset } = host;
@@ -52,12 +58,6 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.setTransform(a, b, c, d, e, f);
 		context.clearRect(-e / a, -f / d, width / a, height / d);
 	}
-	//#endregion
-	//#region Halo
-	#colorHaloOuter: Color = Color.fromHSL(0, 100, 50);
-	#colorHaloInner: Color = Color.newBlack;
-	#gradientHalo: CanvasGradient;
-	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 
 	#runHaloDrawing(host: VisualizationHost): void {
 		const radius = this.#radius;
@@ -99,14 +99,11 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.shadowBlur = 0;
 	}
 
-	#driverHalo: ColorDriver = ColorDriver.rotation;
-
 	#runHaloRotation(host: VisualizationHost): void {
 		const { audioset, environment } = host;
 		this.#driverHalo.tick(this.#colorHaloOuter, 360 / 6, environment.delta, audioset.volume);
 	}
-	//#endregion
-	//#region Wave
+
 	#runWaveDrawing(host: VisualizationHost): void {
 		const radius = this.#radius;
 		const gradientHalo = this.#gradientHalo;
@@ -133,9 +130,6 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.strokeStyle = gradientHalo;
 		context.stroke();
 	}
-	//#endregion
-	//#region Shadow
-	#colorShadow: Color = Color.newBlack;
 
 	#runShadowDrawing(host: VisualizationHost): void {
 		const radius = this.#radius;
@@ -150,32 +144,26 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.fillStyle = gradientShadow;
 		context.fill();
 	}
-	//#endregion
-	//#region Background
+
 	#runBackgroundDrawing(host: VisualizationHost): void {
-		const colorBackground = this.#colorBackground;
-		const { context } = host;
+		const { context, environment } = host;
 		const { width, height } = context.canvas;
 		const { a, d, e, f } = context.getTransform();
 
 		context.globalCompositeOperation = "destination-atop";
-		context.fillStyle = colorBackground.toString();
+		context.fillStyle = environment.colorBackground.toString();
 		context.fillRect(-e / a, -f / d, width / a, height / d);
 	}
-	//#endregion
 
 	update(host: VisualizationHost): void {
 		this.#runContextUpdate(host);
-
 		this.#runHaloDrawing(host);
 		this.#runHaloRotation(host);
-
 		this.#runWaveDrawing(host);
-
 		this.#runShadowDrawing(host);
-
 		this.#runBackgroundDrawing(host);
 	}
+	//#endregion
 });
 //#endregion
 //#region Spectrogram
