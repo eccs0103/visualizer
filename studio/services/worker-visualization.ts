@@ -79,6 +79,11 @@ export class WorkerEnvironment implements VisualizationEnvironment {
 		this.#lastTime = now;
 	}
 
+	reset(): void {
+		this.#lastTime = performance.now() / 1000;
+		this.#delta = 0;
+	}
+
 	get isLaunched(): boolean { return true; }
 	get delta(): number { return this.#delta; }
 

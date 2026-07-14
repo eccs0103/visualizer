@@ -26,6 +26,8 @@ class VisualizationWorker extends Controller {
 		const context = this.#context;
 		const audioset = this.#audioset;
 		const environment = this.#environment;
+		audioset.sync();
+		environment.reset();
 		const { canvas } = context;
 		canvas.width = width;
 		canvas.height = height;

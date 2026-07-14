@@ -26,6 +26,7 @@ export class Visualizer extends EventTarget {
 	//#region Environment
 	static #Environment = class Environment implements VisualizationEnvironment {
 		#engine: WebEngine;
+		#mapBackground: Map<string, Color> = new Map();
 
 		constructor(engine: WebEngine) {
 			this.#engine = engine;
@@ -36,7 +37,9 @@ export class Visualizer extends EventTarget {
 		get fps(): number { return this.#engine.fps; }
 
 		get colorBackground(): Color {
-			return Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
+			const mapBackground = this.#mapBackground;
+			const value = window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main");
+			return mapBackground.getOrInsertComputed(value, Color.parse);
 		}
 	};
 	//#endregion
@@ -79,6 +82,11 @@ export class Visualizer extends EventTarget {
 		this.#rebuild();
 		window.addEventListener("resize", event => this.#rebuild());
 		engine.addEventListener("trigger", event => this.#update());
+
+		const metaColorScheme = document.getElement(HTMLMetaElement, "meta[name=\"color-scheme\"]");
+		const observer = new MutationObserver(mutations => this.#rebuild());
+		observer.observe(metaColorScheme, { attributes: true, attributeFilter: ["content"] });
+		window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", event => this.#rebuild());
 	}
 
 	addEventListener<K extends keyof VisualizerEventMap>(type: K, listener: (this: Document, ev: VisualizerEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -155,9 +163,16 @@ export class Visualizer extends EventTarget {
 		canvas.height = height;
 	}
 
+	#publish(): void {
+		const { length, volume, amplitude, dataFrequency, dataTemporal } = this.#manager.audioset;
+		const color = this.#environment.colorBackground;
+		this.#bridge.writeAudioset(length, volume, amplitude, dataFrequency, dataTemporal, color.hue, color.saturation, color.lightness);
+	}
+
 	#rebuild(): void {
 		const { width, height } = this.#canvas.getBoundingClientRect();
 		if (width === 0 || height === 0) return;
+		this.#publish();
 		this.#worker.postMessage(RenderCommand.export(new RebuildRenderCommand(width, height, this.#visualization)));
 		this.dispatchEvent(new Event("rebuild"));
 	}
@@ -177,9 +192,7 @@ export class Visualizer extends EventTarget {
 	#update(): void {
 		const manager = this.#manager;
 		if (manager.autoCorrect) this.#correct();
-		const { length, volume, amplitude, dataFrequency, dataTemporal } = manager.audioset;
-		const color = this.#environment.colorBackground;
-		this.#bridge.writeAudioset(length, volume, amplitude, dataFrequency, dataTemporal, color.hue, color.saturation, color.lightness);
+		this.#publish();
 		this.#worker.postMessage(RenderCommand.export(new TickCommand()));
 		this.dispatchEvent(new Event("update"));
 	}
