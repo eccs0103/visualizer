@@ -168,20 +168,24 @@ Registry.attach("Pulsar", class extends Visualization {
 //#endregion
 //#region Spectrogram
 Registry.attach("Spectrogram", class extends Visualization {
-	//#region Rebuild preparation
 	#side: number;
+	#normPulseEnergy: number = 0;
 	#count: number;
+	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 	#normHeightFactor: number = 0.4;
+	#colorRidgeSeed: Color = Color.fromHSL(0, 100, 50);
+	#driverRidge: ColorDriver = ColorDriver.rotation;
 	#deltaRotation: number = 360 / 6;
-	#colorBackground: Color;
+	#colorShadow: Color = Color.newBlack;
 
+	//#region Rebuild
 	#runMetadataRebuild(host: VisualizationHost): void {
-		const { context, audioset, environment } = host;
+		const { context, audioset } = host;
 		const { width, height } = context.canvas;
 		const { length } = audioset;
+
 		this.#side = min(width, height);
 		this.#count = trunc(min(width, length));
-		this.#colorBackground = environment.colorBackground;
 	}
 
 	#runContextRebuild(host: VisualizationHost): void {
@@ -189,19 +193,15 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const { width, height } = context.canvas;
 
 		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
-
 		context.lineWidth = this.#side >> 8;
 	}
-	//#endregion
 
 	rebuild(host: VisualizationHost): void {
 		this.#runMetadataRebuild(host);
 		this.#runContextRebuild(host);
 	}
-
-	//#region Update preparation
-	#normPulseEnergy: number = 0;
-
+	//#endregion
+	//#region Update
 	#runContextUpdate(host: VisualizationHost): void {
 		const side = this.#side;
 		const { context, audioset, environment } = host;
@@ -221,20 +221,16 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.setTransform(a, b, c, d, e, f);
 		context.clearRect(-e / a, -f / d, width / a, height / d);
 	}
-	//#endregion
-	//#region Ridge
-	#colorRidgeSeed: Color = Color.fromHSL(0, 100, 50);
-	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 
 	#runRidgeDrawing(host: VisualizationHost): void {
 		const count = this.#count;
-		const colorRidgeSeed = this.#colorRidgeSeed;
 		const shaper = this.#shaperFrequency;
+		const peak = this.#side * this.#normHeightFactor;
+		const colorRidgeSeed = this.#colorRidgeSeed;
 		const { context, audioset } = host;
 		const { dataFrequency, volume, amplitude, bassLevel, spectralCentroid, djTilt, djBoost, djSpread, djFocus, length } = audioset;
 		const { width } = context.canvas;
 		const { lineWidth } = context;
-		const peak = this.#side * this.#normHeightFactor;
 		const focusBin = djFocus.lerp(-100, -20, 0, length - 1);
 		const hueSpread = djSpread.lerp(1, 59, 90, 150);
 		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -40, 40) + djTilt.lerp(-12, 12, -25, 25);
@@ -272,14 +268,11 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.shadowBlur = 0;
 	}
 
-	#driverRidge: ColorDriver = ColorDriver.rotation;
-
 	#runRidgeRotation(host: VisualizationHost): void {
 		const { audioset, environment } = host;
 		this.#driverRidge.tick(this.#colorRidgeSeed, this.#deltaRotation, environment.delta, audioset.amplitude);
 	}
-	//#endregion
-	//#region Bloom
+
 	#runBloomDrawing(host: VisualizationHost): void {
 		const colorRidgeSeed = this.#colorRidgeSeed;
 		const { context, audioset } = host;
@@ -296,8 +289,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.arc(0, 0, radius, 0, 2 * PI);
 		context.fill();
 	}
-	//#endregion
-	//#region Thread
+
 	#runThreadDrawing(host: VisualizationHost): void {
 		const count = this.#count;
 		const colorRidgeSeed = this.#colorRidgeSeed;
@@ -331,9 +323,6 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.shadowBlur = 0;
 		context.lineWidth = lineWidth;
 	}
-	//#endregion
-	//#region Vignette
-	#colorShadow: Color = Color.newBlack;
 
 	#runVignetteDrawing(host: VisualizationHost): void {
 		const colorShadow = this.#colorShadow;
@@ -349,33 +338,27 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.fillStyle = gradientVignette;
 		context.fillRect(-e / a, -f / d, width / a, height / d);
 	}
-	//#endregion
-	//#region Background
+
 	#runBackgroundDrawing(host: VisualizationHost): void {
-		const colorBackground = this.#colorBackground;
-		const { context } = host;
+		const { context, environment } = host;
 		const { width, height } = context.canvas;
 		const { a, d, e, f } = context.getTransform();
 
 		context.globalCompositeOperation = "destination-atop";
-		context.fillStyle = colorBackground.toString();
+		context.fillStyle = environment.colorBackground.toString();
 		context.fillRect(-e / a, -f / d, width / a, height / d);
 	}
-	//#endregion
+	
 
 	update(host: VisualizationHost): void {
 		this.#runContextUpdate(host);
-
 		this.#runRidgeDrawing(host);
 		this.#runRidgeRotation(host);
-
 		this.#runBloomDrawing(host);
-
 		this.#runThreadDrawing(host);
-
 		this.#runVignetteDrawing(host);
-
 		this.#runBackgroundDrawing(host);
 	}
+	//#endregion
 });
 //#endregion
