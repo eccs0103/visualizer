@@ -1,3 +1,11 @@
+## 3.2.0 (15.07.2026)
+- Added a screen wake lock — the display now stays awake while audio is playing or a clip is recording.
+- The Spectrogram visualization has been redesigned with a mirrored frequency ridge, bass bloom, a temporal shimmer thread, and a vignette, plus beat-synced pulsing and DJ-focus-weighted detail.
+- Visualizations now recolor live when the page theme (light/dark) changes instead of only on the next resize.
+- The selected visualization is now saved and restored between sessions.
+- Improved the playback seek bar: scrubbing now uses pointer capture and works reliably on touch devices.
+- The Pulsar visualization now derives its inner halo tint from the background color and has a stronger bass-driven glow.
+
 ## 3.1.0 (12.07.2026)
 - Auto-correction upgraded from a static scene classifier to a self-teaching DJ that continuously adjusts focus, spread, boost, tilt, and punch in real time via reinforcement learning.
 - Added gain boost, spectral tilt, and compressor punch controls to the Configurator, giving direct access to the five parameters the DJ head learns to tune automatically.
