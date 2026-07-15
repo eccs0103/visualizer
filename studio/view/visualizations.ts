@@ -23,11 +23,11 @@ Registry.attach("Pulsar", class extends Visualization {
 	#runMetadataRebuild(host: VisualizationHost): void {
 		const { context, environment } = host;
 		const { width, height } = context.canvas;
-		const { colorBackground } = environment;
+		const { hue, saturation, lightness } = environment.colorBackground;
 
 		this.#radius = min(width, height) / 2;
-		this.#colorHaloInner = Color.fromHSL(colorBackground.hue, colorBackground.saturation, colorBackground.lightness.snap(100));
-		this.#colorShadow = Color.fromHSL(colorBackground.hue, colorBackground.saturation, colorBackground.lightness.snap(100));
+		this.#colorHaloInner = Color.fromHSL(hue, saturation, lightness.snap(100));
+		this.#colorShadow = Color.fromHSL(hue, saturation, lightness.snap(100));
 	}
 
 	#runContextRebuild(host: VisualizationHost): void {
@@ -100,8 +100,11 @@ Registry.attach("Pulsar", class extends Visualization {
 	}
 
 	#runHaloRotation(host: VisualizationHost): void {
+		const driverHalo = this.#driverHalo;
+		const colorHaloOuter = this.#colorHaloOuter;
 		const { audioset, environment } = host;
-		this.#driverHalo.tick(this.#colorHaloOuter, 360 / 6, environment.delta, audioset.volume);
+
+		driverHalo.tick(colorHaloOuter, 360 / 6, environment.delta, audioset.volume);
 	}
 
 	#runWaveDrawing(host: VisualizationHost): void {
