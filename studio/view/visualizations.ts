@@ -63,6 +63,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		const radius = this.#radius;
 		const colorHaloOuter = this.#colorHaloOuter;
 		const colorHaloInner = this.#colorHaloInner;
+		const shaperFrequency = this.#shaperFrequency;
 		const { context, audioset } = host;
 		const { dataFrequency, volume, bassLevel, spectralCentroid, djTilt, djBoost, length } = audioset;
 		const semiLength = length / 2;
@@ -78,9 +79,8 @@ Registry.attach("Pulsar", class extends Visualization {
 			gradientHalo.addColorStop(normProgress, new Color(colorHaloOuter)
 				.rotate(180 * normOffset + hueBias)
 				.illuminate(normIllumination)
-				.toString()
-			);
-			const normScale = this.#shaperFrequency.apply(dataFrequency[trunc(normOffset * semiLength)]);
+				.toString());
+			const normScale = shaperFrequency.apply(dataFrequency[trunc(normOffset * semiLength)]);
 			const distance = normScale.lerp(0, 1, 0.6, 1.0) * radius;
 			position.x = distance * sin(normProgress * 2 * PI);
 			position.y = distance * cos(normProgress * 2 * PI);
@@ -256,8 +256,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 			if (direction > 0) gradientRidge.addColorStop(normProgress, new Color(colorRidgeSeed)
 				.rotate(hueSpread * normProgress + hueBias)
 				.illuminate(normLightness)
-				.toString()
-			);
+				.toString());
 			context.lineTo(position.x, position.y);
 		}
 		context.closePath();
@@ -272,8 +271,12 @@ Registry.attach("Spectrogram", class extends Visualization {
 	}
 
 	#runRidgeRotation(host: VisualizationHost): void {
+		const driverRidge = this.#driverRidge;
+		const colorRidgeSeed = this.#colorRidgeSeed;
+		const deltaRotation = this.#deltaRotation;
 		const { audioset, environment } = host;
-		this.#driverRidge.tick(this.#colorRidgeSeed, this.#deltaRotation, environment.delta, audioset.amplitude);
+
+		driverRidge.tick(colorRidgeSeed, deltaRotation, environment.delta, audioset.amplitude);
 	}
 
 	#runBloomDrawing(host: VisualizationHost): void {
