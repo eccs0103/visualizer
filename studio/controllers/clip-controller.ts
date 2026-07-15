@@ -4,9 +4,10 @@ import "adaptive-extender/web";
 import { Controller, Timespan } from "adaptive-extender/web";
 import { Visualizer } from "../services/visualizer.js";
 import { ClipRecorder } from "../services/clip-recorder.js";
+import { WakeGuard } from "../services/wake-guard.js";
 
 //#region Clip controller
-export class ClipController extends Controller<[Visualizer, HTMLCanvasElement, HTMLAudioElement, HTMLButtonElement, HTMLElement]> {
+export class ClipController extends Controller<[WakeGuard, Visualizer, HTMLCanvasElement, HTMLAudioElement, HTMLButtonElement, HTMLElement]> {
 	static #zero: Timespan = Timespan.newZero;
 	#recorder: ClipRecorder;
 	#buttonClipToggle: HTMLButtonElement;
@@ -49,12 +50,14 @@ export class ClipController extends Controller<[Visualizer, HTMLCanvasElement, H
 		}
 	}
 
-	async run(visualizer: Visualizer, canvasDisplay: HTMLCanvasElement, audioPlayer: HTMLAudioElement, buttonClipToggle: HTMLButtonElement, itemClipTime: HTMLElement): Promise<void> {
+	async run(guard: WakeGuard, visualizer: Visualizer, canvasDisplay: HTMLCanvasElement, audioPlayer: HTMLAudioElement, buttonClipToggle: HTMLButtonElement, itemClipTime: HTMLElement): Promise<void> {
 		const recorder = this.#recorder = new ClipRecorder(canvasDisplay, audioPlayer);
 
 		this.#buttonClipToggle = buttonClipToggle;
 		this.#itemClipTime = itemClipTime;
 
+		recorder.addEventListener("start", event => guard.activate("recording"));
+		recorder.addEventListener("stop", event => guard.deactivate("recording"));
 		recorder.addEventListener("tick", (event) => {
 			itemClipTime.innerText = ClipController.#toPlaytimeString(event.detail);
 		});

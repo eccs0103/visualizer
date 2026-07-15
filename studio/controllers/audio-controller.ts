@@ -3,9 +3,10 @@
 import "adaptive-extender/web";
 import { Controller, Timespan } from "adaptive-extender/web";
 import { ObjectStore } from "../services/object-store.js";
+import { WakeGuard } from "../services/wake-guard.js";
 
 //#region Audio controller
-export class AudioController extends Controller<[ObjectStore, HTMLAudioElement, HTMLInputElement, HTMLDivElement, HTMLButtonElement, HTMLElement, HTMLInputElement]> {
+export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAudioElement, HTMLInputElement, HTMLDivElement, HTMLButtonElement, HTMLElement, HTMLInputElement]> {
 	#audioPlayer: HTMLAudioElement;
 	#store: ObjectStore;
 	#bPlaybackTime: HTMLElement;
@@ -98,7 +99,7 @@ export class AudioController extends Controller<[ObjectStore, HTMLAudioElement, 
 		bPlaybackTime.innerText = this.#toPlaytimeInfo(time);
 	}
 
-	async run(store: ObjectStore, audioPlayer: HTMLAudioElement, inputAudioLoader: HTMLInputElement, divInterface: HTMLDivElement, buttonAudioDrive: HTMLButtonElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
+	async run(guard: WakeGuard, store: ObjectStore, audioPlayer: HTMLAudioElement, inputAudioLoader: HTMLInputElement, divInterface: HTMLDivElement, buttonAudioDrive: HTMLButtonElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
 		this.#audioPlayer = audioPlayer;
 		this.#store = store;
 		this.#bPlaybackTime = bPlaybackTime;
@@ -108,6 +109,9 @@ export class AudioController extends Controller<[ObjectStore, HTMLAudioElement, 
 		audioPlayer.addEventListener("emptied", event => this.#markReady = false);
 		audioPlayer.addEventListener("play", event => this.#markPlaying = true);
 		audioPlayer.addEventListener("pause", event => this.#markPlaying = false);
+
+		audioPlayer.addEventListener("canplay", event => guard.activate("playback"));
+		audioPlayer.addEventListener("emptied", event => guard.deactivate("playback"));
 
 		await this.#loadRecentAudio();
 		bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);

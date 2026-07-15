@@ -5,6 +5,7 @@ import { Controller, BufferedCell, MetadataInjector } from "adaptive-extender/we
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { ObjectStore } from "../services/object-store.js";
+import { WakeGuard } from "../services/wake-guard.js";
 import { AudioController } from "./audio-controller.js";
 import { ConfiguratorController } from "./configurator-controller.js";
 import { ClipController } from "./clip-controller.js";
@@ -44,6 +45,7 @@ class StudioController extends Controller {
 		const inputAudioLoader = body.getElement(HTMLInputElement, "input#audio-loader");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper });
+		const guard = new WakeGuard();
 
 		const settings = cell.content;
 		visualizer.rate = settings.rate;
@@ -64,8 +66,8 @@ class StudioController extends Controller {
 		const dialogConfigurator = body.getElement(HTMLDialogElement, "dialog#configurator");
 		const selectVisualizerVisualization = dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization");
 
-		await AudioController.launch(store, audioPlayer, inputAudioLoader, divInterface, buttonAudioDrive, bPlaybackTime, inputPlaybackTrack);
-		await ClipController.launch(visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
+		await AudioController.launch(guard, store, audioPlayer, inputAudioLoader, divInterface, buttonAudioDrive, bPlaybackTime, inputPlaybackTrack);
+		await ClipController.launch(guard, visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
 		await ConfiguratorController.launch(cell, visualizer, dialogConfigurator, buttonOpenConfigurator, selectVisualizerVisualization);
 	}
 
