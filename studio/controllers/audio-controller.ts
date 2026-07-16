@@ -11,6 +11,7 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 	#store: ObjectStore;
 	#bPlaybackTime: HTMLElement;
 	#inputPlaybackTrack: HTMLInputElement;
+	#scrubbing: boolean = false;
 
 	get #markReady(): boolean {
 		return this.#audioPlayer.dataset["ready"] !== undefined;
@@ -88,6 +89,11 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 		return Number(value).lerp(Number(min), Number(max));
 	}
 
+	#seekFactorFromPoint(x: number): number {
+		const { left, right } = this.#inputPlaybackTrack.getBoundingClientRect();
+		return x.lerp(left, right).clamp(0, 1);
+	}
+
 	#updateSeekTrack(): void {
 		const inputPlaybackTrack = this.#inputPlaybackTrack;
 		const bPlaybackTime = this.#bPlaybackTime;
@@ -96,6 +102,21 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 		inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
 		const time = (duration * factor).insteadNaN(0);
 		bPlaybackTime.innerText = this.#toPlaytimeInfo(time);
+	}
+
+	#scrubTo(x: number): void {
+		const audioPlayer = this.#audioPlayer;
+		const inputPlaybackTrack = this.#inputPlaybackTrack;
+		if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
+		inputPlaybackTrack.value = `${this.#seekFactorFromPoint(x) * 100}`;
+		this.#updateSeekTrack();
+	}
+
+	#commitSeek(): void {
+		const audioPlayer = this.#audioPlayer;
+		if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
+		this.#updateSeekTrack();
+		audioPlayer.currentTime = (audioPlayer.duration * this.#seekFactor()).insteadNaN(0);
 	}
 
 	async run(guard: WakeGuard, store: ObjectStore, audioPlayer: HTMLAudioElement, inputAudioLoader: HTMLInputElement, divInterface: HTMLDivElement, buttonAudioDrive: HTMLButtonElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
@@ -142,22 +163,43 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 		});
 
 		audioPlayer.addEventListener("timeupdate", (event) => {
-			if (document.activeElement === inputPlaybackTrack) return;
+			if (this.#scrubbing || document.activeElement === inputPlaybackTrack) return;
 			const factor = (audioPlayer.currentTime / audioPlayer.duration).insteadNaN(0);
 			inputPlaybackTrack.value = `${factor * 100}`;
 			inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
 			bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
 		});
-		inputPlaybackTrack.addEventListener("pointerup", event => inputPlaybackTrack.blur());
+
+		inputPlaybackTrack.addEventListener("click", event => event.stopPropagation());
+		inputPlaybackTrack.addEventListener("pointerdown", (event) => {
+			event.stopPropagation();
+			this.#scrubbing = true;
+			inputPlaybackTrack.setPointerCapture(event.pointerId);
+			this.#scrubTo(event.clientX);
+		});
+		inputPlaybackTrack.addEventListener("pointermove", (event) => {
+			if (!this.#scrubbing) return;
+			this.#scrubTo(event.clientX);
+		});
+		inputPlaybackTrack.addEventListener("pointerup", (event) => {
+			this.#scrubTo(event.clientX);
+			this.#commitSeek();
+			this.#scrubbing = false;
+			inputPlaybackTrack.blur();
+		});
+		inputPlaybackTrack.addEventListener("pointercancel", (event) => {
+			this.#scrubbing = false;
+			inputPlaybackTrack.blur();
+		});
 
 		inputPlaybackTrack.addEventListener("input", (event) => {
+			if (this.#scrubbing) return;
 			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
 			this.#updateSeekTrack();
 		});
 		inputPlaybackTrack.addEventListener("change", (event) => {
-			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
-			this.#updateSeekTrack();
-			audioPlayer.currentTime = (audioPlayer.duration * this.#seekFactor()).insteadNaN(0);
+			if (this.#scrubbing) return;
+			this.#commitSeek();
 		});
 
 		window.addEventListener("keydown", async (event) => {
