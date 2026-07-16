@@ -11,7 +11,6 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 	#store: ObjectStore;
 	#bPlaybackTime: HTMLElement;
 	#inputPlaybackTrack: HTMLInputElement;
-	#isSeeking: boolean = false;
 
 	get #markReady(): boolean {
 		return this.#audioPlayer.dataset["ready"] !== undefined;
@@ -143,29 +142,13 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 		});
 
 		audioPlayer.addEventListener("timeupdate", (event) => {
-			if (this.#isSeeking) return;
+			if (document.activeElement === inputPlaybackTrack) return;
 			const factor = (audioPlayer.currentTime / audioPlayer.duration).insteadNaN(0);
 			inputPlaybackTrack.value = `${factor * 100}`;
 			inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
 			bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
 		});
-		inputPlaybackTrack.addEventListener("click", (event) => event.stopPropagation());
-		inputPlaybackTrack.addEventListener("pointerdown", (event) => {
-			event.stopPropagation();
-			this.#isSeeking = true;
-			inputPlaybackTrack.setPointerCapture(event.pointerId);
-		});
-		inputPlaybackTrack.addEventListener("pointerup", (event) => {
-			event.stopPropagation();
-			inputPlaybackTrack.releasePointerCapture(event.pointerId);
-			this.#isSeeking = false;
-			inputPlaybackTrack.blur();
-		});
-		inputPlaybackTrack.addEventListener("pointercancel", (event) => {
-			event.stopPropagation();
-			inputPlaybackTrack.releasePointerCapture(event.pointerId);
-			this.#isSeeking = false;
-		});
+		inputPlaybackTrack.addEventListener("pointerup", event => inputPlaybackTrack.blur());
 
 		inputPlaybackTrack.addEventListener("input", (event) => {
 			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
