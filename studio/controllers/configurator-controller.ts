@@ -16,7 +16,7 @@ export class ConfiguratorController extends Controller<[BufferedCell<typeof Sett
 		const duration = 50;
 		const fill: FillMode = "both";
 		if (value) {
-			dialogConfigurator.show();
+			dialogConfigurator.showModal();
 			await dialogConfigurator.animate([{ opacity: "0", easing: "ease-in" }, { opacity: "1" }], { duration, fill }).finished;
 		} else {
 			await dialogConfigurator.animate([{ opacity: "1", easing: "ease-out" }, { opacity: "0" }], { duration, fill }).finished;
