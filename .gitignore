@@ -30,6 +30,7 @@ dist-ssr
 .*
 !.gitignore
 !.npmignore
+!.node-version
 !.github
 !.github/**
 .github/**instructions**

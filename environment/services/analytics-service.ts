@@ -36,6 +36,7 @@ export class AnalyticsService {
 
 		const script = document.createElement("script");
 		script.async = true;
+		script.crossOrigin = "anonymous";
 		script.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
 		document.head.appendChild(script);
 	}

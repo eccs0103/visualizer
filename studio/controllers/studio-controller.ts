@@ -21,7 +21,7 @@ class StudioController extends Controller {
 		MetadataInjector.inject({
 			type: "Application",
 			name: "Visualizer",
-			webpage: new URL("https://eccs0103.github.io/visualizer/"),
+			webpage: new URL("https://visualizer.eccs.dev/"),
 			preview: new URL("../icons/equalizer.png", baseURI),
 			category: "MultimediaApplication",
 			os: "Web Browser",
