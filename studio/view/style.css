@@ -20,7 +20,7 @@ div#interface {
 		'audio-control-area		audio-auxiliary-area	' auto
 		'transport-bar-area	playback-auxiliary-area	' 1fr
 		'playback-track-area	playback-track-area		' auto
-		/ 1fr auto
+		/ auto 1fr
 	;
 	overflow: hidden;
 }
@@ -75,10 +75,11 @@ button#clip-toggle > span.icon {
 div#interface > *#playback-auxiliary {
 	grid-area: playback-auxiliary-area;
 	align-items: end;
+	min-width: 0;
 }
 
 b#playback-title {
-	max-width: 40vmin;
+	max-width: 100%;
 	white-space: nowrap;
 	overflow: hidden;
 }

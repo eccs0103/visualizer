@@ -8,7 +8,9 @@ import { ObjectStore } from "../services/object-store.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { PlaylistPlayer } from "../services/playlist-player.js";
 import { AudioController } from "./audio-controller.js";
-import { ConfiguratorController } from "./configurator-controller.js";
+import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
+import { AIController } from "./ai-controller.js";
+import { PanelController } from "./panel-controller.js";
 import { ClipController } from "./clip-controller.js";
 import { PlaylistController } from "./playlist-controller.js";
 import { AnalyticsController } from "../../environment/controllers/analytics-controller.js";
@@ -51,6 +53,7 @@ class StudioController extends Controller {
 		const player = new PlaylistPlayer(audioPlayer, store, cell);
 
 		const settings = cell.content;
+		settings.reconcile();
 		visualizer.rate = settings.rate;
 		visualizer.autoCorrect = settings.autoCorrect;
 		visualizer.visualization = settings.visualization;
@@ -70,6 +73,7 @@ class StudioController extends Controller {
 		const bClipTime = divInterface.getElement(HTMLElement, "b#clip-time");
 		const inputPlaybackTrack = divInterface.getElement(HTMLInputElement, "input#playback-track");
 		const dialogConfigurator = body.getElement(HTMLDialogElement, "dialog#configurator");
+		const buttonCloseConfigurator = dialogConfigurator.getElement(HTMLButtonElement, "button#close-configurator");
 		const selectVisualizerVisualization = dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization");
 		const dialogPlaylist = body.getElement(HTMLDialogElement, "dialog#playlist");
 		const buttonClosePlaylist = dialogPlaylist.getElement(HTMLButtonElement, "button#close-playlist");
@@ -80,8 +84,10 @@ class StudioController extends Controller {
 
 		await AudioController.launch(guard, player, audioPlayer, divInterface, buttonPlaybackPrevious, buttonPlaybackNext, bPlaybackTitle, bPlaybackTime, inputPlaybackTrack);
 		await ClipController.launch(guard, visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
-		await ConfiguratorController.launch(cell, visualizer, dialogConfigurator, buttonOpenConfigurator, selectVisualizerVisualization);
-		await PlaylistController.launch(player, dialogPlaylist, buttonOpenPlaylist, buttonClosePlaylist, buttonPlaylistMode, buttonPlaylistAdd, inputAudioLoader, olPlaylistTracks, spanPlaylistEmpty);
+		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
+		await AIController.launch(cell, visualizer, dialogConfigurator);
+		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
+		await PlaylistController.launch(player, buttonPlaylistMode, buttonPlaylistAdd, inputAudioLoader, olPlaylistTracks, spanPlaylistEmpty);
 
 		await player.restore();
 	}

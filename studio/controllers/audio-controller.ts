@@ -85,6 +85,14 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		audioPlayer.currentTime = (audioPlayer.duration * this.#seekFactor()).insteadNaN(0);
 	}
 
+	#seekBy(delta: number): void {
+		const audioPlayer = this.#audioPlayer;
+		if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
+		const { duration, currentTime } = audioPlayer;
+		if (Number.isNaN(duration)) return;
+		audioPlayer.currentTime = (currentTime + delta).clamp(0, duration);
+	}
+
 	#renderTrack(track: Track | null): void {
 		let signature = String.empty;
 		if (track !== null) signature = track.signature;
@@ -99,6 +107,14 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		this.#buttonPlaybackPrevious.disabled = isEmpty;
 		this.#buttonPlaybackNext.disabled = isEmpty;
 		this.#spanPlaybackToggle.ariaDisabled = String(isEmpty);
+	}
+
+	#readDirection(code: string): number {
+		switch (code) {
+		case "ArrowLeft": return -1;
+		case "ArrowRight": return 1;
+		default: return 0;
+		}
 	}
 
 	async run(guard: WakeGuard, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, divInterface: HTMLDivElement, buttonPlaybackPrevious: HTMLButtonElement, buttonPlaybackNext: HTMLButtonElement, bPlaybackTitle: HTMLElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
@@ -188,18 +204,23 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 
 		window.addEventListener("keydown", async (event) => {
 			if (event.code !== "Space") return;
+			if (event.repeat) return;
+			const { activeElement } = document;
+			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;
 			event.preventDefault();
 			await this.#playToggle(audioPlayer.paused);
 		});
 
 		window.addEventListener("keydown", async (event) => {
-			if (event.code !== "ArrowLeft" && event.code !== "ArrowRight") return;
-			if (event.repeat) return;
+			const step = this.#readDirection(event.code);
+			if (step === 0) return;
 			const { activeElement } = document;
 			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;
 			if (document.querySelector("dialog[open]") !== null) return;
 			event.preventDefault();
-			if (event.code === "ArrowRight") await player.skip();
+			if (!event.shiftKey) return this.#seekBy(step * 5);
+			if (event.repeat) return;
+			if (step > 0) await player.skip();
 			else await player.retreat();
 		});
 	}

@@ -21,6 +21,20 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 	#inputVisualizationTilt: HTMLInputElement;
 	#inputVisualizationPunch: HTMLInputElement;
 
+	#readDirection(code: string): number {
+		switch (code) {
+		case "ArrowUp": return -1;
+		case "ArrowDown": return 1;
+		default: return 0;
+		}
+	}
+
+	#cycleVisualization(step: number): void {
+		const select = this.#selectVisualizerVisualization;
+		select.selectedIndex = (select.selectedIndex + step).mod(select.length);
+		select.dispatchEvent(new Event("change"));
+	}
+
 	#applyVisualization(): void {
 		const settings = this.#cell.content;
 		const visualizer = this.#visualizer;
@@ -202,10 +216,14 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		});
 
 		window.addEventListener("keydown", (event) => {
-			if (!event.shiftKey || event.code !== "Tab") return;
+			const step = this.#readDirection(event.code);
+			if (step === 0) return;
+			if (event.repeat) return;
+			const { activeElement } = document;
+			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;
+			if (document.querySelector("dialog[open]") !== null) return;
 			event.preventDefault();
-			selectVisualizerVisualization.selectedIndex = (selectVisualizerVisualization.selectedIndex + 1) % selectVisualizerVisualization.length;
-			selectVisualizerVisualization.dispatchEvent(new Event("change"));
+			this.#cycleVisualization(step);
 		});
 	}
 }

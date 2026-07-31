@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field, Optional } from "adaptive-extender/core";
+import { Model, Field, Optional, Enum } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
 import { Playlist } from "./playlist.js";
 
@@ -30,9 +30,15 @@ export class VisualizationSettings extends Model {
 }
 //#endregion
 //#region Settings
+export enum Panel {
+	none = "none",
+	playlist = "playlist",
+	configurator = "configurator",
+}
+
 export class Settings extends Model {
-	@Field(Boolean, { name: "is_opened_configurator" })
-	isOpenedConfigurator: boolean = false;
+	@Field(Enum.Of(Panel), { name: "panel" })
+	panel: Panel = Panel.none;
 
 	@Field(Number, { name: "rate" })
 	rate: number = 240;
@@ -54,6 +60,13 @@ export class Settings extends Model {
 
 	get configuration(): VisualizationSettings {
 		return ReferenceError.suppress(this.attachments.get(this.visualization), `Missing configurations for visualization '${this.visualization}'`);
+	}
+
+	reconcile(): void {
+		const names = new Set(Registry.names());
+		for (const name of this.attachments.keys()) this.attachments.delete(name);
+		for (const name of names) this.attachments.add(name, new VisualizationSettings());
+		if (!Registry.has(this.visualization)) this.visualization = Registry.default;
 	}
 }
 //#endregion

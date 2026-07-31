@@ -6,26 +6,12 @@ import { PlaylistPlayer } from "../services/playlist-player.js";
 import { type Track } from "../models/playlist.js";
 
 //#region Playlist controller
-export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLInputElement, HTMLOListElement, HTMLElement]> {
+export class PlaylistController extends Controller<[PlaylistPlayer, HTMLButtonElement, HTMLButtonElement, HTMLInputElement, HTMLOListElement, HTMLElement]> {
 	#player: PlaylistPlayer;
-	#dialogPlaylist: HTMLDialogElement;
 	#buttonPlaylistMode: HTMLButtonElement;
 	#inputAudioLoader: HTMLInputElement;
 	#olPlaylistTracks: HTMLOListElement;
 	#spanPlaylistEmpty: HTMLElement;
-
-	async #setActivity(value: boolean): Promise<void> {
-		const dialogPlaylist = this.#dialogPlaylist;
-		const duration = 50;
-		const fill: FillMode = "both";
-		if (value) {
-			dialogPlaylist.showModal();
-			await dialogPlaylist.animate([{ opacity: "0", easing: "ease-in" }, { opacity: "1" }], { duration, fill }).finished;
-		} else {
-			await dialogPlaylist.animate([{ opacity: "1", easing: "ease-out" }, { opacity: "0" }], { duration, fill }).finished;
-			dialogPlaylist.close();
-		}
-	}
 
 	#wireDrag(row: HTMLLIElement, handle: HTMLElement): void {
 		const olPlaylistTracks = this.#olPlaylistTracks;
@@ -89,29 +75,33 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 		const player = this.#player;
 		const row = document.createElement("li");
 		row.dataset["id"] = track.id;
-		row.className = "rounded depth with-padding flex alt-center with-gap";
+		row.className = "rounded depth flex";
 		if (index === player.index) row.dataset["active"] = String.empty;
 
 		const handle = row.appendChild(document.createElement("span"));
-		handle.className = "icon with-padding";
-		handle.innerText = "Drag to reorder";
-		handle.addEventListener("click", event => event.stopPropagation());
+		handle.className = "handle with-padding flex alt-center";
+		const iconHandle = handle.appendChild(document.createElement("span"));
+		iconHandle.className = "icon with-padding";
+		iconHandle.innerText = "Drag to reorder";
 
-		const title = row.appendChild(document.createElement("span"));
+		const content = row.appendChild(document.createElement("span"));
+		content.className = "content flex alt-center with-gap";
+
+		const title = content.appendChild(document.createElement("span"));
 		title.className = "title fittable";
 		title.innerText = track.signature;
 
-		const itemDuration = row.appendChild(document.createElement("b"));
+		const itemDuration = content.appendChild(document.createElement("b"));
 		itemDuration.innerText = track.toDurationString();
 
 		const buttonRemove = row.appendChild(document.createElement("button"));
 		buttonRemove.type = "button";
-		buttonRemove.className = "remove flex alt-center with-gap alert";
+		buttonRemove.className = "remove with-padding flex alt-center alert";
 		const iconRemove = buttonRemove.appendChild(document.createElement("span"));
 		iconRemove.className = "icon with-padding";
 		iconRemove.innerText = "Remove track";
 
-		row.addEventListener("click", async (event) => {
+		content.addEventListener("click", async (event) => {
 			event.stopPropagation();
 			await player.activate(index);
 		});
@@ -133,9 +123,8 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 		this.#buttonPlaylistMode.dataset["mode"] = player.mode;
 	}
 
-	async run(player: PlaylistPlayer, dialogPlaylist: HTMLDialogElement, buttonOpenPlaylist: HTMLButtonElement, buttonClosePlaylist: HTMLButtonElement, buttonPlaylistMode: HTMLButtonElement, buttonPlaylistAdd: HTMLButtonElement, inputAudioLoader: HTMLInputElement, olPlaylistTracks: HTMLOListElement, spanPlaylistEmpty: HTMLElement): Promise<void> {
+	async run(player: PlaylistPlayer, buttonPlaylistMode: HTMLButtonElement, buttonPlaylistAdd: HTMLButtonElement, inputAudioLoader: HTMLInputElement, olPlaylistTracks: HTMLOListElement, spanPlaylistEmpty: HTMLElement): Promise<void> {
 		this.#player = player;
-		this.#dialogPlaylist = dialogPlaylist;
 		this.#buttonPlaylistMode = buttonPlaylistMode;
 		this.#inputAudioLoader = inputAudioLoader;
 		this.#olPlaylistTracks = olPlaylistTracks;
@@ -144,14 +133,6 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 		player.addEventListener("change", event => this.#render());
 		this.#render();
 
-		buttonOpenPlaylist.addEventListener("click", async (event) => {
-			event.stopPropagation();
-			await this.#setActivity(true);
-		});
-		buttonClosePlaylist.addEventListener("click", async (event) => {
-			event.stopPropagation();
-			await this.#setActivity(false);
-		});
 		buttonPlaylistMode.addEventListener("click", (event) => {
 			event.stopPropagation();
 			player.cycleMode();
