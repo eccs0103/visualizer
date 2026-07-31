@@ -1,10 +1,10 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller, Timespan } from "adaptive-extender/web";
+import { Controller } from "adaptive-extender/web";
 import { PlaylistPlayer } from "../services/playlist-player.js";
 import { WakeGuard } from "../services/wake-guard.js";
-import { type Track } from "../models/playlist.js";
+import { Track } from "../models/playlist.js";
 
 //#region Audio controller
 export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTMLAudioElement, HTMLDivElement, HTMLButtonElement, HTMLButtonElement, HTMLElement, HTMLElement, HTMLInputElement]> {
@@ -43,18 +43,11 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		else audioPlayer.pause();
 	}
 
-	static #toPlaytimeString(seconds: number): string {
-		const time = Timespan.fromComponents(0, 0, seconds);
-		const minute = time.days * 24 + time.hours * 60 + time.minutes;
-		const second = time.seconds;
-		return `${minute.toString().padStart(2, "0")}:${second.toString().padStart(2, "0")}`;
-	}
-
 	#toPlaytimeInfo(seconds: number): string {
 		const { duration } = this.#audioPlayer;
-		const current = AudioController.#toPlaytimeString(seconds);
+		const current = Track.toTimeString(seconds);
 		if (Number.isNaN(duration)) return current;
-		return `${current} • ${AudioController.#toPlaytimeString(duration)}`;
+		return `${current} • ${Track.toTimeString(duration)}`;
 	}
 
 	#seekFactor(): number {

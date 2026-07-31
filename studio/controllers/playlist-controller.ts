@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller, Timespan } from "adaptive-extender/web";
+import { Controller } from "adaptive-extender/web";
 import { PlaylistPlayer } from "../services/playlist-player.js";
 import { type Track } from "../models/playlist.js";
 
@@ -13,13 +13,6 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 	#inputAudioLoader: HTMLInputElement;
 	#olPlaylistTracks: HTMLOListElement;
 	#spanPlaylistEmpty: HTMLElement;
-
-	static #toDurationString(seconds: number): string {
-		const time = Timespan.fromComponents(0, 0, seconds);
-		const minute = time.days * 24 + time.hours * 60 + time.minutes;
-		const second = time.seconds;
-		return `${minute.toString().padStart(2, "0")}:${second.toString().padStart(2, "0")}`;
-	}
 
 	async #setActivity(value: boolean): Promise<void> {
 		const dialogPlaylist = this.#dialogPlaylist;
@@ -109,7 +102,7 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 		title.innerText = track.signature;
 
 		const itemDuration = row.appendChild(document.createElement("b"));
-		itemDuration.innerText = PlaylistController.#toDurationString(track.duration);
+		itemDuration.innerText = track.toDurationString();
 
 		const buttonRemove = row.appendChild(document.createElement("button"));
 		buttonRemove.type = "button";
@@ -159,9 +152,9 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 			event.stopPropagation();
 			await this.#setActivity(false);
 		});
-		buttonPlaylistMode.addEventListener("click", async (event) => {
+		buttonPlaylistMode.addEventListener("click", (event) => {
 			event.stopPropagation();
-			await player.cycleMode();
+			player.cycleMode();
 		});
 		buttonPlaylistAdd.addEventListener("click", (event) => {
 			event.stopPropagation();

@@ -16,7 +16,6 @@ export class PlaylistPlayer extends EventTarget {
 	#audioPlayer: HTMLAudioElement;
 	#store: ObjectStore;
 	#cell: BufferedCell<typeof Settings>;
-	#url: string | null = null;
 
 	constructor(audioPlayer: HTMLAudioElement, store: ObjectStore, cell: BufferedCell<typeof Settings>) {
 		super();
@@ -67,9 +66,8 @@ export class PlaylistPlayer extends EventTarget {
 
 	async #load(track: Track | null): Promise<void> {
 		const audioPlayer = this.#audioPlayer;
-		if (this.#url !== null) {
-			URL.revokeObjectURL(this.#url);
-			this.#url = null;
+		if (!String.isEmpty(audioPlayer.src)) {
+			URL.revokeObjectURL(audioPlayer.src);
 		}
 
 		if (track === null) {
@@ -87,7 +85,6 @@ export class PlaylistPlayer extends EventTarget {
 			audioPlayer.addEventListener("error", event => reject(new Error(`Failed to load audio file '${track.signature}'`)), { signal });
 			audioPlayer.src = url;
 		});
-		this.#url = url;
 		this.dispatchEvent(new CustomEvent("track", { detail: track }));
 	}
 
@@ -100,22 +97,37 @@ export class PlaylistPlayer extends EventTarget {
 		}
 	}
 
+	#notify(): void {
+		this.dispatchEvent(new Event("change"));
+		void this.#cell.save(500);
+	}
+
+	async #commit(track: Track | null, resume: boolean): Promise<void> {
+		this.dispatchEvent(new Event("change"));
+		await this.#load(track);
+		if (resume && track !== null) await this.#play();
+		void this.#cell.save(500);
+	}
+
+	async #migrateLegacy(playlist: Playlist): Promise<void> {
+		if (!playlist.isEmpty) return;
+		const legacy = await this.#store.get(0);
+		if (!(legacy instanceof File)) return;
+
+		const id = crypto.randomUUID();
+		const signature = PlaylistPlayer.#probeSignature(legacy.name);
+		const duration = await PlaylistPlayer.#probeDuration(legacy);
+		await this.#store.put(id, legacy);
+		await this.#store.delete(0);
+		playlist.append(new Track(id, signature, duration));
+		playlist.index = 0;
+	}
+
 	async restore(): Promise<void> {
 		const playlist = this.#playlist;
 		const store = this.#store;
 
-		if (playlist.isEmpty) {
-			const legacy = await store.get(0);
-			if (legacy instanceof File) {
-				const id = crypto.randomUUID();
-				const signature = PlaylistPlayer.#probeSignature(legacy.name);
-				const duration = await PlaylistPlayer.#probeDuration(legacy);
-				await store.put(id, legacy);
-				await store.delete(0);
-				playlist.append(new Track(id, signature, duration));
-				playlist.index = 0;
-			}
-		}
+		await this.#migrateLegacy(playlist);
 
 		const ids = new Set(playlist.tracks.map(track => track.id));
 		for (const key of await store.keys()) {
@@ -123,7 +135,7 @@ export class PlaylistPlayer extends EventTarget {
 			await store.delete(key);
 		}
 
-		await this.#cell.save(500);
+		void this.#cell.save(500);
 		await this.#load(playlist.current);
 		this.dispatchEvent(new Event("change"));
 	}
@@ -135,9 +147,10 @@ export class PlaylistPlayer extends EventTarget {
 
 		for (const file of files) {
 			const id = crypto.randomUUID();
+			const signature = PlaylistPlayer.#probeSignature(file.name);
 			const duration = await PlaylistPlayer.#probeDuration(file);
 			await store.put(id, file);
-			playlist.append(new Track(id, file.name, duration));
+			playlist.append(new Track(id, signature, duration));
 		}
 
 		if (wasEmpty && !playlist.isEmpty) playlist.index = 0;
@@ -151,7 +164,7 @@ export class PlaylistPlayer extends EventTarget {
 		const playlist = this.#playlist;
 		const { current } = playlist;
 		let wasCurrent = false;
-		if (current !== null) wasCurrent = current.id === id;
+		if (current !== null) wasCurrent = current.matches(id);
 		if (!playlist.remove(id)) return;
 		this.dispatchEvent(new Event("change"));
 
@@ -162,27 +175,18 @@ export class PlaylistPlayer extends EventTarget {
 
 	move(from: number, to: number): void {
 		this.#playlist.move(from, to);
-		this.dispatchEvent(new Event("change"));
-		void this.#cell.save(500);
+		this.#notify();
 	}
 
 	async activate(index: number): Promise<void> {
 		const track = this.#playlist.select(index);
 		if (track === null) return;
-		this.dispatchEvent(new Event("change"));
-
-		await this.#load(track);
-		await this.#play();
-		void this.#cell.save(500);
+		await this.#commit(track, true);
 	}
 
 	async advance(): Promise<Track | null> {
 		const track = this.#playlist.advance();
-		this.dispatchEvent(new Event("change"));
-
-		await this.#load(track);
-		if (track !== null) await this.#play();
-		void this.#cell.save(500);
+		await this.#commit(track, track !== null);
 		return track;
 	}
 
@@ -190,28 +194,19 @@ export class PlaylistPlayer extends EventTarget {
 		const wasPlaying = !this.#audioPlayer.paused;
 		const track = this.#playlist.skip();
 		if (track === null) return;
-		this.dispatchEvent(new Event("change"));
-
-		await this.#load(track);
-		if (wasPlaying) await this.#play();
-		void this.#cell.save(500);
+		await this.#commit(track, wasPlaying);
 	}
 
 	async retreat(): Promise<void> {
 		const wasPlaying = !this.#audioPlayer.paused;
 		const track = this.#playlist.retreat();
 		if (track === null) return;
-		this.dispatchEvent(new Event("change"));
-
-		await this.#load(track);
-		if (wasPlaying) await this.#play();
-		void this.#cell.save(500);
+		await this.#commit(track, wasPlaying);
 	}
 
-	async cycleMode(): Promise<PlaybackMode> {
+	cycleMode(): PlaybackMode {
 		const mode = this.#playlist.cycleMode();
-		this.dispatchEvent(new Event("change"));
-		void this.#cell.save(500);
+		this.#notify();
 		return mode;
 	}
 }
