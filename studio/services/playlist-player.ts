@@ -44,6 +44,12 @@ export class PlaylistPlayer extends EventTarget {
 	get isEmpty(): boolean { return this.#playlist.isEmpty; }
 	get current(): Track | null { return this.#playlist.current; }
 
+	static #probeSignature(name: string): string {
+		const index = name.lastIndexOf(".");
+		if (index < 1) return name;
+		return name.slice(0, index);
+	}
+
 	static async #probeDuration(file: File): Promise<number> {
 		const probe = new Audio();
 		const url = URL.createObjectURL(file);
@@ -74,11 +80,11 @@ export class PlaylistPlayer extends EventTarget {
 		}
 
 		const file = await this.#store.get(track.id);
-		if (!(file instanceof File)) throw new Error(`Missing audio data for track '${track.name}'`);
+		if (!(file instanceof File)) throw new Error(`Missing audio data for track '${track.signature}'`);
 		const url = URL.createObjectURL(file);
 		await Promise.withSignal((signal, resolve, reject) => {
 			audioPlayer.addEventListener("canplay", event => resolve(), { signal });
-			audioPlayer.addEventListener("error", event => reject(new Error(`Failed to load audio file '${track.name}'`)), { signal });
+			audioPlayer.addEventListener("error", event => reject(new Error(`Failed to load audio file '${track.signature}'`)), { signal });
 			audioPlayer.src = url;
 		});
 		this.#url = url;
@@ -102,10 +108,11 @@ export class PlaylistPlayer extends EventTarget {
 			const legacy = await store.get(0);
 			if (legacy instanceof File) {
 				const id = crypto.randomUUID();
+				const signature = PlaylistPlayer.#probeSignature(legacy.name);
 				const duration = await PlaylistPlayer.#probeDuration(legacy);
 				await store.put(id, legacy);
 				await store.delete(0);
-				playlist.append(new Track(id, legacy.name, duration));
+				playlist.append(new Track(id, signature, duration));
 				playlist.index = 0;
 			}
 		}
@@ -145,8 +152,7 @@ export class PlaylistPlayer extends EventTarget {
 		const { current } = playlist;
 		let wasCurrent = false;
 		if (current !== null) wasCurrent = current.id === id;
-		const track = playlist.remove(id);
-		if (track === null) return;
+		if (!playlist.remove(id)) return;
 		this.dispatchEvent(new Event("change"));
 
 		await this.#store.delete(id);

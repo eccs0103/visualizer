@@ -8,38 +8,32 @@ export class Track extends Model {
 	@Field(String, { name: "id" })
 	id: string;
 
-	@Field(String, { name: "name" })
-	name: string;
+	@Field(String, { name: "signature" })
+	signature: string;
 
 	@Field(Number, { name: "duration" })
-	duration: number = 0;
+	duration: number;
 
 	constructor();
-	constructor(id: string, name: string, duration: number);
-	constructor(id?: string, name?: string, duration?: number) {
-		if (id === undefined || name === undefined || duration === undefined) {
+	constructor(id: string, signature: string, duration: number);
+	constructor(id?: string, signature?: string, duration?: number) {
+		if (id === undefined || signature === undefined || duration === undefined) {
 			super();
 			return;
 		}
 
 		super();
 		this.id = id;
-		this.name = name;
+		this.signature = signature;
 		this.duration = duration;
-	}
-
-	get title(): string {
-		const index = this.name.lastIndexOf(".");
-		if (index < 1) return this.name;
-		return this.name.slice(0, index);
 	}
 }
 //#endregion
 //#region Playlist
 export enum PlaybackMode {
-	off = "off",
-	loopOne = "loop_one",
-	loopAll = "loop_all",
+	once = "once",
+	one = "one",
+	loop = "loop",
 	shuffle = "shuffle",
 }
 
@@ -51,7 +45,7 @@ export class Playlist extends Model {
 	index: number = -1;
 
 	@Field(Enum.Of(PlaybackMode), { name: "mode" })
-	mode: PlaybackMode = PlaybackMode.off;
+	mode: PlaybackMode = PlaybackMode.one;
 
 	#queue: number[] = [];
 
@@ -79,10 +73,10 @@ export class Playlist extends Model {
 		this.tracks.push(track);
 	}
 
-	remove(id: string): Track | null {
+	remove(id: string): boolean {
 		const position = this.tracks.findIndex(track => track.id === id);
-		if (position < 0) return null;
-		const [track] = this.tracks.splice(position, 1);
+		if (position < 0) return false;
+		const removed = this.tracks.splice(position, 1);
 
 		if (position < this.index) this.index--;
 		else if (position === this.index) this.index = Math.min(this.index, this.tracks.length - 1);
@@ -92,7 +86,7 @@ export class Playlist extends Model {
 			return value;
 		});
 
-		return track;
+		return removed.length > 0;
 	}
 
 	move(from: number, to: number): void {
@@ -113,7 +107,7 @@ export class Playlist extends Model {
 	}
 
 	cycleMode(): PlaybackMode {
-		const order: readonly PlaybackMode[] = [PlaybackMode.off, PlaybackMode.loopOne, PlaybackMode.loopAll, PlaybackMode.shuffle];
+		const order: readonly PlaybackMode[] = [PlaybackMode.one, PlaybackMode.once, PlaybackMode.loop, PlaybackMode.shuffle];
 		const position = order.indexOf(this.mode);
 		this.mode = order[(position + 1) % order.length];
 		if (this.mode === PlaybackMode.shuffle) this.#reshuffle();
@@ -123,11 +117,11 @@ export class Playlist extends Model {
 	advance(): Track | null {
 		if (this.isEmpty) return null;
 		switch (this.mode) {
-		case PlaybackMode.loopOne: {
+		case PlaybackMode.once: {
 			if (this.index < 0) this.index = 0;
 			return this.current;
 		}
-		case PlaybackMode.loopAll: {
+		case PlaybackMode.loop: {
 			if (this.index < 0) this.index = 0;
 			else this.index = (this.index + 1) % this.tracks.length;
 			return this.current;
@@ -138,7 +132,7 @@ export class Playlist extends Model {
 			this.index = next;
 			return this.current;
 		}
-		case PlaybackMode.off:
+		case PlaybackMode.one:
 		default: {
 			if (this.index < 0) { this.index = 0; return this.current; }
 			if (this.index + 1 >= this.tracks.length) return null;

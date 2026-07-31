@@ -191,15 +191,15 @@ button#playlist-add > span.icon {
 	--url: url(../../assets/icons/plus.svg);
 }
 
-button#playlist-mode[data-mode="off"] > span.icon {
+button#playlist-mode[data-mode="once"] > span.icon {
 	--url: url(../../assets/icons/arrow-right.svg);
 }
 
-button#playlist-mode[data-mode="loop_one"] > span.icon {
+button#playlist-mode[data-mode="one"] > span.icon {
 	--url: url(../../assets/icons/repeat.svg);
 }
 
-button#playlist-mode[data-mode="loop_all"] > span.icon {
+button#playlist-mode[data-mode="loop"] > span.icon {
 	--url: url(../../assets/icons/left-right.svg);
 }
 

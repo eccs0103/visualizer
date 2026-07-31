@@ -106,7 +106,7 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 
 		const title = row.appendChild(document.createElement("span"));
 		title.className = "title fittable";
-		title.innerText = track.title;
+		title.innerText = track.signature;
 
 		const itemDuration = row.appendChild(document.createElement("b"));
 		itemDuration.innerText = PlaylistController.#toDurationString(track.duration);

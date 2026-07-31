@@ -93,9 +93,9 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 	}
 
 	#renderTrack(track: Track | null): void {
-		let title = String.empty;
-		if (track !== null) title = track.title;
-		this.#bPlaybackTitle.innerText = title;
+		let signature = String.empty;
+		if (track !== null) signature = track.signature;
+		this.#bPlaybackTitle.innerText = signature;
 		this.#inputPlaybackTrack.value = "0";
 		this.#inputPlaybackTrack.style.setProperty("--track-value", "0%");
 		this.#bPlaybackTime.innerText = this.#toPlaytimeInfo(0);
