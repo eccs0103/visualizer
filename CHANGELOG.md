@@ -1,3 +1,10 @@
+## Unreleased
+- Replaced single-track upload with a full playlist system: add multiple tracks via the file picker or by dropping files onto the page, reorder them by dragging, and remove them individually.
+- Added playback modes — off (play through once), loop one, loop all, and shuffle — cycled from a button in the new playlist dialog.
+- Added previous/next track controls next to the play indicator, plus <kbd>←</kbd>/<kbd>→</kbd> keyboard shortcuts.
+- The current track title is now shown in the interface.
+- Fixed the play/pause indicator and screen wake lock not resetting when a track finished playing.
+
 ## 3.2.0 (15.07.2026)
 - Added a screen wake lock — the display now stays awake while audio is playing or a clip is recording.
 - The Spectrogram visualization has been redesigned with a mirrored frequency ridge, bass bloom, a temporal shimmer thread, and a vignette, plus beat-synced pulsing and DJ-focus-weighted detail.

@@ -18,11 +18,25 @@ export class ObjectStore {
 		const result = await Promise.withSignal<IDBDatabase>((signal, resolve, reject) => {
 			const request = indexedDB.open(nameDatabase, 1);
 			request.addEventListener("upgradeneeded", (event) => {
-				if (!request.result.objectStoreNames.contains(nameStore)) request.result.createObjectStore(nameStore);
+				const database = request.result;
+				if (!database.objectStoreNames.contains(nameStore)) database.createObjectStore(nameStore);
 			}, { signal });
-			request.addEventListener("success", (event) => resolve(request.result), { signal });
-			request.addEventListener("error", (event) => reject(request.error), { signal });
+			request.addEventListener("success", event => resolve(request.result), { signal });
+			request.addEventListener("error", event => reject(request.error), { signal });
 		});
+		return result;
+	}
+
+	async keys(): Promise<IDBValidKey[]> {
+		const database = await this.#open();
+		const transaction = database.transaction(this.#nameStore, "readonly");
+		const store = transaction.objectStore(this.#nameStore);
+		const request = store.getAllKeys();
+		const result = await Promise.withSignal<IDBValidKey[]>((signal, resolve, reject) => {
+			request.addEventListener("success", event => resolve(request.result), { signal });
+			request.addEventListener("error", event => reject(request.error), { signal });
+		});
+		database.close();
 		return result;
 	}
 
@@ -32,9 +46,10 @@ export class ObjectStore {
 		const store = transaction.objectStore(this.#nameStore);
 		const request = store.get(key);
 		const result = await Promise.withSignal((signal, resolve, reject) => {
-			request.addEventListener("success", (event) => { database.close(); resolve(request.result); }, { signal });
-			request.addEventListener("error", (event) => { database.close(); reject(request.error); }, { signal });
+			request.addEventListener("success", event => resolve(request.result), { signal });
+			request.addEventListener("error", event => reject(request.error), { signal });
 		});
+		database.close();
 		return result;
 	}
 
@@ -44,9 +59,10 @@ export class ObjectStore {
 		const store = transaction.objectStore(this.#nameStore);
 		const request = store.put(value, key);
 		const result = await Promise.withSignal((signal, resolve, reject) => {
-			request.addEventListener("success", (event) => { database.close(); resolve(); }, { signal });
-			request.addEventListener("error", (event) => { database.close(); reject(request.error); }, { signal });
+			request.addEventListener("success", event => resolve(), { signal });
+			request.addEventListener("error", event => reject(request.error), { signal });
 		});
+		database.close();
 		return result;
 	}
 
@@ -56,9 +72,10 @@ export class ObjectStore {
 		const store = transaction.objectStore(this.#nameStore);
 		const request = store.delete(key);
 		const result = await Promise.withSignal((signal, resolve, reject) => {
-			request.addEventListener("success", (event) => { database.close(); resolve(); }, { signal });
-			request.addEventListener("error", (event) => { database.close(); reject(request.error); }, { signal });
+			request.addEventListener("success", event => resolve(), { signal });
+			request.addEventListener("error", event => reject(request.error), { signal });
 		});
+		database.close();
 		return result;
 	}
 }

@@ -2,13 +2,17 @@
 
 import "adaptive-extender/web";
 import { Controller, Timespan } from "adaptive-extender/web";
-import { ObjectStore } from "../services/object-store.js";
+import { PlaylistPlayer } from "../services/playlist-player.js";
 import { WakeGuard } from "../services/wake-guard.js";
+import { type Track } from "../models/playlist.js";
 
 //#region Audio controller
-export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAudioElement, HTMLInputElement, HTMLDivElement, HTMLButtonElement, HTMLElement, HTMLInputElement]> {
+export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTMLAudioElement, HTMLDivElement, HTMLButtonElement, HTMLButtonElement, HTMLElement, HTMLElement, HTMLInputElement]> {
 	#audioPlayer: HTMLAudioElement;
-	#store: ObjectStore;
+	#player: PlaylistPlayer;
+	#buttonPlaybackPrevious: HTMLButtonElement;
+	#buttonPlaybackNext: HTMLButtonElement;
+	#bPlaybackTitle: HTMLElement;
 	#bPlaybackTime: HTMLElement;
 	#inputPlaybackTrack: HTMLInputElement;
 	#scrubbing: boolean = false;
@@ -52,38 +56,6 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 		return `${current} • ${AudioController.#toPlaytimeString(duration)}`;
 	}
 
-	async #loadAudio(file: File): Promise<void> {
-		const audioPlayer = this.#audioPlayer;
-		await Promise.withSignal((signal, resolve, reject) => {
-			audioPlayer.addEventListener("canplay", event => resolve(), { signal });
-			audioPlayer.addEventListener("error", event => reject(new Error("Failed to load audio file")), { signal });
-			audioPlayer.src = URL.createObjectURL(file);
-		});
-	}
-
-	#dropAudio(): void {
-		const audioPlayer = this.#audioPlayer;
-		audioPlayer.removeAttribute("src");
-		audioPlayer.srcObject = null;
-	}
-
-	async #loadRecentAudio(): Promise<void> {
-		const file = await this.#store.get(0);
-		if (!(file instanceof File)) return;
-		await this.#loadAudio(file);
-	}
-
-	async #saveRecentAudio(file: File | null): Promise<void> {
-		const store = this.#store;
-		if (file === null) {
-			this.#dropAudio();
-			await store.delete(0);
-		} else {
-			await this.#loadAudio(file);
-			await store.put(0, file);
-		}
-	}
-
 	#seekFactor(): number {
 		const { value, min, max } = this.#inputPlaybackTrack;
 		return Number(value).lerp(Number(min), Number(max));
@@ -119,9 +91,27 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 		audioPlayer.currentTime = (audioPlayer.duration * this.#seekFactor()).insteadNaN(0);
 	}
 
-	async run(guard: WakeGuard, store: ObjectStore, audioPlayer: HTMLAudioElement, inputAudioLoader: HTMLInputElement, divInterface: HTMLDivElement, buttonAudioDrive: HTMLButtonElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
+	#renderTrack(track: Track | null): void {
+		let title = String.empty;
+		if (track !== null) title = track.title;
+		this.#bPlaybackTitle.innerText = title;
+		this.#inputPlaybackTrack.value = "0";
+		this.#inputPlaybackTrack.style.setProperty("--track-value", "0%");
+		this.#bPlaybackTime.innerText = this.#toPlaytimeInfo(0);
+	}
+
+	#renderAvailability(): void {
+		const isEmpty = this.#player.isEmpty;
+		this.#buttonPlaybackPrevious.disabled = isEmpty;
+		this.#buttonPlaybackNext.disabled = isEmpty;
+	}
+
+	async run(guard: WakeGuard, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, divInterface: HTMLDivElement, buttonPlaybackPrevious: HTMLButtonElement, buttonPlaybackNext: HTMLButtonElement, bPlaybackTitle: HTMLElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
 		this.#audioPlayer = audioPlayer;
-		this.#store = store;
+		this.#player = player;
+		this.#buttonPlaybackPrevious = buttonPlaybackPrevious;
+		this.#buttonPlaybackNext = buttonPlaybackNext;
+		this.#bPlaybackTitle = bPlaybackTitle;
 		this.#bPlaybackTime = bPlaybackTime;
 		this.#inputPlaybackTrack = inputPlaybackTrack;
 
@@ -133,22 +123,17 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 		audioPlayer.addEventListener("canplay", event => guard.activate("playback"));
 		audioPlayer.addEventListener("emptied", event => guard.deactivate("playback"));
 
-		await this.#loadRecentAudio();
-		bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
-
-		inputAudioLoader.addEventListener("input", async (event) => {
-			try {
-				const files = ReferenceError.suppress(inputAudioLoader.files, "Unable to read files list");
-				const file = files.item(0);
-				if (file === null) return;
-				await this.#saveRecentAudio(file);
-			} catch (reason) {
-				await this.catch(Error.from(reason));
-			} finally {
-				bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
-				inputAudioLoader.value = String.empty;
-			}
+		audioPlayer.addEventListener("ended", async (event) => {
+			const track = await player.advance();
+			if (track === null) this.#markPlaying = false;
 		});
+
+		player.addEventListener("track", event => this.#renderTrack(event.detail));
+		player.addEventListener("change", event => this.#renderAvailability());
+		this.#renderTrack(player.current);
+		this.#renderAvailability();
+
+		bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
 
 		divInterface.addEventListener("click", async (event) => {
 			if (audioPlayer.readyState !== HTMLMediaElement.HAVE_ENOUGH_DATA) return;
@@ -156,10 +141,13 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 			await this.#playToggle(audioPlayer.paused);
 		});
 
-		buttonAudioDrive.addEventListener("click", async (event) => {
+		buttonPlaybackPrevious.addEventListener("click", async (event) => {
 			event.stopPropagation();
-			if (audioPlayer.readyState === HTMLMediaElement.HAVE_NOTHING) inputAudioLoader.click();
-			else await this.#saveRecentAudio(null);
+			await player.retreat();
+		});
+		buttonPlaybackNext.addEventListener("click", async (event) => {
+			event.stopPropagation();
+			await player.skip();
 		});
 
 		audioPlayer.addEventListener("timeupdate", (event) => {
@@ -206,6 +194,16 @@ export class AudioController extends Controller<[WakeGuard, ObjectStore, HTMLAud
 			if (event.code !== "Space") return;
 			event.preventDefault();
 			await this.#playToggle(audioPlayer.paused);
+		});
+
+		window.addEventListener("keydown", async (event) => {
+			if (event.code !== "ArrowLeft" && event.code !== "ArrowRight") return;
+			const { activeElement } = document;
+			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;
+			if (document.querySelector("dialog[open]") !== null) return;
+			event.preventDefault();
+			if (event.code === "ArrowRight") await player.skip();
+			else await player.retreat();
 		});
 	}
 }

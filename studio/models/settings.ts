@@ -3,6 +3,7 @@
 import "adaptive-extender/core";
 import { Model, Field, Optional } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
+import { Playlist } from "./playlist.js";
 
 //#region Visualization settings
 export class VisualizationSettings extends Model {
@@ -47,6 +48,9 @@ export class Settings extends Model {
 
 	@Field(Map.AsRecord(VisualizationSettings), { name: "attachments" })
 	attachments: Map<string, VisualizationSettings> = new Map(Array.from(Registry.names(), name => [name, new VisualizationSettings()]));
+
+	@Field(Playlist, { name: "playlist" })
+	playlist: Playlist = new Playlist();
 
 	get configuration(): VisualizationSettings {
 		return ReferenceError.suppress(this.attachments.get(this.visualization), `Missing configurations for visualization '${this.visualization}'`);
