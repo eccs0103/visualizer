@@ -61,8 +61,8 @@
 		<input id="playback-track" type="range" min="0" max="100" step="0.1" value="0" title="Playback time track">
 	</div>
 	<!-- Playlist -->
-	<dialog id="playlist" class="layer rounded with-padding large-padding flex column with-gap">
-		<div class="flex alt-center with-gap">
+	<dialog id="playlist" class="layer rounded flex column with-gap">
+		<div class="flex alt-center with-gap layer with-padding large-padding">
 			<button id="close-playlist" type="button" class="flex alt-center with-gap">
 				<span class="icon with-padding small-padding">Close playlist</span>
 			</button>
@@ -70,121 +70,122 @@
 				<span class="icon with-padding small-padding">Playback mode</span>
 			</button>
 		</div>
-
-		<ol id="playlist-tracks" class="flex column with-gap"></ol>
-		<span id="playlist-empty" class="definition" hidden>No tracks yet — add some to get started.</span>
-		<button id="playlist-add" type="button" class="with-padding flex center with-gap">
+		<ol id="playlist-tracks" class="flex column with-gap with-inline-padding large-padding"></ol>
+		<span id="playlist-empty" class="definition with-inline-padding large-padding" hidden>No tracks yet — add some to get started.</span>
+		<button id="playlist-add" type="button" class="with-padding large-padding flex center with-gap layer">
 			<span class="icon with-padding small-padding">Add tracks</span>
 			<span class>Add a track</span>
 		</button>
 	</dialog>
 	<!-- Configurator -->
-	<dialog id="configurator" class="layer rounded with-padding large-padding flex column with-gap">
-		<div class="flex reversed">
+	<dialog id="configurator" class="layer rounded flex column with-gap">
+		<div class="flex reversed layer with-padding large-padding">
 			<button id="close-configurator" type="button" class="flex alt-center with-gap">
 				<span class="icon with-padding small-padding">Close configurator</span>
 			</button>
 		</div>
-		<h2>Visualizer</h2>
-		<section class="option">
-			<h4 class="title">Rate</h4>
-			<span class="definition">How many times per second the visuals refresh. Higher values look smoother but increase CPU usage.</span>
-			<input id="visualizer-rate" type="number" class="value rounded depth with-padding">
-		</section>
-		<section class="option">
-			<h4 class="title">AI</h4>
-			<span class="definition">Enables the neural network. When on, the AI continuously adjusts the visualization parameters to match the music.</span>
-			<input id="auto-correct-toggle" type="checkbox" hidden>
-			<label for="auto-correct-toggle" role="checkbox" class="value depth toggle">
-				<span class="layer knob"></span>
-			</label>
-		</section>
-		<hr id="ai-separator" class="depth" hidden>
-		<h2 id="ai-heading" hidden>AI dashboard</h2>
-		<section id="ai-reward" class="option" hidden>
-			<h4 class="title">Learning steps</h4>
-			<span class="definition">How many RL update steps the AI has taken. More steps means more adapted behavior. Saved across sessions.</span>
-			<span id="ai-step-count" class="value">0</span>
-		</section>
-		<section id="ai-feedback" class="option" hidden>
-			<h4 class="title">Feedback</h4>
-			<span class="definition">Hold feedback on the AI. The longer a thumb stays active, the stronger it learns; thumb up reinforces the current behavior, thumb down pushes it back toward neutral. Press an active thumb again to release.</span>
-			<div class="value flex column with-gap">
-				<input id="feedback-good" type="checkbox" hidden>
-				<label for="feedback-good" role="checkbox" class="rounded depth with-padding flex">
-					<span class="icon in-line highlight">Thumb up</span>
+		<div class="options flex column with-gap with-inline-padding large-padding">
+			<h2>Visualizer</h2>
+			<section class="option">
+				<h4 class="title">Rate</h4>
+				<span class="definition">How many times per second the visuals refresh. Higher values look smoother but increase CPU usage.</span>
+				<input id="visualizer-rate" type="number" class="value rounded depth with-padding">
+			</section>
+			<section class="option">
+				<h4 class="title">AI</h4>
+				<span class="definition">Enables the neural network. When on, the AI continuously adjusts the visualization parameters to match the music.</span>
+				<input id="auto-correct-toggle" type="checkbox" hidden>
+				<label for="auto-correct-toggle" role="checkbox" class="value depth toggle">
+					<span class="layer knob"></span>
 				</label>
-				<input id="feedback-bad" type="checkbox" hidden>
-				<label for="feedback-bad" role="checkbox" class="rounded depth with-padding flex">
-					<span class="icon in-line alert">Thumb down</span>
+			</section>
+			<hr id="ai-separator" class="depth" hidden>
+			<h2 id="ai-heading" hidden>AI dashboard</h2>
+			<section id="ai-reward" class="option" hidden>
+				<h4 class="title">Learning steps</h4>
+				<span class="definition">How many RL update steps the AI has taken. More steps means more adapted behavior. Saved across sessions.</span>
+				<span id="ai-step-count" class="value">0</span>
+			</section>
+			<section id="ai-feedback" class="option" hidden>
+				<h4 class="title">Feedback</h4>
+				<span class="definition">Hold feedback on the AI. The longer a thumb stays active, the stronger it learns; thumb up reinforces the current behavior, thumb down pushes it back toward neutral. Press an active thumb again to release.</span>
+				<div class="value flex column with-gap">
+					<input id="feedback-good" type="checkbox" hidden>
+					<label for="feedback-good" role="checkbox" class="rounded depth with-padding flex">
+						<span class="icon in-line highlight">Thumb up</span>
+					</label>
+					<input id="feedback-bad" type="checkbox" hidden>
+					<label for="feedback-bad" role="checkbox" class="rounded depth with-padding flex">
+						<span class="icon in-line alert">Thumb down</span>
+					</label>
+				</div>
+			</section>
+			<section id="ai-learning" class="option" hidden>
+				<h4 class="title">Continuous learning</h4>
+				<span class="definition">When on, the AI keeps updating weights as music plays. Turn off to freeze the current behavior.</span>
+				<input id="learning-toggle" type="checkbox" hidden>
+				<label for="learning-toggle" role="checkbox" class="value depth toggle">
+					<span class="layer knob"></span>
 				</label>
-			</div>
-		</section>
-		<section id="ai-learning" class="option" hidden>
-			<h4 class="title">Continuous learning</h4>
-			<span class="definition">When on, the AI keeps updating weights as music plays. Turn off to freeze the current behavior.</span>
-			<input id="learning-toggle" type="checkbox" hidden>
-			<label for="learning-toggle" role="checkbox" class="value depth toggle">
-				<span class="layer knob"></span>
-			</label>
-		</section>
-		<section id="ai-reset" class="option" hidden>
-			<h4 class="title">Reset model</h4>
-			<span class="definition">Clears all learned weights and resets the AI to its default state.</span>
-			<button id="reset-model" type="button" class="value rounded depth with-padding">Reset</button>
-		</section>
-		<section id="ai-export" class="option" hidden>
-			<h4 class="title">Export weights</h4>
-			<span class="definition">Downloads the AI weights file to your device. Use this to back up your trained model.</span>
-			<button id="export-model" type="button" class="value rounded depth with-padding">Export</button>
-		</section>
-		<section id="ai-share" class="option" hidden>
-			<h4 class="title">Share weights</h4>
-			<span class="definition">Opens a GitHub issue to submit your trained model to the author. Export your weights first, then attach the file to the issue.</span>
-			<button id="share-model" type="button" class="value rounded depth with-padding">Share</button>
-		</section>
-		<hr class="depth">
-		<h2>Visualization</h2>
-		<section class="option">
-			<h4 class="title">Type</h4>
-			<span class="definition">The visual style used to represent audio. Each style has a different look and feel.</span>
-			<select id="visualizer-visualization" class="value rounded depth with-padding"></select>
-		</section>
-		<section class="option">
-			<h4 class="title">Quality</h4>
-			<span class="definition">Detail level of the audio analysis. Higher values are more accurate but heavier on the CPU. Acceptable range: 5–15.</span>
-			<input id="visualization-quality" type="number" class="value rounded depth with-padding">
-		</section>
-		<section class="option">
-			<h4 class="title">Smoothing</h4>
-			<span class="definition">How smoothly values transition between frames. 0 means no smoothing; 1 is maximum smoothness.</span>
-			<input id="visualization-smoothing" type="range" class="value depth rounded">
-		</section>
-		<section class="option">
-			<h4 class="title">Focus</h4>
-			<span class="definition">The center volume level the analysis focuses on. Adjust to emphasize specific loudness ranges.</span>
-			<input id="visualization-focus" type="range" class="value depth rounded">
-		</section>
-		<section class="option">
-			<h4 class="title">Spread</h4>
-			<span class="definition">The volume range around the focus point. Wider means more dynamic range is captured.</span>
-			<input id="visualization-spread" type="range" class="value depth rounded">
-		</section>
-		<section class="option">
-			<h4 class="title">Boost</h4>
-			<span class="definition">Pre-analysis gain applied to the audio signal. Higher values amplify quiet passages; lower values attenuate loud ones. Default: 1×.</span>
-			<input id="visualization-boost" type="range" class="value depth rounded">
-		</section>
-		<section class="option">
-			<h4 class="title">Tilt</h4>
-			<span class="definition">Tilts the tonal balance of the analysis. Positive values emphasize highs and cut lows (bright); negative values do the opposite (warm). Default: 0.</span>
-			<input id="visualization-tilt" type="range" class="value depth rounded">
-		</section>
-		<section class="option">
-			<h4 class="title">Punch</h4>
-			<span class="definition">Applies dynamic compression to the analysis signal before analysis. 0 means no compression (transparent); 1 is maximum punch. Default: 0.</span>
-			<input id="visualization-punch" type="range" class="value depth rounded">
-		</section>
+			</section>
+			<section id="ai-reset" class="option" hidden>
+				<h4 class="title">Reset model</h4>
+				<span class="definition">Clears all learned weights and resets the AI to its default state.</span>
+				<button id="reset-model" type="button" class="value rounded depth with-padding">Reset</button>
+			</section>
+			<section id="ai-export" class="option" hidden>
+				<h4 class="title">Export weights</h4>
+				<span class="definition">Downloads the AI weights file to your device. Use this to back up your trained model.</span>
+				<button id="export-model" type="button" class="value rounded depth with-padding">Export</button>
+			</section>
+			<section id="ai-share" class="option" hidden>
+				<h4 class="title">Share weights</h4>
+				<span class="definition">Opens a GitHub issue to submit your trained model to the author. Export your weights first, then attach the file to the issue.</span>
+				<button id="share-model" type="button" class="value rounded depth with-padding">Share</button>
+			</section>
+			<hr class="depth">
+			<h2>Visualization</h2>
+			<section class="option">
+				<h4 class="title">Type</h4>
+				<span class="definition">The visual style used to represent audio. Each style has a different look and feel.</span>
+				<select id="visualizer-visualization" class="value rounded depth with-padding"></select>
+			</section>
+			<section class="option">
+				<h4 class="title">Quality</h4>
+				<span class="definition">Detail level of the audio analysis. Higher values are more accurate but heavier on the CPU. Acceptable range: 5–15.</span>
+				<input id="visualization-quality" type="number" class="value rounded depth with-padding">
+			</section>
+			<section class="option">
+				<h4 class="title">Smoothing</h4>
+				<span class="definition">How smoothly values transition between frames. 0 means no smoothing; 1 is maximum smoothness.</span>
+				<input id="visualization-smoothing" type="range" class="value depth rounded">
+			</section>
+			<section class="option">
+				<h4 class="title">Focus</h4>
+				<span class="definition">The center volume level the analysis focuses on. Adjust to emphasize specific loudness ranges.</span>
+				<input id="visualization-focus" type="range" class="value depth rounded">
+			</section>
+			<section class="option">
+				<h4 class="title">Spread</h4>
+				<span class="definition">The volume range around the focus point. Wider means more dynamic range is captured.</span>
+				<input id="visualization-spread" type="range" class="value depth rounded">
+			</section>
+			<section class="option">
+				<h4 class="title">Boost</h4>
+				<span class="definition">Pre-analysis gain applied to the audio signal. Higher values amplify quiet passages; lower values attenuate loud ones. Default: 1×.</span>
+				<input id="visualization-boost" type="range" class="value depth rounded">
+			</section>
+			<section class="option">
+				<h4 class="title">Tilt</h4>
+				<span class="definition">Tilts the tonal balance of the analysis. Positive values emphasize highs and cut lows (bright); negative values do the opposite (warm). Default: 0.</span>
+				<input id="visualization-tilt" type="range" class="value depth rounded">
+			</section>
+			<section class="option">
+				<h4 class="title">Punch</h4>
+				<span class="definition">Applies dynamic compression to the analysis signal before analysis. 0 means no compression (transparent); 1 is maximum punch. Default: 0.</span>
+				<input id="visualization-punch" type="range" class="value depth rounded">
+			</section>
+		</div>
 	</dialog>
 </body>
 

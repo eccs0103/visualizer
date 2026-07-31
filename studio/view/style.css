@@ -23,6 +23,7 @@ div#interface {
 		/ auto 1fr
 	;
 	overflow: hidden;
+	cursor: pointer;
 }
 
 /* div#interface:has(button#clip-toggle[data-recording]) {
@@ -116,38 +117,6 @@ input#playback-track {
 	}
 }
 
-dialog#configurator {
-	position: absolute;
-	min-width: calc(10 * var(--size-standart));
-	max-width: calc(20 * var(--size-standart));
-	width: fit-content;
-	max-height: 100%;
-	overflow: hidden auto;
-}
-
-@media screen and (orientation: portrait) {
-	dialog#configurator {
-		inset: auto 0 0 0;
-		border-bottom-left-radius: 0;
-		border-bottom-right-radius: 0;
-	}
-}
-
-@media screen and (orientation: landscape) {
-	dialog#configurator {
-		inset: 0 0 0 auto;
-		height: 100%;
-		border-top-right-radius: 0;
-		border-bottom-right-radius: 0;
-	}
-}
-
-div:has(button#close-configurator),
-div:has(button#close-playlist) {
-	position: sticky;
-	top: 0;
-}
-
 button#close-configurator > span.icon,
 button#close-playlist > span.icon {
 	--url: url(../../assets/icons/xmark.svg);
@@ -157,34 +126,65 @@ li > button.remove > span.icon {
 	--url: url(../../assets/icons/trash.svg);
 }
 
-dialog#playlist {
+dialog#playlist,
+dialog#configurator {
 	position: absolute;
-	min-width: calc(10 * var(--size-standart));
-	max-width: calc(20 * var(--size-standart));
-	width: fit-content;
+	min-width: 0;
+	width: clamp(calc(10 * var(--size-standart)), 40vw, calc(20 * var(--size-standart)));
+	max-width: 100%;
 	max-height: 100%;
 	overflow: hidden auto;
+}
+
+dialog#playlist > div:first-child,
+dialog#configurator > div:first-child {
+	position: sticky;
+	top: 0;
+	z-index: 2;
 }
 
 dialog#playlist > div:first-child {
 	justify-content: space-between;
 }
 
+button#playlist-add {
+	position: sticky;
+	bottom: 0;
+	z-index: 2;
+}
+
+dialog#configurator > div:last-child {
+	padding-bottom: var(--size-large-gap);
+}
+
 @media screen and (orientation: portrait) {
-	dialog#playlist {
+
+	dialog#playlist,
+	dialog#configurator {
 		inset: auto 0 0 0;
-		width: auto;
+		width: 100%;
 		border-bottom-left-radius: 0;
 		border-bottom-right-radius: 0;
 	}
 }
 
 @media screen and (orientation: landscape) {
+
+	dialog#playlist,
+	dialog#configurator {
+		height: 100%;
+	}
+
 	dialog#playlist {
 		inset: 0 auto 0 0;
-		height: 100%;
 		border-top-left-radius: 0;
 		border-bottom-left-radius: 0;
+	}
+
+	dialog#configurator {
+		inset: 0 0 0 auto;
+		border-top-right-radius: 0;
+		border-bottom-right-radius: 0;
 	}
 }
 
@@ -210,12 +210,10 @@ button#playlist-mode[data-mode="shuffle"] > span.icon {
 
 ol#playlist-tracks {
 	list-style: none;
-	flex-shrink: 0;
 }
 
 ol#playlist-tracks > li {
 	touch-action: pan-y;
-	cursor: pointer;
 }
 
 ol#playlist-tracks > li[data-active] {
@@ -227,13 +225,22 @@ ol#playlist-tracks > li[data-dragging] {
 	opacity: 0.5;
 }
 
-ol#playlist-tracks > li > span.icon {
+ol#playlist-tracks > li > span.handle {
 	cursor: grab;
 	touch-action: none;
+}
+
+ol#playlist-tracks > li > span.handle > span.icon {
 	--url: url(../../assets/icons/grip-vertical.svg);
 }
 
-ol#playlist-tracks > li > span.title {
+ol#playlist-tracks > li > span.content {
+	flex: 1;
+	min-width: 0;
+	cursor: pointer;
+}
+
+ol#playlist-tracks > li span.title {
 	flex: 1;
 	overflow: hidden;
 	white-space: nowrap;

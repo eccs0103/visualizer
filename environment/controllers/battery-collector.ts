@@ -36,7 +36,7 @@ export class BatteryCollector extends Controller {
 	}
 
 	async catch(error: Error): Promise<void> {
-		console.error(`Battery API failed:\n${error}`);
+		void error; // console.error(`Battery API failed:\n${error}`);
 	}
 }
 //#endregion
