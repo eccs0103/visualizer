@@ -106,6 +106,7 @@ export class PlaylistPlayer extends EventTarget {
 		this.dispatchEvent(new Event("change"));
 		await this.#load(track);
 		if (resume && track !== null) await this.#play();
+		else this.#audioPlayer.pause();
 		void this.#cell.save(500);
 	}
 

@@ -60,7 +60,7 @@ export class Playlist extends Model {
 	index: number = -1;
 
 	@Field(Enum.Of(PlaybackMode), { name: "mode" })
-	mode: PlaybackMode = PlaybackMode.one;
+	mode: PlaybackMode = PlaybackMode.once;
 
 	#queue: string[] = [];
 	#seeded: boolean = false;

@@ -1,9 +1,18 @@
-## Unreleased
-- Replaced single-track upload with a full playlist system: add multiple tracks via the file picker or by dropping files onto the page, reorder them by dragging, and remove them individually.
-- Added playback modes — off (play through once), loop one, loop all, and shuffle — cycled from a button in the new playlist dialog.
-- Added previous/next track controls next to the play indicator, plus <kbd>←</kbd>/<kbd>→</kbd> keyboard shortcuts.
+## 3.3.0 (01.08.2026)
+- Replaced single-track upload with a full playlist: add multiple tracks via the file picker or by dropping files onto the page, reorder them by dragging, and remove them individually.
+- Added playback modes — repeat one, play through once (default), loop all, and shuffle — cycled from a button in the new playlist panel.
+- Added previous/next track controls next to the play indicator, plus <kbd>Shift</kbd> + <kbd>←</kbd>/<kbd>→</kbd> shortcuts.
+- Added <kbd>←</kbd>/<kbd>→</kbd> to seek 5 seconds back or forward.
 - The current track title is now shown in the interface.
+- A track saved in an earlier version is carried over into the playlist automatically on first launch.
+- Audio data left behind by removed tracks is now cleaned up on startup.
+- The panel you last had open — playlist or configurator — is reopened on the next session.
+- Visualization settings now heal themselves when a visualization is added or removed, instead of failing to start.
+- <kbd>Space</kbd> and the arrow keys are now ignored while you are typing in a field, and the arrows are ignored while a panel is open.
+- Redesigned the icon set; the playlist and configurator panels now keep their header fixed while the contents scroll.
 - Fixed the play/pause indicator and screen wake lock not resetting when a track finished playing.
+- **Breaking:** <kbd>Tab</kbd> now opens the playlist and <kbd>Shift</kbd> + <kbd>Tab</kbd> opens the configurator. Use <kbd>Shift</kbd> + <kbd>Tab</kbd> where you previously pressed <kbd>Tab</kbd>.
+- **Breaking:** Visualizations are now cycled with <kbd>↑</kbd>/<kbd>↓</kbd> instead of <kbd>Shift</kbd> + <kbd>Tab</kbd>.
 
 ## 3.2.0 (15.07.2026)
 - Added a screen wake lock — the display now stays awake while audio is playing or a clip is recording.
