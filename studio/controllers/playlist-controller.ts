@@ -102,6 +102,7 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 		const handle = row.appendChild(document.createElement("span"));
 		handle.className = "icon with-padding";
 		handle.innerText = "Drag to reorder";
+		handle.addEventListener("click", event => event.stopPropagation());
 
 		const title = row.appendChild(document.createElement("span"));
 		title.className = "title fittable";

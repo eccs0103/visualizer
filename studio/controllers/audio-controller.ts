@@ -12,6 +12,7 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 	#player: PlaylistPlayer;
 	#buttonPlaybackPrevious: HTMLButtonElement;
 	#buttonPlaybackNext: HTMLButtonElement;
+	#spanPlaybackToggle: HTMLElement;
 	#bPlaybackTitle: HTMLElement;
 	#bPlaybackTime: HTMLElement;
 	#inputPlaybackTrack: HTMLInputElement;
@@ -104,6 +105,7 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		const isEmpty = this.#player.isEmpty;
 		this.#buttonPlaybackPrevious.disabled = isEmpty;
 		this.#buttonPlaybackNext.disabled = isEmpty;
+		this.#spanPlaybackToggle.ariaDisabled = String(isEmpty);
 	}
 
 	async run(guard: WakeGuard, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, divInterface: HTMLDivElement, buttonPlaybackPrevious: HTMLButtonElement, buttonPlaybackNext: HTMLButtonElement, bPlaybackTitle: HTMLElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
@@ -111,6 +113,7 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		this.#player = player;
 		this.#buttonPlaybackPrevious = buttonPlaybackPrevious;
 		this.#buttonPlaybackNext = buttonPlaybackNext;
+		this.#spanPlaybackToggle = divInterface.getElement(HTMLElement, "#playback-control > span.icon");
 		this.#bPlaybackTitle = bPlaybackTitle;
 		this.#bPlaybackTime = bPlaybackTime;
 		this.#inputPlaybackTrack = inputPlaybackTrack;
@@ -198,6 +201,7 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 
 		window.addEventListener("keydown", async (event) => {
 			if (event.code !== "ArrowLeft" && event.code !== "ArrowRight") return;
+			if (event.repeat) return;
 			const { activeElement } = document;
 			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;
 			if (document.querySelector("dialog[open]") !== null) return;

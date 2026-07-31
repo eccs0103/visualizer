@@ -172,6 +172,7 @@ dialog#playlist > div:first-child {
 @media screen and (orientation: portrait) {
 	dialog#playlist {
 		inset: auto 0 0 0;
+		width: auto;
 		border-bottom-left-radius: 0;
 		border-bottom-right-radius: 0;
 	}
@@ -208,13 +209,16 @@ button#playlist-mode[data-mode="shuffle"] > span.icon {
 
 ol#playlist-tracks {
 	list-style: none;
+	flex-shrink: 0;
 }
 
 ol#playlist-tracks > li {
 	touch-action: pan-y;
+	cursor: pointer;
 }
 
 ol#playlist-tracks > li[data-active] {
+	/* background-color: var(--color-highlight); */
 	outline: var(--size-separator) solid var(--color-highlight);
 }
 
