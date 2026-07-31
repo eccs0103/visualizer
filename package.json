@@ -9,16 +9,16 @@
 		"node": ">=22"
 	},
 	"scripts": {
+		"typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.worker.json",
 		"dev": "vite",
 		"build": "vite build",
 		"preview": "npm run build && vite preview",
-		"deploy": "vite build && wrangler deploy",
-		"typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.worker.json"
+		"deploy": "vite build && wrangler deploy"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.45.0",
 		"@types/node": "^24.10.1",
-		"typescript": "^6.0.3",
+		"typescript": "^7.0.2",
 		"vite": "^7.1.2",
 		"wrangler": "^4.111.0"
 	},
