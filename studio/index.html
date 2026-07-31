@@ -24,38 +24,63 @@
 </head>
 
 <body>
-	<audio id="player" autoplay hidden></audio>
-	<input id="audio-loader" type="file" hidden>
+	<audio id="player" hidden></audio>
+	<input id="audio-loader" type="file" accept="audio/*" multiple hidden>
 	<canvas id="display"></canvas>
 	<!-- Interface -->
 	<div id="interface">
 		<div id="audio-control" class="with-padding large-padding flex">
-			<button id="audio-drive" type="button" class="flex alt-center with-gap">
-				<span class="icon">Audio drive</span>
+			<button id="open-playlist" type="button" class="flex alt-center with-gap">
+				<span class="icon with-padding small-padding">Open playlist</span>
 			</button>
 		</div>
 		<div id="audio-auxiliary" class="with-padding large-padding flex reversed">
 			<button id="open-configurator" type="button" class="flex alt-center with-gap">
-				<span class="icon">Open configurator</span>
+				<span class="icon with-padding small-padding">Open configurator</span>
 			</button>
 		</div>
-		<div id="playback-control" class="with-inline-padding large-padding flex column reversed with-gap">
-			<span class="icon">Toggle playback</span>
-			<button id="clip-toggle" type="button" class="flex alt-center with-gap	">
-				<span class="icon">Toggle recording</span>
+		<div id="transport-bar" class="with-inline-padding large-padding flex column reversed with-gap">
+			<div id="playback-control" class="flex alt-center with-gap">
+				<button id="playback-previous" type="button" class="flex alt-center with-gap">
+					<span class="icon with-padding">Previous track</span>
+				</button>
+				<span class="icon with-padding small-padding">Toggle playback</span>
+				<button id="playback-next" type="button" class="flex alt-center with-gap">
+					<span class="icon with-padding">Next track</span>
+				</button>
+			</div>
+			<button id="clip-toggle" type="button" class="flex alt-center with-gap">
+				<span class="icon with-padding small-padding">Toggle recording</span>
 				<b id="clip-time" hidden>00:00</b>
 			</button>
 		</div>
-		<div id="playback-auxiliary" class="with-inline-padding large-padding flex reversed">
+		<div id="playback-auxiliary" class="with-inline-padding large-padding flex column reversed">
 			<b id="playback-time">00:00</b>
+			<b id="playback-title"></b>
 		</div>
 		<input id="playback-track" type="range" min="0" max="100" step="0.1" value="0" title="Playback time track">
 	</div>
+	<!-- Playlist -->
+	<dialog id="playlist" class="layer rounded with-padding large-padding flex column with-gap">
+		<div class="flex alt-center with-gap">
+			<button id="close-playlist" type="button" class="flex alt-center with-gap">
+				<span class="icon with-padding small-padding">Close playlist</span>
+			</button>
+			<button id="playlist-mode" type="button" class="flex alt-center with-gap" data-mode="off">
+				<span class="icon with-padding small-padding">Playback mode</span>
+			</button>
+			<button id="playlist-add" type="button" class="flex alt-center with-gap">
+				<span class="icon with-padding small-padding">Add tracks</span>
+			</button>
+		</div>
+		<ol id="playlist-tracks" class="flex column with-gap"></ol>
+		<span id="playlist-empty" class="definition" hidden>No tracks yet — add some to get started.</span>
+	</dialog>
 	<!-- Configurator -->
 	<dialog id="configurator" class="layer rounded with-padding large-padding flex column with-gap">
 		<div class="flex reversed">
 			<button id="close-configurator" type="button" class="flex alt-center with-gap">
-				<span class="icon">Close configurator</span>
+				<span class="icon with-padding small-padding">Close configurator</span>
 			</button>
 		</div>
 		<h2>Visualizer</h2>
@@ -89,7 +114,7 @@
 				</label>
 				<input id="feedback-bad" type="checkbox" hidden>
 				<label for="feedback-bad" role="checkbox" class="rounded depth with-padding flex">
-					<span class="icon in-line invalid">Thumb down</span>
+					<span class="icon in-line alert">Thumb down</span>
 				</label>
 			</div>
 		</section>

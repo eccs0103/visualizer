@@ -126,6 +126,10 @@ span.icon {
 	mask-repeat: no-repeat;
 	-webkit-mask-size: contain;
 	mask-size: contain;
+	-webkit-mask-origin: content-box;
+	mask-origin: content-box;
+	-webkit-mask-clip: content-box;
+	mask-clip: content-box;
 	-webkit-mask-position: center;
 	mask-position: center;
 	transition: background-color var(--time-duration);
@@ -256,11 +260,11 @@ mark,
 	background-color: var(--color-warn);
 }
 
-.invalid {
+.alert {
 	color: var(--color-error);
 }
 
-.invalid-background {
+.alert-background {
 	background-color: var(--color-error);
 }
 
