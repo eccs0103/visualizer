@@ -1,34 +1,6 @@
 {
-	"compilerOptions": {
-		/* Language & Environment */
-		"target": "ES2022",
-		"module": "ESNext",
-		"useDefineForClassFields": true,
-
-		/* Module Resolution / Bundler */
-		"moduleResolution": "bundler",
-		"moduleDetection": "force",
-		"verbatimModuleSyntax": true,
-
-		/* Interop & Compatibility */
-		"esModuleInterop": true,
-		"allowJs": true,
-		"skipLibCheck": false,
-
-		/* Emit & Declarations */
-		"declaration": true,
-		"sourceMap": true,
-
-		/* Type Checking & Linting */
-		"strict": true,
-		"strictPropertyInitialization": false,
-		"noUnusedLocals": false,
-		"noUnusedParameters": false,
-
-		/* Miscellaneous */
-		"forceConsistentCasingInFileNames": true,
-	},
-	"files": [],
+	"extends": "./tsconfig.base.json",
+	"files": [ ],
 	"references": [
 		{ "path": "./tsconfig.worker.json" },
 		{ "path": "./tsconfig.web.json" },

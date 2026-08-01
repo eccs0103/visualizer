@@ -1,18 +1,26 @@
 {
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"lib": [ "WebWorker", "ESNext" ]
+		"lib": [ "WebWorker", "ES2025", "ESNext.Array" ]
 	},
 	"include": [
 		"environment/controllers/coi-worker.ts",
 		"studio/models/audio-analyzer-commands.ts",
 		"studio/models/audio-features.ts",
+		"studio/models/clip-commands.ts",
 		"studio/models/nn-agent.ts",
 		"studio/models/render-commands.ts",
+		"studio/models/visualization.ts",
+		"studio/services/clip-accumulator-worker.ts",
 		"studio/services/frame-processor.ts",
+		"studio/services/policy-updater.ts",
 		"studio/services/render-bridge.ts",
 		"studio/services/visualization-registry.ts",
+		"studio/services/visualization-tools.ts",
+		"studio/services/worker-visualization.ts",
 		"studio/view/visualizations.ts",
+		"studio/view/visualizations/pulsar.ts",
+		"studio/view/visualizations/spectrogram.ts",
 		"studio/controllers/audio-analyzer-worker.ts",
 		"studio/controllers/visualization-worker.ts"
 	]

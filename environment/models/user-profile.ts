@@ -61,7 +61,7 @@ export class UserProfile extends Model {
 	@Field(String, { name: "primary_language" })
 	primaryLanguage: string;
 
-	/** navigator.doNotTrack value: "enabled", "disabled", or "unspecified". */
+	/** navigator.doNotTrack resolved to a readable string. "enabled" when DNT is on, "disabled" when explicitly off, "unspecified" when the browser does not expose a value or the user has not set a preference. */
 	@Field(String, { name: "do_not_track" })
 	doNotTrack: string;
 

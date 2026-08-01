@@ -1,7 +1,7 @@
 {
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"lib": [ "DOM", "DOM.Iterable", "ESNext" ]
+		"lib": [ "DOM", "DOM.Iterable", "ES2025", "ESNext.Array" ]
 	},
 	"include": [
 		"environment/models/**/*.ts",
@@ -13,7 +13,9 @@
 		"environment/controllers/coi-worker.ts",
 		"studio/controllers/audio-analyzer-worker.ts",
 		"studio/controllers/visualization-worker.ts",
-		"studio/services/auto-teacher.ts",
-		"studio/services/frame-processor.ts"
+		"studio/services/clip-accumulator-worker.ts",
+		"studio/services/frame-processor.ts",
+		"studio/services/policy-updater.ts",
+		"studio/services/worker-visualization.ts"
 	]
 }

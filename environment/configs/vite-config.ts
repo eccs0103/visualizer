@@ -14,13 +14,15 @@ export class ViteConfig {
 	#pathEntries: readonly URL[];
 	#output: URL;
 	#plugins: readonly VitePlugin[];
+	#headers: Readonly<OutgoingHttpHeaders>;
 
-	constructor(inputs: readonly URL[], rootEntries: readonly URL[], pathEntries: readonly URL[], output: URL, plugins: readonly VitePlugin[]) {
+	constructor(inputs: readonly URL[], rootEntries: readonly URL[], pathEntries: readonly URL[], output: URL, plugins: readonly VitePlugin[], headers: Readonly<OutgoingHttpHeaders>) {
 		this.#inputs = inputs;
 		this.#rootEntries = rootEntries;
 		this.#pathEntries = pathEntries;
 		this.#output = output;
 		this.#plugins = plugins;
+		this.#headers = headers;
 	}
 
 	#normalizeInputs(): Record<string, string> {
@@ -84,27 +86,20 @@ export class ViteConfig {
 	#buildEnvironment(): BuildEnvironmentOptions {
 		const outDir: string = fileURLToPath(this.#output);
 		const emptyOutDir: boolean = true;
-		const target: string = "ES2022";
+		const target: string = "ES2025";
 		const rollupOptions: RollupOptions = this.#buildRollupOptions();
 		return { outDir, emptyOutDir, target, rollupOptions };
-	}
-
-	#buildOutgoingHeaders(): OutgoingHttpHeaders {
-		return {
-			["Cross-Origin-Opener-Policy"]: "same-origin",
-			["Cross-Origin-Embedder-Policy"]: "require-corp",
-		};
 	}
 
 	#buildServer(): ServerOptions {
 		const open: boolean = true;
 		const strictPort: boolean = true;
-		const headers: OutgoingHttpHeaders = this.#buildOutgoingHeaders();
+		const headers: Readonly<OutgoingHttpHeaders> = this.#headers;
 		return { open, strictPort, headers };
 	}
 
 	#buildESBuild(): ESBuildOptions {
-		const target: string = "ES2022";
+		const target: string = "ES2025";
 		const keepNames: boolean = true;
 		return { target, keepNames };
 	}
@@ -115,7 +110,7 @@ export class ViteConfig {
 	}
 
 	#buildPreview(): PreviewOptions {
-		const headers: OutgoingHttpHeaders = this.#buildOutgoingHeaders();
+		const headers: Readonly<OutgoingHttpHeaders> = this.#headers;
 		return { headers };
 	}
 
