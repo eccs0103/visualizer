@@ -62,24 +62,26 @@
 	</div>
 	<!-- Playlist -->
 	<dialog id="playlist" class="layer rounded flex column with-gap">
-		<div class="flex alt-center with-gap layer with-padding large-padding">
+		<div class="layer with-padding large-padding flex alt-center with-gap">
 			<button id="close-playlist" type="button" class="flex alt-center with-gap">
 				<span class="icon with-padding small-padding">Close playlist</span>
 			</button>
-			<button id="playlist-mode" type="button" class="flex alt-center with-gap" data-mode="off">
+			<button id="playlist-mode" type="button" class="flex alt-center with-gap" data-mode="once">
 				<span class="icon with-padding small-padding">Playback mode</span>
 			</button>
 		</div>
 		<ol id="playlist-tracks" class="flex column with-gap with-inline-padding large-padding"></ol>
-		<span id="playlist-empty" class="definition with-inline-padding large-padding" hidden>No tracks yet — add some to get started.</span>
-		<button id="playlist-add" type="button" class="with-padding large-padding flex center with-gap layer">
-			<span class="icon with-padding small-padding">Add tracks</span>
-			<span class>Add a track</span>
-		</button>
+		<span id="playlist-empty" class="description with-inline-padding large-padding" hidden>No tracks yet — add some to get started.</span>
+		<div class="layer flex column">
+			<button id="playlist-add" type="button" class="with-padding large-padding flex center with-gap">
+				<span class="icon with-padding small-padding">Add tracks</span>
+				<span class>Add a track</span>
+			</button>
+		</div>
 	</dialog>
 	<!-- Configurator -->
 	<dialog id="configurator" class="layer rounded flex column with-gap">
-		<div class="flex reversed layer with-padding large-padding">
+		<div class="layer with-padding large-padding flex reversed">
 			<button id="close-configurator" type="button" class="flex alt-center with-gap">
 				<span class="icon with-padding small-padding">Close configurator</span>
 			</button>

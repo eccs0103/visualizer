@@ -91,7 +91,7 @@ export class PanelController extends Controller<[BufferedCell<typeof Settings>, 
 			if (event.code !== "Tab") return;
 			if (event.repeat) return;
 			event.preventDefault();
-			await this.#toggle(event.shiftKey ? Panel.configurator : Panel.playlist);
+			await this.#toggle(event.shiftKey ? Panel.playlist : Panel.configurator);
 		});
 
 		await this.#activate(cell.content.panel);

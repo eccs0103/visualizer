@@ -147,7 +147,7 @@ dialog#playlist > div:first-child {
 	justify-content: space-between;
 }
 
-button#playlist-add {
+dialog#playlist > div:last-child {
 	position: sticky;
 	bottom: 0;
 	z-index: 2;
@@ -210,6 +210,10 @@ button#playlist-mode[data-mode="shuffle"] > span.icon {
 
 ol#playlist-tracks {
 	list-style: none;
+
+	&:not(:has(> li)) {
+		display: none;
+	}
 }
 
 ol#playlist-tracks > li {
