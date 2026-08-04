@@ -5,6 +5,7 @@ import { Controller, Timespan } from "adaptive-extender/web";
 import { Visualizer } from "../services/visualizer.js";
 import { ClipRecorder } from "../services/clip-recorder.js";
 import { WakeGuard } from "../services/wake-guard.js";
+import { TextExpert } from "../services/text-expert.js";
 
 //#region Clip controller
 export class ClipController extends Controller<[WakeGuard, Visualizer, HTMLCanvasElement, HTMLAudioElement, HTMLButtonElement, HTMLElement]> {
@@ -13,12 +14,6 @@ export class ClipController extends Controller<[WakeGuard, Visualizer, HTMLCanva
 	#buttonClipToggle: HTMLButtonElement;
 	#itemClipTime: HTMLElement;
 
-	static #toPlaytimeString(time: Timespan): string {
-		const minute = time.days * 24 + time.hours * 60 + time.minutes;
-		const second = time.seconds;
-		return `${minute.toString().padStart(2, "0")}:${second.toString().padStart(2, "0")}`;
-	}
-
 	#markRecording(value: boolean): void {
 		const { dataset } = this.#buttonClipToggle;
 		const itemClipTime = this.#itemClipTime;
@@ -26,7 +21,7 @@ export class ClipController extends Controller<[WakeGuard, Visualizer, HTMLCanva
 		if (value) dataset["recording"] = String.empty;
 		else delete dataset["recording"];
 		itemClipTime.hidden = !value;
-		if (!value) itemClipTime.innerText = ClipController.#toPlaytimeString(ClipController.#zero);
+		if (!value) itemClipTime.innerText = TextExpert.formatDuration(ClipController.#zero);
 	}
 
 	async #setRecording(value: boolean): Promise<void> {
@@ -59,7 +54,7 @@ export class ClipController extends Controller<[WakeGuard, Visualizer, HTMLCanva
 		recorder.addEventListener("start", event => guard.activate("recording"));
 		recorder.addEventListener("stop", event => guard.deactivate("recording"));
 		recorder.addEventListener("tick", (event) => {
-			itemClipTime.innerText = ClipController.#toPlaytimeString(event.detail);
+			itemClipTime.innerText = TextExpert.formatDuration(event.detail);
 		});
 		visualizer.addEventListener("update", event => recorder.tick());
 		buttonClipToggle.addEventListener("click", async (event) => {

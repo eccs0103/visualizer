@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field, Enum, Random, Timespan } from "adaptive-extender/core";
+import { Model, Field, Enum, Random } from "adaptive-extender/core";
 
 //#region Track
 export class Track extends Model {
@@ -28,21 +28,10 @@ export class Track extends Model {
 		this.duration = duration;
 	}
 
-	static toTimeString(seconds: number): string {
-		const time = Timespan.fromComponents(0, 0, seconds);
-		const minute = time.days * 24 + time.hours * 60 + time.minutes;
-		const second = time.seconds;
-		return `${minute.toString().padStart(2, "0")}:${second.toString().padStart(2, "0")}`;
-	}
-
 	static probeSignature(name: string): string {
 		const index = name.lastIndexOf(".");
 		if (index < 1) return name;
 		return name.slice(0, index);
-	}
-
-	toDurationString(): string {
-		return Track.toTimeString(this.duration);
 	}
 
 	matches(id: string): boolean {
