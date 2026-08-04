@@ -93,12 +93,12 @@ export class Playlist extends Model {
 		this.#queue = ids;
 	}
 
-	#reindexAfterRemoval(position: number): void {
+	#fixIndexAfterRemoval(position: number): void {
 		if (position < this.index) this.index--;
 		else if (position === this.index) this.index = Math.min(this.index, this.tracks.length - 1);
 	}
 
-	#reindexAfterMove(from: number, to: number): void {
+	#fixIndexAfterMove(from: number, to: number): void {
 		if (this.index === from) this.index = to;
 		else if (from < this.index && to >= this.index) this.index--;
 		else if (from > this.index && to <= this.index) this.index++;
@@ -115,7 +115,7 @@ export class Playlist extends Model {
 		const position = this.tracks.findIndex(track => track.matches(id));
 		if (position < 0) return false;
 		this.tracks.splice(position, 1);
-		this.#reindexAfterRemoval(position);
+		this.#fixIndexAfterRemoval(position);
 		if (this.#queue !== null) this.#queue.remove(id);
 		return true;
 	}
@@ -125,7 +125,7 @@ export class Playlist extends Model {
 		if (from < 0 || from >= tracks.length || to < 0 || to >= tracks.length || from === to) return false;
 		const [track] = tracks.splice(from, 1);
 		tracks.splice(to, 0, track);
-		this.#reindexAfterMove(from, to);
+		this.#fixIndexAfterMove(from, to);
 		return true;
 	}
 
@@ -136,7 +136,7 @@ export class Playlist extends Model {
 		return this.current;
 	}
 
-	cycleMode(): PlaybackMode {
+	nextMode(): PlaybackMode {
 		const order = Playlist.#order;
 		const position = order.indexOf(this.mode);
 		this.mode = order[(position + 1) % order.length];

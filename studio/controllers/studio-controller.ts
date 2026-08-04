@@ -46,7 +46,6 @@ class StudioController extends Controller {
 		}
 
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
-		const inputAudioLoader = body.getElement(HTMLInputElement, "input#audio-loader");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper });
 		const guard = new WakeGuard();
@@ -83,7 +82,7 @@ class StudioController extends Controller {
 		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
 		await AIController.launch(cell, visualizer, dialogConfigurator);
 		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
-		await PlaylistController.launch(player, dialogPlaylist, inputAudioLoader);
+		await PlaylistController.launch(player, dialogPlaylist);
 
 		await player.restore();
 	}

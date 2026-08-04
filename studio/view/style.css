@@ -136,24 +136,24 @@ dialog#configurator {
 	overflow: hidden auto;
 }
 
-dialog#playlist > div:first-child,
-dialog#configurator > div:first-child {
+dialog#playlist > div:first-of-type,
+dialog#configurator > div:first-of-type {
 	position: sticky;
 	top: 0;
 	z-index: 2;
 }
 
-dialog#playlist > div:first-child {
+dialog#playlist > div:first-of-type {
 	justify-content: space-between;
 }
 
-dialog#playlist > div:last-child {
+dialog#playlist > div:last-of-type {
 	position: sticky;
 	bottom: 0;
 	z-index: 2;
 }
 
-dialog#configurator > div:last-child {
+dialog#configurator > div:last-of-type {
 	padding-bottom: var(--size-large-gap);
 }
 

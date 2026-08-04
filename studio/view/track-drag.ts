@@ -32,7 +32,7 @@ export class TrackDrag {
 		sibling.style.setProperty("--drag-offset", `${offset}px`);
 	}
 
-	#shiftTo(next: number): void {
+	#shiftSiblings(next: number): void {
 		const rows = this.#rows;
 		const from = this.#from;
 		for (const sibling of rows) {
@@ -59,7 +59,7 @@ export class TrackDrag {
 		const delta = clientY - this.#startY;
 		this.#row.style.setProperty("--drag-offset", `${delta}px`);
 		const next = Math.round(this.#from + delta / this.#height).clamp(0, this.#rows.length - 1);
-		if (next !== this.#target) this.#shiftTo(next);
+		if (next !== this.#target) this.#shiftSiblings(next);
 	}
 
 	commit(): Reorder {

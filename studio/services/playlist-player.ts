@@ -112,7 +112,7 @@ export class PlaylistPlayer extends EventTarget {
 		void this.#persist();
 	}
 
-	async #migrateLegacy(playlist: Playlist): Promise<void> {
+	async #adoptLegacy(playlist: Playlist): Promise<void> {
 		if (!playlist.isEmpty) return;
 		const legacy = await this.#store.get(0);
 		if (!(legacy instanceof File)) return;
@@ -130,7 +130,7 @@ export class PlaylistPlayer extends EventTarget {
 		const playlist = this.#playlist;
 		const store = this.#store;
 
-		await this.#migrateLegacy(playlist);
+		await this.#adoptLegacy(playlist);
 
 		const ids = new Set(playlist.tracks.map(track => track.id));
 		for (const key of await store.keys()) {
@@ -208,8 +208,8 @@ export class PlaylistPlayer extends EventTarget {
 		await this.#commit(track, wasPlaying);
 	}
 
-	cycleMode(): PlaybackMode {
-		const mode = this.#playlist.cycleMode();
+	nextMode(): PlaybackMode {
+		const mode = this.#playlist.nextMode();
 		this.#notify();
 		return mode;
 	}

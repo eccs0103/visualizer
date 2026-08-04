@@ -30,8 +30,7 @@ export class FileDrop extends EventTarget {
 	#onDragOver(event: DragEvent): void {
 		const { dataTransfer } = event;
 		if (dataTransfer === null) return;
-		const { files } = dataTransfer;
-		if (files.length < 1) return;
+		if (!dataTransfer.types.includes("Files")) return;
 		event.preventDefault();
 	}
 

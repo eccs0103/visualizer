@@ -25,7 +25,6 @@
 
 <body>
 	<audio id="player" autoplay hidden></audio>
-	<input id="audio-loader" type="file" accept="audio/*" multiple hidden>
 	<canvas id="display"></canvas>
 	<!-- Interface -->
 	<div id="interface">
@@ -62,6 +61,7 @@
 	</div>
 	<!-- Playlist -->
 	<dialog id="playlist" class="layer rounded flex column with-gap">
+		<input id="audio-loader" type="file" accept="audio/*" multiple hidden>
 		<div class="layer with-padding large-padding flex alt-center with-gap">
 			<button id="close-playlist" type="button" class="flex alt-center with-gap">
 				<span class="icon with-padding small-padding">Close playlist</span>
