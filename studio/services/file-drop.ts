@@ -10,7 +10,9 @@ export interface FileDropEventMap {
 export class FileDrop extends EventTarget {
 	constructor(target: HTMLElement) {
 		super();
-		this.#wire(target);
+
+		target.addEventListener("dragover", this.#onDragOver.bind(this));
+		target.addEventListener("drop", this.#onDrop.bind(this));
 	}
 
 	addEventListener<K extends keyof FileDropEventMap>(type: K, listener: (this: FileDrop, event: FileDropEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -25,21 +27,21 @@ export class FileDrop extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
-	#wire(target: HTMLElement): void {
-		target.addEventListener("dragover", (event) => {
-			const { dataTransfer } = event;
-			if (dataTransfer === null) return;
-			if (!Array.from(dataTransfer.items).some(item => item.kind === "file")) return;
-			event.preventDefault();
-		});
-		target.addEventListener("drop", (event) => {
-			const { dataTransfer } = event;
-			if (dataTransfer === null) return;
-			const { files } = dataTransfer;
-			if (files.length < 1) return;
-			event.preventDefault();
-			this.dispatchEvent(new CustomEvent("files", { detail: files }));
-		});
+	#onDragOver(event: DragEvent): void {
+		const { dataTransfer } = event;
+		if (dataTransfer === null) return;
+		const { files } = dataTransfer;
+		if (files.length < 1) return;
+		event.preventDefault();
+	}
+
+	#onDrop(event: DragEvent): void {
+		const { dataTransfer } = event;
+		if (dataTransfer === null) return;
+		const { files } = dataTransfer;
+		if (files.length < 1) return;
+		event.preventDefault();
+		this.dispatchEvent(new CustomEvent("files", { detail: files }));
 	}
 }
 //#endregion
