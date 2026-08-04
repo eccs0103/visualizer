@@ -225,8 +225,14 @@ ol#playlist-tracks > li[data-active] {
 	outline: var(--size-separator) solid var(--color-highlight);
 }
 
+ol#playlist-tracks > li[data-dragging],
+ol#playlist-tracks > li[data-shifted] {
+	transform: translateY(var(--drag-offset, 0));
+}
+
 ol#playlist-tracks > li[data-dragging] {
 	opacity: 0.5;
+	z-index: 1;
 }
 
 ol#playlist-tracks > li > span.handle {

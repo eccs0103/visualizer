@@ -43,12 +43,6 @@ export class PlaylistPlayer extends EventTarget {
 	get isEmpty(): boolean { return this.#playlist.isEmpty; }
 	get current(): Track | null { return this.#playlist.current; }
 
-	static #probeSignature(name: string): string {
-		const index = name.lastIndexOf(".");
-		if (index < 1) return name;
-		return name.slice(0, index);
-	}
-
 	static async #probeDuration(file: File): Promise<number> {
 		const probe = new Audio();
 		const url = URL.createObjectURL(file);
@@ -97,17 +91,25 @@ export class PlaylistPlayer extends EventTarget {
 		}
 	}
 
-	#notify(): void {
+	#emitChange(): void {
 		this.dispatchEvent(new Event("change"));
-		void this.#cell.save(500);
+	}
+
+	async #persist(): Promise<void> {
+		await this.#cell.save(500);
+	}
+
+	#notify(): void {
+		this.#emitChange();
+		void this.#persist();
 	}
 
 	async #commit(track: Track | null, resume: boolean): Promise<void> {
-		this.dispatchEvent(new Event("change"));
+		this.#emitChange();
 		await this.#load(track);
 		if (resume && track !== null) await this.#play();
 		else this.#audioPlayer.pause();
-		void this.#cell.save(500);
+		void this.#persist();
 	}
 
 	async #migrateLegacy(playlist: Playlist): Promise<void> {
@@ -116,7 +118,7 @@ export class PlaylistPlayer extends EventTarget {
 		if (!(legacy instanceof File)) return;
 
 		const id = crypto.randomUUID();
-		const signature = PlaylistPlayer.#probeSignature(legacy.name);
+		const signature = Track.probeSignature(legacy.name);
 		const duration = await PlaylistPlayer.#probeDuration(legacy);
 		await this.#store.put(id, legacy);
 		await this.#store.delete(0);
@@ -136,9 +138,9 @@ export class PlaylistPlayer extends EventTarget {
 			await store.delete(key);
 		}
 
-		void this.#cell.save(500);
+		void this.#persist();
 		await this.#load(playlist.current);
-		this.dispatchEvent(new Event("change"));
+		this.#emitChange();
 	}
 
 	async add(files: Iterable<File>): Promise<void> {
@@ -148,17 +150,18 @@ export class PlaylistPlayer extends EventTarget {
 
 		for (const file of files) {
 			const id = crypto.randomUUID();
-			const signature = PlaylistPlayer.#probeSignature(file.name);
+			const signature = Track.probeSignature(file.name);
 			const duration = await PlaylistPlayer.#probeDuration(file);
 			await store.put(id, file);
 			playlist.append(new Track(id, signature, duration));
 		}
 
-		if (wasEmpty && !playlist.isEmpty) playlist.index = 0;
-		this.dispatchEvent(new Event("change"));
+		const becameNonEmpty = wasEmpty && !playlist.isEmpty;
+		if (becameNonEmpty) playlist.index = 0;
+		this.#emitChange();
 
-		if (wasEmpty && !playlist.isEmpty) await this.#load(playlist.current);
-		await this.#cell.save(500);
+		if (becameNonEmpty) await this.#load(playlist.current);
+		void this.#persist();
 	}
 
 	async remove(id: string): Promise<void> {
@@ -167,15 +170,15 @@ export class PlaylistPlayer extends EventTarget {
 		let wasCurrent = false;
 		if (current !== null) wasCurrent = current.matches(id);
 		if (!playlist.remove(id)) return;
-		this.dispatchEvent(new Event("change"));
+		this.#emitChange();
 
 		await this.#store.delete(id);
 		if (wasCurrent) await this.#load(playlist.current);
-		void this.#cell.save(500);
+		void this.#persist();
 	}
 
 	move(from: number, to: number): void {
-		this.#playlist.move(from, to);
+		if (!this.#playlist.move(from, to)) return;
 		this.#notify();
 	}
 

@@ -77,17 +77,13 @@ class StudioController extends Controller {
 		const selectVisualizerVisualization = dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization");
 		const dialogPlaylist = body.getElement(HTMLDialogElement, "dialog#playlist");
 		const buttonClosePlaylist = dialogPlaylist.getElement(HTMLButtonElement, "button#close-playlist");
-		const buttonPlaylistMode = dialogPlaylist.getElement(HTMLButtonElement, "button#playlist-mode");
-		const buttonPlaylistAdd = dialogPlaylist.getElement(HTMLButtonElement, "button#playlist-add");
-		const olPlaylistTracks = dialogPlaylist.getElement(HTMLOListElement, "ol#playlist-tracks");
-		const spanPlaylistEmpty = dialogPlaylist.getElement(HTMLElement, "span#playlist-empty");
 
 		await AudioController.launch(guard, player, audioPlayer, divInterface, buttonPlaybackPrevious, buttonPlaybackNext, bPlaybackTitle, bPlaybackTime, inputPlaybackTrack);
 		await ClipController.launch(guard, visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
 		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
 		await AIController.launch(cell, visualizer, dialogConfigurator);
 		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
-		await PlaylistController.launch(player, buttonPlaylistMode, buttonPlaylistAdd, inputAudioLoader, olPlaylistTracks, spanPlaylistEmpty);
+		await PlaylistController.launch(player, dialogPlaylist, inputAudioLoader);
 
 		await player.restore();
 	}

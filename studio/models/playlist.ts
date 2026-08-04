@@ -35,12 +35,33 @@ export class Track extends Model {
 		return `${minute.toString().padStart(2, "0")}:${second.toString().padStart(2, "0")}`;
 	}
 
+	static probeSignature(name: string): string {
+		const index = name.lastIndexOf(".");
+		if (index < 1) return name;
+		return name.slice(0, index);
+	}
+
 	toDurationString(): string {
 		return Track.toTimeString(this.duration);
 	}
 
 	matches(id: string): boolean {
 		return this.id === id;
+	}
+}
+//#endregion
+//#region Reorder
+export class Reorder {
+	from: number;
+	to: number;
+
+	constructor(from: number, to: number) {
+		this.from = from;
+		this.to = to;
+	}
+
+	get isEffective(): boolean {
+		return this.from !== this.to;
 	}
 }
 //#endregion
@@ -62,12 +83,9 @@ export class Playlist extends Model {
 	@Field(Enum.Of(PlaybackMode), { name: "mode" })
 	mode: PlaybackMode = PlaybackMode.once;
 
-	#queue: string[] = [];
-	#seeded: boolean = false;
+	static #order: PlaybackMode[] = [PlaybackMode.one, PlaybackMode.once, PlaybackMode.loop, PlaybackMode.shuffle];
 
-	get count(): number {
-		return this.tracks.length;
-	}
+	#queue: string[] | null = null;
 
 	get isEmpty(): boolean {
 		return this.tracks.length < 1;
@@ -80,18 +98,26 @@ export class Playlist extends Model {
 	}
 
 	#reshuffle(): void {
-		const current = this.current;
-		let currentId: string | null = null;
-		if (current !== null) currentId = current.id;
-		const ids = this.tracks.filter(track => track.id !== currentId).map(track => track.id);
+		const { current } = this;
+		const ids = this.tracks.filter(track => current === null || !track.matches(current.id)).map(track => track.id);
 		Random.global.shuffle(ids);
 		this.#queue = ids;
-		this.#seeded = true;
+	}
+
+	#reindexAfterRemoval(position: number): void {
+		if (position < this.index) this.index--;
+		else if (position === this.index) this.index = Math.min(this.index, this.tracks.length - 1);
+	}
+
+	#reindexAfterMove(from: number, to: number): void {
+		if (this.index === from) this.index = to;
+		else if (from < this.index && to >= this.index) this.index--;
+		else if (from > this.index && to <= this.index) this.index++;
 	}
 
 	append(track: Track): void {
 		this.tracks.push(track);
-		if (this.mode !== PlaybackMode.shuffle || !this.#seeded) return;
+		if (this.mode !== PlaybackMode.shuffle || this.#queue === null) return;
 		const position = Random.global.integer(0, this.#queue.length);
 		this.#queue.splice(position, 0, track.id);
 	}
@@ -100,39 +126,32 @@ export class Playlist extends Model {
 		const position = this.tracks.findIndex(track => track.matches(id));
 		if (position < 0) return false;
 		this.tracks.splice(position, 1);
-
-		if (position < this.index) this.index--;
-		else if (position === this.index) this.index = Math.min(this.index, this.tracks.length - 1);
-
-		this.#queue = this.#queue.filter(value => value !== id);
-
+		this.#reindexAfterRemoval(position);
+		if (this.#queue !== null) this.#queue.remove(id);
 		return true;
 	}
 
-	move(from: number, to: number): void {
-		const tracks = this.tracks;
-		if (from < 0 || from >= tracks.length || to < 0 || to >= tracks.length || from === to) return;
+	move(from: number, to: number): boolean {
+		const { tracks } = this;
+		if (from < 0 || from >= tracks.length || to < 0 || to >= tracks.length || from === to) return false;
 		const [track] = tracks.splice(from, 1);
 		tracks.splice(to, 0, track);
-
-		if (this.index === from) this.index = to;
-		else if (from < this.index && to >= this.index) this.index--;
-		else if (from > this.index && to <= this.index) this.index++;
+		this.#reindexAfterMove(from, to);
+		return true;
 	}
 
 	select(index: number): Track | null {
 		if (index < 0 || index >= this.tracks.length) return null;
 		this.index = index;
-		this.#queue = this.#queue.filter(value => value !== this.tracks[index].id);
+		if (this.#queue !== null) this.#queue.remove(this.tracks[index].id);
 		return this.current;
 	}
 
 	cycleMode(): PlaybackMode {
-		const order: readonly PlaybackMode[] = [PlaybackMode.one, PlaybackMode.once, PlaybackMode.loop, PlaybackMode.shuffle];
+		const order = Playlist.#order;
 		const position = order.indexOf(this.mode);
 		this.mode = order[(position + 1) % order.length];
-		this.#queue = [];
-		this.#seeded = false;
+		this.#queue = null;
 		return this.mode;
 	}
 
@@ -155,16 +174,15 @@ export class Playlist extends Model {
 	}
 
 	#draw(): Track | null {
-		if (!this.#seeded) this.#reshuffle();
-		let next = this.#queue.shift();
-		while (next !== undefined) {
-			const id = next;
+		if (this.#queue === null) this.#reshuffle();
+		const queue = ReferenceError.suppress(this.#queue, "Playback queue failed to seed");
+		while (queue.length > 0) {
+			const id = ReferenceError.suppress(queue.shift(), "Playback queue entry missing");
 			const position = this.tracks.findIndex(track => track.matches(id));
 			if (position >= 0) {
 				this.index = position;
 				return this.current;
 			}
-			next = this.#queue.shift();
 		}
 		return null;
 	}
@@ -182,9 +200,7 @@ export class Playlist extends Model {
 
 	skip(): Track | null {
 		if (this.isEmpty) return null;
-		if (this.index < 0) this.index = 0;
-		else this.index = (this.index + 1) % this.tracks.length;
-		return this.current;
+		return this.#cycle();
 	}
 
 	retreat(): Track | null {
