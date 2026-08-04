@@ -1,3 +1,10 @@
+## 3.3.2 (04.08.2026)
+- Added keyboard reordering — focus a track's drag handle and press <kbd>↑</kbd>/<kbd>↓</kbd> to move that track up or down the playlist.
+- The playlist now updates rows in place instead of rebuilding the whole list, so keyboard focus survives track changes and rows no longer flicker on every update.
+- The "No tracks yet" message now uses the correct muted styling, and an empty track list no longer leaves a gap above it.
+- The playback-mode button now starts on the correct icon instead of briefly showing none.
+- **Breaking:** <kbd>Tab</kbd> now opens the configurator and <kbd>Shift</kbd> + <kbd>Tab</kbd> opens the playlist, restoring the arrangement used before 3.3.0. Use <kbd>Shift</kbd> + <kbd>Tab</kbd> wherever you pressed <kbd>Tab</kbd> in 3.3.0.
+
 ## 3.3.0 (01.08.2026)
 - Replaced single-track upload with a full playlist: add multiple tracks via the file picker or by dropping files onto the page, reorder them by dragging, and remove them individually.
 - Added playback modes — repeat one, play through once (default), loop all, and shuffle — cycled from a button in the new playlist panel.

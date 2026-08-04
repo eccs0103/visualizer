@@ -6,9 +6,9 @@ A flexible framework for creating and managing custom visualizations.
 ![Preview](https://repository-images.githubusercontent.com/605233361/ff4e6308-2b43-4ac4-9efb-b1f97760242a)
 
 ## Guide
-Add one or more songs to visualize them. Reorder, drop new files onto the page, or remove tracks from the playlist panel (<kbd>Tab</kbd>), and switch between repeat-one, once, loop-all, and shuffle playback modes.
+Add one or more songs to visualize them. Reorder, drop new files onto the page, or remove tracks from the playlist panel (<kbd>Shift</kbd> + <kbd>Tab</kbd>), and switch between repeat-one, once, loop-all, and shuffle playback modes.
 
-Open the playlist with <kbd>Tab</kbd> and the configurator with <kbd>Shift</kbd> + <kbd>Tab</kbd>. Use <kbd>Space</kbd> to play/pause, <kbd>←</kbd>/<kbd>→</kbd> to seek, <kbd>Shift</kbd> + <kbd>←</kbd>/<kbd>→</kbd> to switch tracks, and <kbd>↑</kbd>/<kbd>↓</kbd> to cycle visualizations.
+Open the configurator with <kbd>Tab</kbd> and the playlist with <kbd>Shift</kbd> + <kbd>Tab</kbd>. Use <kbd>Space</kbd> to play/pause, <kbd>←</kbd>/<kbd>→</kbd> to seek, <kbd>Shift</kbd> + <kbd>←</kbd>/<kbd>→</kbd> to switch tracks, and <kbd>↑</kbd>/<kbd>↓</kbd> to cycle visualizations. Focus a track's drag handle and use <kbd>↑</kbd>/<kbd>↓</kbd> to reorder it.
 
 The system supports custom visualizations, which can be implemented by extending the `Visualization` class. These visualizations allow for creative and dynamic interactions, such as audio-responsive effects or graphical animations.
 
