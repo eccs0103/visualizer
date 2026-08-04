@@ -23,9 +23,10 @@
 		"wrangler": "^4.111.0"
 	},
 	"dependencies": {
-		"adaptive-extender": "^1.0.5"
+		"adaptive-extender": "^1.0.6"
 	},
 	"overrides": {
+		"undici": ">=7.28.0",
 		"esbuild": "^0.28.1"
 	},
 	"allowScripts": {
