@@ -1,7 +1,7 @@
 {
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"lib": [ "DOM", "DOM.Iterable", "ES2025", "ESNext.Array" ]
+		"lib": [ "DOM", "DOM.Iterable", "ES2025", "ESNext.Array", "ESNext.Collection" ]
 	},
 	"include": [
 		"environment/models/**/*.ts",

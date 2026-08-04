@@ -2,7 +2,8 @@
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
 		"lib": [ "ES2025", "ESNext.Array" ],
-		"types": [ "node" ]
+		"types": [ "node" ],
+		"skipLibCheck": true
 	},
 	"include": [
 		"vite.config.ts",
