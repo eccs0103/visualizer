@@ -2,15 +2,15 @@
 
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
-import { type VisualizationBundle } from "../models/visualization.js";
 import { Registry } from "../services/visualization-registry.js";
-import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand } from "../models/render-commands.js";
+import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand } from "../models/render-commands.js";
 import { WorkerAudioset, WorkerEnvironment } from "../services/worker-visualization.js";
+import { Stage } from "../services/stage.js";
 import "../view/visualizations.js";
 
 //#region Visualization worker
 class VisualizationWorker extends Controller {
-	#bundles: Map<string, VisualizationBundle> = new Map();
+	#stages: Map<string, Stage> = new Map();
 	#context: OffscreenCanvasRenderingContext2D;
 	#audioset: WorkerAudioset;
 	#environment: WorkerEnvironment;
@@ -19,40 +19,39 @@ class VisualizationWorker extends Controller {
 	#height: number = 0;
 	#rebuilt: boolean = false;
 
+	#findStage(name: string): Stage {
+		return ReferenceError.suppress(this.#stages.get(name), `Visualization with name '${name}' is not attached`);
+	}
+
 	#rebuild(): void {
 		const width = this.#width;
 		const height = this.#height;
 		if (width === 0 || height === 0) return;
 		const context = this.#context;
-		const audioset = this.#audioset;
-		const environment = this.#environment;
-		audioset.sync();
-		environment.reset();
+		this.#audioset.sync();
+		this.#environment.reset();
 		const { canvas } = context;
 		canvas.width = width;
 		canvas.height = height;
-		context.reset();
-		context.resetTransform();
-		const selection = this.#selection;
-		const bundle = ReferenceError.suppress(this.#bundles.get(selection), `Visualization with name '${selection}' is not attached`);
-		bundle.rebuild({ context, audioset, environment });
-		bundle.update({ context, audioset, environment });
+		const stage = this.#findStage(this.#selection);
+		stage.rebuild(width, height);
+		stage.render(context);
 		this.#rebuilt = true;
 	}
 
 	#onMessage(event: MessageEvent): void {
 		const command = RenderCommand.import(event.data, "command");
-		const bundles = this.#bundles;
+		const stages = this.#stages;
 
 		if (command instanceof InitializeRenderCommand) {
 			const { sabVideo, sabAudio, canvas } = command;
 
 			this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
 			const audioset = this.#audioset = new WorkerAudioset(sabVideo, sabAudio);
-			this.#environment = new WorkerEnvironment(audioset);
+			const environment = this.#environment = new WorkerEnvironment(audioset);
 			let selection: string | null = null;
 			for (const [name, descriptor] of Registry.entries()) {
-				bundles.set(name, Registry.createBundle(descriptor));
+				stages.set(name, new Stage(name, Registry.createBundle(descriptor), audioset, environment));
 				if (selection === null) selection = name;
 			}
 			this.#selection = ReferenceError.suppress(selection, "Failed to find any visualization");
@@ -63,14 +62,9 @@ class VisualizationWorker extends Controller {
 
 		if (command instanceof TickCommand) {
 			if (!this.#rebuilt) return;
-			const context = this.#context;
-			const audioset = this.#audioset;
-			const environment = this.#environment;
-			audioset.sync();
-			environment.tick();
-			const selection = this.#selection;
-			const bundle = ReferenceError.suppress(bundles.get(selection), `Visualization with name '${selection}' is not attached`);
-			bundle.update({ context, audioset, environment });
+			this.#audioset.sync();
+			this.#environment.tick();
+			this.#findStage(this.#selection).render(this.#context);
 			return;
 		}
 
@@ -91,6 +85,12 @@ class VisualizationWorker extends Controller {
 
 		if (command instanceof ShakeRenderCommand) {
 			this.#environment.updateShake(command.value);
+			return;
+		}
+
+		if (command instanceof LayersRenderCommand) {
+			const { visualization, layers } = command;
+			this.#findStage(visualization).arrange(layers);
 			return;
 		}
 	}

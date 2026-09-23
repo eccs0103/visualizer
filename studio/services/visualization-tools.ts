@@ -2,9 +2,8 @@
 
 import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
-import { type LyricsView } from "../models/visualization.js";
 
-const { split, PI, exp, sqrt, asin, min } = Math;
+const { split, PI, exp, sqrt, asin } = Math;
 
 //#region Shaper
 export class Shaper {
@@ -76,48 +75,6 @@ export class ColorDriver {
 		const [integer, fractional] = split(this.#offset + ratePerMs * delta * factor);
 		this.#callback(color, integer);
 		this.#offset = fractional;
-	}
-}
-//#endregion
-//#region Lyrics renderer
-export class LyricsRenderer {
-	static draw(context: OffscreenCanvasRenderingContext2D, lyrics: LyricsView | null, width: number, height: number): void {
-		if (lyrics === null) return;
-		const { previous, current, next, shake } = lyrics;
-
-		const side = min(width, height);
-		const sizeCurrent = side * 0.045;
-		const sizeSide = side * 0.03;
-		const y = height * 0.3;
-		const maxWidth = width * 0.9;
-
-		context.save();
-		const live = context.getTransform();
-		const semiWidth = width / 2;
-		const semiHeight = height / 2;
-		const a = 1 + (live.a - 1) * shake;
-		const b = live.b * shake;
-		const c = live.c * shake;
-		const d = 1 + (live.d - 1) * shake;
-		const e = semiWidth + (live.e - semiWidth) * shake;
-		const f = semiHeight + (live.f - semiHeight) * shake;
-		context.setTransform(a, b, c, d, e, f);
-		context.globalCompositeOperation = "source-over";
-		context.textAlign = "center";
-		context.textBaseline = "middle";
-		context.shadowColor = "black";
-		context.shadowBlur = sizeCurrent * 0.3;
-
-		context.font = `${sizeSide}px sans-serif`;
-		context.fillStyle = "rgba(255, 255, 255, 0.6)";
-		if (previous !== null) context.fillText(previous, 0, y - sizeCurrent, maxWidth);
-		if (next !== null) context.fillText(next, 0, y + sizeCurrent, maxWidth);
-
-		context.font = `bold ${sizeCurrent}px sans-serif`;
-		context.fillStyle = "white";
-		if (current !== null) context.fillText(current, 0, y, maxWidth);
-
-		context.restore();
 	}
 }
 //#endregion

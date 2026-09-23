@@ -3,7 +3,9 @@
 import "adaptive-extender/core";
 import { Model, Field, Optional, Enum } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
-import { Playlist } from "./playlist.js";
+import { type Layer } from "../services/layers.js";
+import { LayerSettings } from "./layer-settings.js";
+import { Playlist, type Reorder } from "./playlist.js";
 
 //#region Visualization settings
 export class VisualizationSettings extends Model {
@@ -27,6 +29,32 @@ export class VisualizationSettings extends Model {
 
 	@Field(Number, { name: "punch" })
 	punch: number = 0;
+
+	@Field(Array.Of(LayerSettings), { name: "layers" })
+	layers: LayerSettings[] = [];
+
+	reconcile(declared: readonly Layer[]): void {
+		const kept: LayerSettings[] = [];
+		for (const entry of this.layers) {
+			if (!declared.some(layer => entry.matches(layer.name))) continue;
+			if (kept.some(other => other.matches(entry.name))) continue;
+			kept.push(entry);
+		}
+		for (const layer of declared) {
+			if (kept.some(entry => entry.matches(layer.name))) continue;
+			kept.push(LayerSettings.fromLayer(layer));
+		}
+		this.layers = kept;
+	}
+
+	move(reorder: Reorder): boolean {
+		const { layers } = this;
+		const { from, to } = reorder;
+		if (from < 0 || from >= layers.length || to < 0 || to >= layers.length || from === to) return false;
+		const [entry] = layers.splice(from, 1);
+		layers.splice(to, 0, entry);
+		return true;
+	}
 }
 //#endregion
 //#region Settings
@@ -73,8 +101,9 @@ export class Settings extends Model {
 
 	reconcile(): void {
 		const names = new Set(Registry.names());
-		for (const name of this.attachments.keys()) this.attachments.delete(name);
-		for (const name of names) this.attachments.add(name, new VisualizationSettings());
+		for (const name of Array.from(this.attachments.keys())) if (!names.has(name)) this.attachments.delete(name);
+		for (const name of names) if (!this.attachments.has(name)) this.attachments.add(name, new VisualizationSettings());
+		for (const [name, attachment] of this.attachments) attachment.reconcile(Registry.layers(name));
 		if (!Registry.has(this.visualization)) this.visualization = Registry.default;
 	}
 }

@@ -220,7 +220,8 @@ ol#playlist-tracks {
 	}
 }
 
-ol#playlist-tracks > li {
+ol#playlist-tracks > li,
+ol#visualization-layers > li {
 	touch-action: pan-y;
 }
 
@@ -230,21 +231,26 @@ ol#playlist-tracks > li[data-active] {
 }
 
 ol#playlist-tracks > li[data-dragging],
-ol#playlist-tracks > li[data-shifted] {
+ol#playlist-tracks > li[data-shifted],
+ol#visualization-layers > li[data-dragging],
+ol#visualization-layers > li[data-shifted] {
 	transform: translateY(var(--drag-offset, 0));
 }
 
-ol#playlist-tracks > li[data-dragging] {
+ol#playlist-tracks > li[data-dragging],
+ol#visualization-layers > li[data-dragging] {
 	opacity: 0.5;
 	z-index: 1;
 }
 
-ol#playlist-tracks > li > span.handle {
+ol#playlist-tracks > li > span.handle,
+ol#visualization-layers > li > span.handle {
 	cursor: grab;
 	touch-action: none;
 }
 
-ol#playlist-tracks > li > span.handle > span.icon {
+ol#playlist-tracks > li > span.handle > span.icon,
+ol#visualization-layers > li > span.handle > span.icon {
 	--url: url(../../assets/icons/grip-vertical.svg);
 }
 
@@ -258,6 +264,23 @@ ol#playlist-tracks > li span.title {
 	flex: 1;
 	overflow: hidden;
 	white-space: nowrap;
+}
+
+section.option > ol#visualization-layers {
+	grid-area: auto;
+	grid-column: 1 / -1;
+	width: 100%;
+	list-style: none;
+}
+
+ol#visualization-layers > li > div.content {
+	flex: 1;
+	min-width: 0;
+}
+
+ol#visualization-layers > li > div.content > div.controls > input[type="range"] {
+	flex: 1;
+	min-width: 0;
 }
 
 input#feedback-good + label[for="feedback-good"] > span.icon {

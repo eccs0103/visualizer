@@ -9,6 +9,7 @@ import { WakeGuard } from "../services/wake-guard.js";
 import { PlaylistPlayer } from "../services/playlist-player.js";
 import { AudioController } from "./audio-controller.js";
 import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
+import { LayersController } from "./layers-controller.js";
 import { AIController } from "./ai-controller.js";
 import { PanelController } from "./panel-controller.js";
 import { ClipController } from "./clip-controller.js";
@@ -85,6 +86,7 @@ class StudioController extends Controller {
 		await ClipController.launch(guard, visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
 		await LyricsController.launch(cell, player, audioPlayer, visualizer, inputLyricsToggle, inputShake, inputLyricsLookupToggle);
 		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
+		await LayersController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
 		await AIController.launch(cell, visualizer, dialogConfigurator);
 		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
 		await PlaylistController.launch(player, dialogPlaylist);

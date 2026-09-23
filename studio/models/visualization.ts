@@ -2,6 +2,7 @@
 
 import "adaptive-extender/core";
 import { type Color } from "adaptive-extender/core";
+import { type Layer } from "../services/layers.js";
 
 //#region Audioset view
 export interface AudiosetView {
@@ -71,10 +72,20 @@ export interface VisualizationHost {
 	get environment(): VisualizationEnvironment;
 }
 //#endregion
+//#region Stage host
+export interface StageHost {
+	get width(): number;
+	get height(): number;
+	get camera(): DOMMatrix;
+	get audioset(): AudiosetView;
+	get environment(): VisualizationEnvironment;
+}
+//#endregion
 //#region Visualization
 export interface VisualizationBundle {
-	rebuild(host: VisualizationHost): void;
-	update(host: VisualizationHost): void;
+	layers(): Layer[];
+	rebuild(stage: StageHost): void;
+	update(stage: StageHost): void;
 }
 
 export interface VisualizationDescriptor {

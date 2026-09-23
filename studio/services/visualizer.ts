@@ -7,7 +7,8 @@ import { AudioAnalyzer } from "./audio-analyzer.js";
 import { type VisualizationEnvironment, type LyricsView } from "../models/visualization.js";
 import { Registry } from "./visualization-registry.js";
 import { RenderBridge } from "./render-bridge.js";
-import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand } from "../models/render-commands.js";
+import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand } from "../models/render-commands.js";
+import { type LayerSettings } from "../models/layer-settings.js";
 
 const { round } = Math;
 const { baseURI } = document;
@@ -206,6 +207,11 @@ export class Visualizer extends EventTarget {
 		this.#publish();
 		this.#worker.postMessage(RenderCommand.export(new TickCommand()));
 		this.dispatchEvent(new Event("update"));
+	}
+
+	arrange(visualization: string, layers: readonly LayerSettings[]): void {
+		if (!Registry.has(visualization)) throw new Error(`Visualization with name '${visualization}' is not attached`);
+		this.#worker.postMessage(RenderCommand.export(new LayersRenderCommand(visualization, Array.from(layers))));
 	}
 
 	updateLyrics(previous: string | null, current: string | null, next: string | null): void {

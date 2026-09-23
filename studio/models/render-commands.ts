@@ -2,6 +2,7 @@
 
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/core";
+import { LayerSettings } from "./layer-settings.js";
 
 //#region Shared array buffer portable
 export class SharedArrayBufferPortable {
@@ -29,7 +30,7 @@ class OffscreenCanvasPortable {
 //#endregion
 
 //#region Render command
-export interface RenderCommandDiscriminator extends InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator {
+export interface RenderCommandDiscriminator extends InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator {
 }
 
 export interface RenderCommandScheme {
@@ -41,6 +42,7 @@ export interface RenderCommandScheme {
 @Descendant(Deferred(_ => RebuildRenderCommand))
 @Descendant(Deferred(_ => LyricsRenderCommand))
 @Descendant(Deferred(_ => ShakeRenderCommand))
+@Descendant(Deferred(_ => LayersRenderCommand))
 export abstract class RenderCommand extends Model {
 	constructor() {
 		super();
@@ -195,6 +197,38 @@ export class ShakeRenderCommand extends RenderCommand {
 
 		super();
 		this.value = value;
+	}
+}
+//#endregion
+//#region Layers render command
+export interface LayersRenderCommandDiscriminator {
+	"LayersRenderCommand": LayersRenderCommand;
+}
+
+export interface LayersRenderCommandScheme extends RenderCommandScheme {
+	$type: keyof LayersRenderCommandDiscriminator;
+	visualization: string;
+	layers: LayerSettings[];
+}
+
+export class LayersRenderCommand extends RenderCommand {
+	@Field(String)
+	visualization: string;
+
+	@Field(Array.Of(LayerSettings))
+	layers: LayerSettings[];
+
+	constructor();
+	constructor(visualization: string, layers: LayerSettings[]);
+	constructor(visualization?: string, layers?: LayerSettings[]) {
+		if (visualization === undefined || layers === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.visualization = visualization;
+		this.layers = layers;
 	}
 }
 //#endregion

@@ -4,40 +4,115 @@
 
 Custom visualizations are added in [`studio/view/visualizations.ts`](./studio/view/visualizations.ts).
 
-Extend `Visualization` and pass the class to `Registry.attach()`. The call must appear before the visualizer starts.
+Extend `Visualization`, declare the layers it is drawn from in `layers()`, and pass the class to `Registry.attach()`. The call must appear before the visualizer starts.
+
+A visualization is split in two parts:
+
+- **The visualization** owns the shared, per-frame state: metrics, colours, paths, the camera. It never paints.
+- **The layers** each paint one part of the picture on a canvas of their own. The engine clears every layer, resets its state, composites the layers bottom to top, and lets the user reorder them and set their opacity and blend mode.
 
 ```typescript
 import "adaptive-extender/core";
-import { type VisualizationHost } from "../models/visualization.js";
+import { Blend } from "../models/blend.js";
+import { type StageHost, type VisualizationHost } from "../models/visualization.js";
 import { Registry, Visualization } from "../services/visualization-registry.js";
+import { BackgroundLayer, CodeLayer, LyricsLayer, type Layer } from "../services/layers.js";
 
 Registry.attach("My custom title", class extends Visualization {
+	#radius: number;
+
 	// Called when the canvas is resized or the active visualization changes.
-	rebuild(host: VisualizationHost): void {
-		const { context, audioset, environment } = host;
-		const { width, height } = context.canvas;
+	rebuild(stage: StageHost): void {
+		const { width, height } = stage;
+		this.#radius = Math.min(width, height) / 2;
 	}
 
-	// Called on every frame.
-	update(host: VisualizationHost): void {
-		const { audioset, environment } = host;
-		const { delta, isLaunched, lyrics } = environment;
-		if (lyrics !== null) {
-			const { previous, current, next } = lyrics;
-		}
+	// Called on every frame, before any layer is painted.
+	update(stage: StageHost): void {
+		const { camera, audioset } = stage;
+		camera.scaleSelf(1 + audioset.bassLevel * 0.1);
+	}
+
+	// The layers, bottom to top. Each name must be unique within the visualization.
+	layers(): Layer[] {
+		return [
+			new BackgroundLayer("Background"),
+			new CodeLayer("Circle", host => this.#drawCircle(host)),
+			new CodeLayer("Glow", host => this.#drawGlow(host), { blend: Blend.lighter, opacity: 0.6 }),
+			new LyricsLayer("Lyrics"),
+		];
+	}
+
+	#drawCircle(host: VisualizationHost): void {
+		const { context } = host;
+		context.beginPath();
+		context.arc(0, 0, this.#radius * 0.5, 0, 2 * Math.PI);
+		context.fillStyle = "white";
+		context.fill();
+	}
+
+	#drawGlow(host: VisualizationHost): void {
+		const { context } = host;
+		context.filter = "blur(24px)";
+		context.beginPath();
+		context.arc(0, 0, this.#radius * 0.5, 0, 2 * Math.PI);
+		context.fillStyle = "deepskyblue";
+		context.fill();
 	}
 });
 ```
 
+### Layer types
+
+| Class             | Description                                                                                                         |
+| :---------------- | :------------------------------------------------------------------------------------------------------------------ |
+| `CodeLayer`       | Your own drawing code: `new CodeLayer(name, painter, options?)`. The painter receives a `VisualizationHost`.        |
+| `BackgroundLayer` | The background colour of the current theme. Extend `Layer` to make one that shows an image or an animation instead. |
+| `LyricsLayer`     | Synced lyrics, following the camera by `lyrics.shake`. Place it in the list wherever the lyrics should sit.         |
+
+Custom layer types extend `Layer` and implement `paint(host, stage)`.
+
+`options` is optional and sets the layer's defaults, which the user can change afterwards:
+
+| Option    | Type     | Default        | Description                                               |
+| :-------- | :------- | :------------- | :-------------------------------------------------------- |
+| `opacity` | `number` | `1`            | `0` hides the layer, `1` is fully opaque.                 |
+| `blend`   | `Blend`  | `Blend.normal` | How the layer mixes with the layers below it (see below). |
+
+`Blend` (from `models/blend.js`) values: `normal`, `lighter`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `difference`.
+
+### Rules
+
+- **Layers are isolated.** Each layer paints on its own canvas, so state set in one layer (`fillStyle`, `filter`, `globalCompositeOperation`, clipping) never leaks into another. Set what you need inside every painter, and use `blend` instead of `globalCompositeOperation` to mix layers.
+- **Share data through the visualization, never through the canvas.** Compute paths, colours and metrics in `rebuild()` and `update()` and store them in `#private` fields. `update()` always runs before the layers, so a layer can rely on it whatever order the user puts the layers in. If one layer must be masked by another's shape, share the `Path2D` and use `context.clip()`.
+- **The origin is the canvas centre.** `camera` starts as the identity matrix every frame; translate or scale it in `update()` to shake or zoom every layer at once. `BackgroundLayer` ignores the camera. A painter that fills the whole canvas can call `context.resetTransform()` first.
+- **Gradients belong to a context.** A `CanvasGradient` cannot be shared between layers; build one per painter from shared colour stops.
+- **Failures stay local.** If `update()` throws, the visualization's own layers stop and the built-in layers keep drawing; if a painter throws, only that layer is disabled. Both are logged once and recover on the next rebuild.
+- **Registration is validated.** A visualization that declares no layers, repeats a layer name, or repeats another visualization's name is rejected with a message in the console; everything else keeps working.
+
+### Migrating from `update(host)`
+
+Earlier versions had one `update(host)` that painted the whole canvas, including the background and lyrics. To migrate: keep the state and the maths in `rebuild(stage)` and `update(stage)`, turn each drawing step into the painter of a `CodeLayer`, replace the background and lyrics steps by `BackgroundLayer` and `LyricsLayer`, and move the clearing, shaking and zooming of the canvas to `stage.camera`.
+
 ### Available properties
 
-`host` inside both `rebuild()` and `update()` exposes:
+`stage` inside `rebuild()` and `update()` exposes:
 
-| Property      | Type                                | Description                         |
-| :------------ | :---------------------------------- | :---------------------------------- |
-| `context`     | `OffscreenCanvasRenderingContext2D` | Canvas 2D rendering context.        |
-| `audioset`    | `AudiosetView`                      | Real-time audio analysis snapshot.  |
-| `environment` | `VisualizationEnvironment`          | Engine state for the current frame. |
+| Property      | Type                       | Description                                                     |
+| :------------ | :------------------------- | :-------------------------------------------------------------- |
+| `width`       | `number`                   | Canvas width in pixels.                                         |
+| `height`      | `number`                   | Canvas height in pixels.                                        |
+| `camera`      | `DOMMatrix`                | Transform applied to every layer, reset to identity each frame. |
+| `audioset`    | `AudiosetView`             | Real-time audio analysis snapshot.                              |
+| `environment` | `VisualizationEnvironment` | Engine state for the current frame.                             |
+
+`host` inside a `CodeLayer` painter exposes:
+
+| Property      | Type                                | Description                                      |
+| :------------ | :---------------------------------- | :----------------------------------------------- |
+| `context`     | `OffscreenCanvasRenderingContext2D` | The layer's own 2D context, cleared every frame. |
+| `audioset`    | `AudiosetView`                      | Real-time audio analysis snapshot.               |
+| `environment` | `VisualizationEnvironment`          | Engine state for the current frame.              |
 
 ### `audioset` properties
 

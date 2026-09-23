@@ -2,9 +2,10 @@
 
 import "adaptive-extender/core";
 import { Color, Random, Vector2D } from "adaptive-extender/core";
-import { type VisualizationHost } from "../../models/visualization.js";
+import { type StageHost, type VisualizationHost } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
-import { ColorDriver, LyricsRenderer, Shaper } from "../../services/visualization-tools.js";
+import { BackgroundLayer, CodeLayer, LyricsLayer, type Layer } from "../../services/layers.js";
+import { ColorDriver, Shaper } from "../../services/visualization-tools.js";
 
 const { min, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
 const random = Random.global;
@@ -14,69 +15,59 @@ Registry.attach("Pulsar", class extends Visualization {
 	#radius: number;
 	#colorHaloOuter: Color = Color.fromHSL(0, 100, 60);
 	#colorHaloInner: Color;
-	#gradientHalo: CanvasGradient;
+	#stopsHalo: string[] = [];
+	#pathHalo: Path2D = new Path2D();
+	#pathWave: Path2D = new Path2D();
 	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 	#driverHalo: ColorDriver = ColorDriver.rotation;
 	#colorShadow: Color;
 
 	//#region Rebuild
-	#runMetadataRebuild(host: VisualizationHost): void {
-		const { context, environment } = host;
-		const { width, height } = context.canvas;
+	rebuild(stage: StageHost): void {
+		const { width, height, environment } = stage;
 		const { hue, saturation, lightness } = environment.colorBackground;
 
 		this.#radius = min(width, height) / 2;
 		this.#colorHaloInner = Color.fromHSL(hue, saturation, lightness.snap(100));
 		this.#colorShadow = Color.fromHSL(hue, saturation, lightness.snap(100));
 	}
-
-	#runContextRebuild(host: VisualizationHost): void {
-		const radius = this.#radius;
-		const { context } = host;
-		const { width, height } = context.canvas;
-
-		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
-		context.lineWidth = radius >> 7;
-	}
-
-	rebuild(host: VisualizationHost): void {
-		this.#runMetadataRebuild(host);
-		this.#runContextRebuild(host);
-	}
 	//#endregion
 	//#region Update
-	#runContextUpdate(host: VisualizationHost): void {
+	#runCameraUpdate(stage: StageHost): void {
 		const radius = this.#radius;
-		const { context, audioset } = host;
-		const { width, height } = context.canvas;
+		const { camera, audioset } = stage;
 		const { dropIntensity, djPunch } = audioset;
 
-		let { a, b, c, d, e, f } = context.getTransform();
 		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, radius >> 6) * (1 + djPunch);
-		e = width / 2 + random.number(-1, 1) * shake;
-		f = height / 2 + random.number(-1, 1) * shake;
-		context.setTransform(a, b, c, d, e, f);
-		context.clearRect(-e / a, -f / d, width / a, height / d);
+		camera.translateSelf(random.number(-1, 1) * shake, random.number(-1, 1) * shake);
 	}
 
-	#runHaloDrawing(host: VisualizationHost): void {
+	#runHaloRotation(stage: StageHost): void {
+		const driverHalo = this.#driverHalo;
+		const colorHaloOuter = this.#colorHaloOuter;
+		const { audioset, environment } = stage;
+
+		driverHalo.tick(colorHaloOuter, 360 / 6, environment.delta, audioset.volume);
+	}
+
+	#runHaloBuilding(stage: StageHost): void {
 		const radius = this.#radius;
 		const colorHaloOuter = this.#colorHaloOuter;
-		const colorHaloInner = this.#colorHaloInner;
 		const shaperFrequency = this.#shaperFrequency;
-		const { context, audioset } = host;
-		const { dataFrequency, volume, bassLevel, spectralCentroid, djTilt, djBoost, length } = audioset;
+		const stops = this.#stopsHalo;
+		const { audioset } = stage;
+		const { dataFrequency, volume, bassLevel, spectralCentroid, djTilt, length } = audioset;
 		const semiLength = length / 2;
 		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -30, 30) + djTilt.lerp(-12, 12, -20, 20);
 		const normIllumination = meanGeometric(volume.lerp(0, 1, 0.1, 1.0), bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0.5, 1.0));
 
-		const gradientHalo = this.#gradientHalo = context.createConicGradient(PI / 2, 0, 0);
-		context.beginPath();
+		stops.length = 0;
+		const path = this.#pathHalo = new Path2D();
 		const position = Vector2D.newNaN;
 		for (let index = 0; index < length; index++) {
 			const normProgress = index.lerp(0, length);
 			const normOffset = abs(index - semiLength).lerp(0, semiLength + 1);
-			gradientHalo.addColorStop(normProgress, new Color(colorHaloOuter)
+			stops.push(new Color(colorHaloOuter)
 				.rotate(180 * normOffset + hueBias)
 				.illuminate(normIllumination)
 				.toString());
@@ -84,40 +75,19 @@ Registry.attach("Pulsar", class extends Visualization {
 			const distance = normScale.lerp(0, 1, 0.6, 1.0) * radius;
 			position.x = distance * sin(normProgress * 2 * PI);
 			position.y = distance * cos(normProgress * 2 * PI);
-			context.lineTo(position.x, position.y);
+			path.lineTo(position.x, position.y);
 		}
-		context.closePath();
-		context.globalCompositeOperation = "source-over";
-		context.fillStyle = colorHaloInner.toString();
-		context.fill();
-		context.strokeStyle = gradientHalo;
-		const blurHalo = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 6, radius >> 3) * djBoost.lerp(0.25, 1.75, 0.8, 1.2) / 2);
-		if (blurHalo >= 1) {
-			context.filter = `blur(${blurHalo}px)`;
-			context.stroke();
-			context.filter = "none";
-		}
-		context.stroke();
+		path.closePath();
 	}
 
-	#runHaloRotation(host: VisualizationHost): void {
-		const driverHalo = this.#driverHalo;
-		const colorHaloOuter = this.#colorHaloOuter;
-		const { audioset, environment } = host;
-
-		driverHalo.tick(colorHaloOuter, 360 / 6, environment.delta, audioset.volume);
-	}
-
-	#runWaveDrawing(host: VisualizationHost): void {
+	#runWaveBuilding(stage: StageHost): void {
 		const radius = this.#radius;
-		const gradientHalo = this.#gradientHalo;
-		const { context, audioset } = host;
+		const { width, audioset } = stage;
 		const { dataTemporal, amplitude, percussiveness, length } = audioset;
-		const { width } = context.canvas;
 		const scalePercussive = percussiveness.lerp(0, 1, 1.0, 1.15);
 
-		context.beginPath();
-		context.moveTo(-width / 2, 0);
+		const path = this.#pathWave = new Path2D();
+		path.moveTo(-width / 2, 0);
 		const position = Vector2D.newNaN;
 		for (let index = 0; index < length; index++) {
 			const normProgress = index.lerp(0, length);
@@ -125,17 +95,63 @@ Registry.attach("Pulsar", class extends Visualization {
 			const normScale = normDatumTemporal * amplitude * scalePercussive;
 			position.x = width * (normProgress - 0.5);
 			position.y = radius * normScale;
-			context.lineTo(position.x, position.y);
+			path.lineTo(position.x, position.y);
 		}
-		context.lineTo(width / 2, 0);
-		context.globalCompositeOperation = "source-atop";
-		context.fillStyle = gradientHalo;
-		context.fill();
-		context.strokeStyle = gradientHalo;
-		context.stroke();
+		path.lineTo(width / 2, 0);
 	}
 
-	#runShadowDrawing(host: VisualizationHost): void {
+	update(stage: StageHost): void {
+		this.#runHaloRotation(stage);
+		this.#runCameraUpdate(stage);
+		this.#runHaloBuilding(stage);
+		this.#runWaveBuilding(stage);
+	}
+	//#endregion
+	//#region Layers
+	#buildGradientHalo(context: OffscreenCanvasRenderingContext2D): CanvasGradient {
+		const stops = this.#stopsHalo;
+		const { length } = stops;
+
+		const gradientHalo = context.createConicGradient(PI / 2, 0, 0);
+		for (let index = 0; index < length; index++) gradientHalo.addColorStop(index.lerp(0, length), stops[index]);
+		return gradientHalo;
+	}
+
+	#drawHalo(host: VisualizationHost): void {
+		const radius = this.#radius;
+		const colorHaloInner = this.#colorHaloInner;
+		const pathHalo = this.#pathHalo;
+		const { context, audioset } = host;
+		const { bassLevel, djBoost } = audioset;
+
+		context.lineWidth = radius >> 7;
+		context.fillStyle = colorHaloInner.toString();
+		context.fill(pathHalo);
+		context.strokeStyle = this.#buildGradientHalo(context);
+		const blurHalo = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 6, radius >> 3) * djBoost.lerp(0.25, 1.75, 0.8, 1.2) / 2);
+		if (blurHalo >= 1) {
+			context.filter = `blur(${blurHalo}px)`;
+			context.stroke(pathHalo);
+			context.filter = "none";
+		}
+		context.stroke(pathHalo);
+	}
+
+	#drawWave(host: VisualizationHost): void {
+		const radius = this.#radius;
+		const pathWave = this.#pathWave;
+		const { context } = host;
+
+		context.lineWidth = radius >> 7;
+		context.clip(this.#pathHalo);
+		const gradientHalo = this.#buildGradientHalo(context);
+		context.fillStyle = gradientHalo;
+		context.fill(pathWave);
+		context.strokeStyle = gradientHalo;
+		context.stroke(pathWave);
+	}
+
+	#drawShadow(host: VisualizationHost): void {
 		const radius = this.#radius;
 		const colorShadow = this.#colorShadow;
 		const { context } = host;
@@ -144,37 +160,18 @@ Registry.attach("Pulsar", class extends Visualization {
 		gradientShadow.addColorStop(0, colorShadow.pass(1).toString());
 		gradientShadow.addColorStop(0.5, colorShadow.pass(SQRT1_2).toString());
 		gradientShadow.addColorStop(1, colorShadow.pass(0).toString());
-		context.globalCompositeOperation = "source-over";
 		context.fillStyle = gradientShadow;
-		context.fill();
+		context.fill(this.#pathWave);
 	}
 
-	#runBackgroundDrawing(host: VisualizationHost): void {
-		const { context, environment } = host;
-		const { width, height } = context.canvas;
-		const { a, d, e, f } = context.getTransform();
-
-		context.globalCompositeOperation = "destination-atop";
-		context.fillStyle = environment.colorBackground.toString();
-		context.fillRect(-e / a, -f / d, width / a, height / d);
-	}
-
-	#runLyricsDrawing(host: VisualizationHost): void {
-		const { context, environment } = host;
-		const { lyrics } = environment;
-		const { width, height } = context.canvas;
-
-		LyricsRenderer.draw(context, lyrics, width, height);
-	}
-
-	update(host: VisualizationHost): void {
-		this.#runContextUpdate(host);
-		this.#runHaloDrawing(host);
-		this.#runHaloRotation(host);
-		this.#runWaveDrawing(host);
-		this.#runShadowDrawing(host);
-		this.#runLyricsDrawing(host);
-		this.#runBackgroundDrawing(host);
+	layers(): Layer[] {
+		return [
+			new BackgroundLayer("Background"),
+			new CodeLayer("Halo", host => this.#drawHalo(host)),
+			new CodeLayer("Wave", host => this.#drawWave(host)),
+			new CodeLayer("Shadow", host => this.#drawShadow(host)),
+			new LyricsLayer("Lyrics"),
+		];
 	}
 	//#endregion
 });
