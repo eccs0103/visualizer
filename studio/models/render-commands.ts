@@ -3,6 +3,7 @@
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/core";
 import { LayerSettings } from "./layer-settings.js";
+import { BackgroundSettings } from "./engine-settings.js";
 
 //#region Shared array buffer portable
 export class SharedArrayBufferPortable {
@@ -12,6 +13,18 @@ export class SharedArrayBufferPortable {
 	}
 
 	static export(source: SharedArrayBuffer): SharedArrayBuffer {
+		return source;
+	}
+}
+//#endregion
+//#region Blob portable
+class BlobPortable {
+	static import(source: unknown, name: string): Blob {
+		if (source instanceof Blob) return source;
+		throw new TypeError(`${name} must be a Blob`);
+	}
+
+	static export(source: Blob): Blob {
 		return source;
 	}
 }
@@ -30,7 +43,7 @@ class OffscreenCanvasPortable {
 //#endregion
 
 //#region Render command
-export interface RenderCommandDiscriminator extends InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator {
+export interface RenderCommandDiscriminator extends InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator, EngineRenderCommandDiscriminator, ImageRenderCommandDiscriminator {
 }
 
 export interface RenderCommandScheme {
@@ -43,6 +56,8 @@ export interface RenderCommandScheme {
 @Descendant(Deferred(_ => LyricsRenderCommand))
 @Descendant(Deferred(_ => ShakeRenderCommand))
 @Descendant(Deferred(_ => LayersRenderCommand))
+@Descendant(Deferred(_ => EngineRenderCommand))
+@Descendant(Deferred(_ => ImageRenderCommand))
 export abstract class RenderCommand extends Model {
 	constructor() {
 		super();
@@ -229,6 +244,65 @@ export class LayersRenderCommand extends RenderCommand {
 		super();
 		this.visualization = visualization;
 		this.layers = layers;
+	}
+}
+//#endregion
+//#region Engine render command
+export interface EngineRenderCommandDiscriminator {
+	"EngineRenderCommand": EngineRenderCommand;
+}
+
+export interface EngineRenderCommandScheme extends RenderCommandScheme {
+	$type: keyof EngineRenderCommandDiscriminator;
+	background: BackgroundSettings;
+	lyrics: LayerSettings;
+}
+
+export class EngineRenderCommand extends RenderCommand {
+	@Field(BackgroundSettings)
+	background: BackgroundSettings;
+
+	@Field(LayerSettings)
+	lyrics: LayerSettings;
+
+	constructor();
+	constructor(background: BackgroundSettings, lyrics: LayerSettings);
+	constructor(background?: BackgroundSettings, lyrics?: LayerSettings) {
+		if (background === undefined || lyrics === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.background = background;
+		this.lyrics = lyrics;
+	}
+}
+//#endregion
+//#region Image render command
+export interface ImageRenderCommandDiscriminator {
+	"ImageRenderCommand": ImageRenderCommand;
+}
+
+export interface ImageRenderCommandScheme extends RenderCommandScheme {
+	$type: keyof ImageRenderCommandDiscriminator;
+	image: Blob | null;
+}
+
+export class ImageRenderCommand extends RenderCommand {
+	@Field(Nullable.Of(BlobPortable))
+	image: Blob | null;
+
+	constructor();
+	constructor(image: Blob | null);
+	constructor(image?: Blob | null) {
+		if (image === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.image = image;
 	}
 }
 //#endregion

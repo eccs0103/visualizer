@@ -13,6 +13,8 @@ export class WorkerAudioset implements AudiosetView {
 	#color: Float32Array;
 	#frequency: Float32Array;
 	#temporal: Float32Array;
+	#viewFrequency: Float32Array;
+	#viewTemporal: Float32Array;
 	#features: AudioFeatures = new AudioFeatures();
 	#bufferFeatures: Float32Array;
 	#length: number = 0;
@@ -23,14 +25,17 @@ export class WorkerAudioset implements AudiosetView {
 		this.#color = new Float32Array(sabVideo, 16, 3);
 		this.#frequency = new Float32Array(sabVideo, RenderBridge.frequencyOffset(), SabLayout.inputMaxLength);
 		this.#temporal = new Float32Array(sabVideo, RenderBridge.temporalOffset(), SabLayout.inputMaxLength);
+		this.#viewFrequency = this.#frequency.subarray(0, 0);
+		this.#viewTemporal = this.#temporal.subarray(0, 0);
 		this.#bufferFeatures = new Float32Array(sabAudio);
 	}
 
+	get frame(): number { return Atomics.load(this.#control, 0); }
 	get length(): number { return this.#length; }
 	get volume(): number { return this.#metadata[0]; }
 	get amplitude(): number { return this.#metadata[1]; }
-	get dataFrequency(): Float32Array { return this.#frequency.subarray(0, this.#length); }
-	get dataTemporal(): Float32Array { return this.#temporal.subarray(0, this.#length); }
+	get dataFrequency(): Float32Array { return this.#viewFrequency; }
+	get dataTemporal(): Float32Array { return this.#viewTemporal; }
 	get spectralFlux(): number { return this.#features.spectralFlux; }
 	get subBass(): number { return this.#features.bandEnergy.subBass; }
 	get bass(): number { return this.#features.bandEnergy.bass; }
@@ -58,7 +63,12 @@ export class WorkerAudioset implements AudiosetView {
 	get colorL(): number { return this.#color[2]; }
 
 	sync(): void {
-		this.#length = Atomics.load(this.#control, 1);
+		const length = Atomics.load(this.#control, 1);
+		if (length !== this.#length) {
+			this.#length = length;
+			this.#viewFrequency = this.#frequency.subarray(0, length);
+			this.#viewTemporal = this.#temporal.subarray(0, length);
+		}
 		this.#features.readFrom(this.#bufferFeatures);
 	}
 }
@@ -72,19 +82,37 @@ export class WorkerEnvironment implements VisualizationEnvironment {
 	#current: string | null = null;
 	#next: string | null = null;
 	#shake: number = 0.2;
+	#lyrics: LyricsView | null = null;
+	#color: Color | null = null;
+	#colorH: number = NaN;
+	#colorS: number = NaN;
+	#colorL: number = NaN;
 
 	constructor(audioset: WorkerAudioset) {
 		this.#audioset = audioset;
+	}
+
+	#refreshLyrics(): void {
+		const previous = this.#previous;
+		const current = this.#current;
+		const next = this.#next;
+		if (previous === null && current === null && next === null) {
+			this.#lyrics = null;
+			return;
+		}
+		this.#lyrics = new LyricsWindow(previous, current, next, this.#shake);
 	}
 
 	updateLyrics(previous: string | null, current: string | null, next: string | null): void {
 		this.#previous = previous;
 		this.#current = current;
 		this.#next = next;
+		this.#refreshLyrics();
 	}
 
 	updateShake(value: number): void {
 		this.#shake = value;
+		this.#refreshLyrics();
 	}
 
 	tick(): void {
@@ -109,15 +137,16 @@ export class WorkerEnvironment implements VisualizationEnvironment {
 
 	get colorBackground(): Color {
 		const { colorH, colorS, colorL } = this.#audioset;
-		return Color.fromHSL(colorH, colorS, colorL);
+		const cached = this.#color;
+		if (cached !== null && colorH === this.#colorH && colorS === this.#colorS && colorL === this.#colorL) return cached;
+		const color = Color.fromHSL(colorH, colorS, colorL);
+		this.#color = color;
+		this.#colorH = colorH;
+		this.#colorS = colorS;
+		this.#colorL = colorL;
+		return color;
 	}
 
-	get lyrics(): LyricsView | null {
-		const previous = this.#previous;
-		const current = this.#current;
-		const next = this.#next;
-		if (previous === null && current === null && next === null) return null;
-		return new LyricsWindow(previous, current, next, this.#shake);
-	}
+	get lyrics(): LyricsView | null { return this.#lyrics; }
 }
 //#endregion

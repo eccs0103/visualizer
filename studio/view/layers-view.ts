@@ -2,6 +2,7 @@
 
 import "adaptive-extender/web";
 import { Blend } from "../models/blend.js";
+import { BackgroundFit, type BackgroundSettings } from "../models/engine-settings.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { Reorder } from "../models/playlist.js";
 import { DOMBuilder } from "./dom-builder.js";
@@ -11,6 +12,8 @@ import { TrackDrag } from "./track-drag.js";
 export interface LayersViewEventMap {
 	"adjust": CustomEvent<LayerSettings>;
 	"reorder": CustomEvent<Reorder>;
+	"upload": CustomEvent<File>;
+	"remove": Event;
 }
 
 export class LayersView extends EventTarget {
@@ -56,7 +59,7 @@ export class LayersView extends EventTarget {
 	}
 
 	#readRows(): HTMLLIElement[] {
-		return Array.from(this.#olVisualizationLayers.getElements(HTMLLIElement, ":scope > li"));
+		return Array.from(this.#olVisualizationLayers.getElements(HTMLLIElement, ":scope > li:not([data-pinned])"));
 	}
 
 	#readFocusedName(): string | null {
@@ -75,12 +78,14 @@ export class LayersView extends EventTarget {
 		return new Reorder(count - 1 - reorder.from, count - 1 - reorder.to);
 	}
 
-	#buildRow(settings: LayerSettings): HTMLLIElement {
+	#buildRow(settings: LayerSettings, isPinned: boolean): HTMLLIElement {
 		const row = document.createElement("li");
 		row.classList.add("rounded", "depth", "flex", "alt-center");
 		row.dataset["name"] = settings.name;
+		if (isPinned) row.dataset["pinned"] = String.empty;
 
-		DOMBuilder.newHandle(row);
+		if (isPinned) DOMBuilder.newPin(row);
+		else DOMBuilder.newHandle(row);
 
 		const divContent = row.appendChild(document.createElement("div"));
 		divContent.classList.add("content", "flex", "column", "with-gap", "with-padding");
@@ -115,6 +120,66 @@ export class LayersView extends EventTarget {
 			settings.blend = ReferenceError.suppress(Object.values(Blend).find(candidate => candidate === selectBlend.value), `Unknown blend '${selectBlend.value}'`);
 			this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
 		});
+
+		return row;
+	}
+
+	#buildBackgroundRow(settings: BackgroundSettings): HTMLLIElement {
+		const row = this.#buildRow(settings, true);
+		const divContent = row.getElement(HTMLDivElement, "div.content");
+
+		const divImage = divContent.appendChild(document.createElement("div"));
+		divImage.classList.add("controls", "flex", "alt-center", "with-gap");
+
+		const spanImage = divImage.appendChild(document.createElement("span"));
+		spanImage.classList.add("title", "fittable");
+		spanImage.innerText = "No image";
+		if (settings.image !== null) spanImage.innerText = settings.image;
+
+		const inputImage = divImage.appendChild(document.createElement("input"));
+		inputImage.type = "file";
+		inputImage.accept = "image/*";
+		inputImage.hidden = true;
+		inputImage.addEventListener("change", event => {
+			const { files } = inputImage;
+			if (files === null) return;
+			const file = files.item(0);
+			inputImage.value = String.empty;
+			if (file === null) return;
+			this.dispatchEvent(new CustomEvent("upload", { detail: file }));
+		});
+
+		const buttonUpload = divImage.appendChild(document.createElement("button"));
+		buttonUpload.type = "button";
+		buttonUpload.classList.add("layer", "rounded", "with-padding");
+		buttonUpload.innerText = "Upload";
+		buttonUpload.addEventListener("click", event => inputImage.click());
+
+		if (settings.hasImage) {
+			const buttonRemove = divImage.appendChild(document.createElement("button"));
+			buttonRemove.type = "button";
+			buttonRemove.classList.add("layer", "rounded", "with-padding");
+			buttonRemove.innerText = "Remove";
+			buttonRemove.addEventListener("click", event => this.dispatchEvent(new Event("remove")));
+
+			const selectFit = divImage.appendChild(document.createElement("select"));
+			selectFit.title = "Fit";
+			selectFit.classList.add("layer", "rounded", "with-padding");
+			for (const [name, value] of Object.entries(BackgroundFit)) {
+				const option = selectFit.appendChild(document.createElement("option"));
+				option.value = value;
+				option.innerText = name;
+			}
+			selectFit.value = settings.fit;
+			selectFit.addEventListener("change", event => {
+				settings.fit = ReferenceError.suppress(Object.values(BackgroundFit).find(candidate => candidate === selectFit.value), `Unknown fit '${selectFit.value}'`);
+				this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
+			});
+		}
+
+		const spanMessage = divContent.appendChild(document.createElement("span"));
+		spanMessage.classList.add("message", "alert");
+		spanMessage.hidden = true;
 
 		return row;
 	}
@@ -163,12 +228,20 @@ export class LayersView extends EventTarget {
 		this.dispatchEvent(new CustomEvent("reorder", { detail: this.#toStorage(reorder, rows.length) }));
 	}
 
-	render(layers: readonly LayerSettings[]): void {
+	showMessage(text: string): void {
+		const spanMessage = this.#olVisualizationLayers.getElement(HTMLElement, "li[data-name=\"Background\"] span.message");
+		spanMessage.innerText = text;
+		spanMessage.hidden = false;
+	}
+
+	render(lyrics: LayerSettings, layers: readonly LayerSettings[], background: BackgroundSettings): void {
 		const olVisualizationLayers = this.#olVisualizationLayers;
 		const focused = this.#readFocusedName();
 
 		olVisualizationLayers.replaceChildren();
-		for (let index = layers.length - 1; index >= 0; index--) olVisualizationLayers.appendChild(this.#buildRow(layers[index]));
+		olVisualizationLayers.appendChild(this.#buildRow(lyrics, true));
+		for (let index = layers.length - 1; index >= 0; index--) olVisualizationLayers.appendChild(this.#buildRow(layers[index], false));
+		olVisualizationLayers.appendChild(this.#buildBackgroundRow(background));
 
 		if (focused === null) return;
 		const row = this.#readRows().find(candidate => candidate.dataset["name"] === focused);

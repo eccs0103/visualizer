@@ -5,8 +5,6 @@ import { Blend } from "../models/blend.js";
 import { type StageHost, type VisualizationHost } from "../models/visualization.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 
-const { min } = Math;
-
 //#region Layer
 export interface LayerOptions {
 	opacity: number;
@@ -17,8 +15,6 @@ export abstract class Layer {
 	#name: string;
 	#opacity: number;
 	#blend: Blend;
-	#canvas: OffscreenCanvas | null = null;
-	#context: OffscreenCanvasRenderingContext2D | null = null;
 	#isFaulted: boolean = false;
 
 	constructor(name: string, options: Partial<LayerOptions> = {}) {
@@ -44,7 +40,7 @@ export abstract class Layer {
 	get isVisible(): boolean { return !this.#isFaulted && this.#opacity > 0; }
 	get isDependent(): boolean { return false; }
 
-	abstract paint(host: VisualizationHost, stage: StageHost): void;
+	abstract render(stage: StageHost, output: OffscreenCanvasRenderingContext2D): void;
 
 	apply(settings: LayerSettings): void {
 		this.#opacity = Layer.#fit(settings.opacity);
@@ -56,7 +52,29 @@ export abstract class Layer {
 	}
 
 	resize(width: number, height: number): void {
+		void width, height;
 		this.#isFaulted = false;
+	}
+
+	release(): void { }
+}
+//#endregion
+//#region Painted layer
+export abstract class PaintedLayer extends Layer {
+	#canvas: OffscreenCanvas | null = null;
+	#context: OffscreenCanvasRenderingContext2D | null = null;
+	#isDirty: boolean = false;
+
+	abstract paint(host: VisualizationHost, stage: StageHost): void;
+
+	isIdle(stage: StageHost): boolean {
+		void stage;
+		return false;
+	}
+
+	resize(width: number, height: number): void {
+		super.resize(width, height);
+		this.#isDirty = false;
 		const canvas = this.#canvas;
 		if (canvas !== null) {
 			canvas.width = width;
@@ -64,21 +82,34 @@ export abstract class Layer {
 			return;
 		}
 		const created = this.#canvas = new OffscreenCanvas(width, height);
-		this.#context = ReferenceError.suppress(created.getContext("2d"), `Failed to acquire 2D rendering context for layer '${this.#name}'`);
+		this.#context = ReferenceError.suppress(created.getContext("2d"), `Failed to acquire 2D rendering context for layer '${this.name}'`);
 	}
 
-	render(stage: StageHost): void {
-		const context = ReferenceError.suppress(this.#context, `Layer '${this.#name}' has not been sized`);
+	release(): void {
+		const canvas = this.#canvas;
+		if (canvas === null) return;
+		canvas.width = 0;
+		canvas.height = 0;
+		this.#isDirty = false;
+	}
+
+	render(stage: StageHost, output: OffscreenCanvasRenderingContext2D): void {
+		const context = ReferenceError.suppress(this.#context, `Layer '${this.name}' has not been sized`);
+		if (this.isIdle(stage)) {
+			if (!this.#isDirty) return;
+			context.reset();
+			this.#isDirty = false;
+			return;
+		}
+		const canvas = ReferenceError.suppress(this.#canvas, `Layer '${this.name}' has not been sized`);
 		const { width, height, camera, audioset, environment } = stage;
 		context.reset();
-		context.setTransform(new DOMMatrix().translateSelf(width / 2, height / 2).multiplySelf(camera));
+		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
+		context.transform(camera.a, camera.b, camera.c, camera.d, camera.e, camera.f);
+		this.#isDirty = true;
 		this.paint({ context, audioset, environment }, stage);
-	}
-
-	composite(output: OffscreenCanvasRenderingContext2D): void {
-		const canvas = ReferenceError.suppress(this.#canvas, `Layer '${this.#name}' has not been sized`);
-		output.globalAlpha = this.#opacity;
-		output.globalCompositeOperation = this.#blend as GlobalCompositeOperation;
+		output.globalAlpha = this.opacity;
+		output.globalCompositeOperation = this.blend as GlobalCompositeOperation;
 		output.drawImage(canvas, 0, 0);
 	}
 }
@@ -86,7 +117,7 @@ export abstract class Layer {
 //#region Code layer
 export type LayerPainter = (host: VisualizationHost) => void;
 
-export class CodeLayer extends Layer {
+export class CodeLayer extends PaintedLayer {
 	#painter: LayerPainter;
 
 	constructor(name: string, painter: LayerPainter, options: Partial<LayerOptions> = {}) {
@@ -98,56 +129,6 @@ export class CodeLayer extends Layer {
 
 	paint(host: VisualizationHost): void {
 		this.#painter(host);
-	}
-}
-//#endregion
-//#region Background layer
-export class BackgroundLayer extends Layer {
-	paint(host: VisualizationHost): void {
-		const { context, environment } = host;
-		const { width, height } = context.canvas;
-		context.resetTransform();
-		context.fillStyle = environment.colorBackground.toString();
-		context.fillRect(0, 0, width, height);
-	}
-}
-//#endregion
-//#region Lyrics layer
-export class LyricsLayer extends Layer {
-	paint(host: VisualizationHost, stage: StageHost): void {
-		const { context, environment } = host;
-		const { lyrics } = environment;
-		if (lyrics === null) return;
-		const { previous, current, next, shake } = lyrics;
-		const { width, height, camera } = stage;
-
-		const side = min(width, height);
-		const sizeCurrent = side * 0.045;
-		const sizeSide = side * 0.03;
-		const y = height * 0.3;
-		const maxWidth = width * 0.9;
-
-		context.setTransform(
-			1 + (camera.a - 1) * shake,
-			camera.b * shake,
-			camera.c * shake,
-			1 + (camera.d - 1) * shake,
-			width / 2 + camera.e * shake,
-			height / 2 + camera.f * shake
-		);
-		context.textAlign = "center";
-		context.textBaseline = "middle";
-		context.shadowColor = "black";
-		context.shadowBlur = sizeCurrent * 0.3;
-
-		context.font = `${sizeSide}px sans-serif`;
-		context.fillStyle = "rgba(255, 255, 255, 0.6)";
-		if (previous !== null) context.fillText(previous, 0, y - sizeCurrent, maxWidth);
-		if (next !== null) context.fillText(next, 0, y + sizeCurrent, maxWidth);
-
-		context.font = `bold ${sizeCurrent}px sans-serif`;
-		context.fillStyle = "white";
-		if (current !== null) context.fillText(current, 0, y, maxWidth);
 	}
 }
 //#endregion

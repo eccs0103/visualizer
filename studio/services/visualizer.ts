@@ -7,8 +7,9 @@ import { AudioAnalyzer } from "./audio-analyzer.js";
 import { type VisualizationEnvironment, type LyricsView } from "../models/visualization.js";
 import { Registry } from "./visualization-registry.js";
 import { RenderBridge } from "./render-bridge.js";
-import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand } from "../models/render-commands.js";
+import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, EngineRenderCommand, ImageRenderCommand } from "../models/render-commands.js";
 import { type LayerSettings } from "../models/layer-settings.js";
+import { type EngineSettings } from "../models/engine-settings.js";
 
 const { round } = Math;
 const { baseURI } = document;
@@ -47,12 +48,14 @@ export class Visualizer extends EventTarget {
 	};
 	//#endregion
 
+	static #tick = RenderCommand.export(new TickCommand());
 	static #minRate: number = 30;
 	static #maxRate: number = 1200;
 	#bridge: RenderBridge = new RenderBridge();
 	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
 	#engine: WebEngine = new FastEngine();
 	#environment: VisualizationEnvironment = new Visualizer.#Environment(this.#engine);
+	#colorBackground: Color;
 	#visualization: string;
 	#shake: number = 0.2;
 	#canvas: HTMLCanvasElement;
@@ -177,11 +180,12 @@ export class Visualizer extends EventTarget {
 
 	#publish(): void {
 		const { length, volume, amplitude, dataFrequency, dataTemporal } = this.#manager.audioset;
-		const color = this.#environment.colorBackground;
+		const color = this.#colorBackground;
 		this.#bridge.writeAudioset(length, volume, amplitude, dataFrequency, dataTemporal, color.hue, color.saturation, color.lightness);
 	}
 
 	#rebuild(): void {
+		this.#colorBackground = this.#environment.colorBackground;
 		const { width, height } = this.#canvas.getBoundingClientRect();
 		if (width === 0 || height === 0) return;
 		this.#publish();
@@ -205,13 +209,21 @@ export class Visualizer extends EventTarget {
 		const manager = this.#manager;
 		if (manager.autoCorrect) this.#correct();
 		this.#publish();
-		this.#worker.postMessage(RenderCommand.export(new TickCommand()));
+		this.#worker.postMessage(Visualizer.#tick);
 		this.dispatchEvent(new Event("update"));
 	}
 
 	arrange(visualization: string, layers: readonly LayerSettings[]): void {
 		if (!Registry.has(visualization)) throw new Error(`Visualization with name '${visualization}' is not attached`);
 		this.#worker.postMessage(RenderCommand.export(new LayersRenderCommand(visualization, Array.from(layers))));
+	}
+
+	configure(engine: EngineSettings): void {
+		this.#worker.postMessage(RenderCommand.export(new EngineRenderCommand(engine.background, engine.lyrics)));
+	}
+
+	setBackground(image: Blob | null): void {
+		this.#worker.postMessage(RenderCommand.export(new ImageRenderCommand(image)));
 	}
 
 	updateLyrics(previous: string | null, current: string | null, next: string | null): void {

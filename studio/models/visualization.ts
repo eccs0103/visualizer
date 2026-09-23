@@ -2,7 +2,7 @@
 
 import "adaptive-extender/core";
 import { type Color } from "adaptive-extender/core";
-import { type Layer } from "../services/layers.js";
+import { type Layer, type LayerOptions, type LayerPainter } from "../services/layers.js";
 
 //#region Audioset view
 export interface AudiosetView {
@@ -83,7 +83,8 @@ export interface StageHost {
 //#endregion
 //#region Visualization
 export interface VisualizationBundle {
-	layers(): Layer[];
+	get layers(): readonly Layer[];
+	newCustomLayer(name: string, painter: LayerPainter, options?: Partial<LayerOptions>): Layer;
 	rebuild(stage: StageHost): void;
 	update(stage: StageHost): void;
 }

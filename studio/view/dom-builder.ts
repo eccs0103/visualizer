@@ -21,6 +21,14 @@ export class DOMBuilder {
 		return handle;
 	}
 
+	static newPin(row: HTMLLIElement): HTMLElement {
+		const pin = row.appendChild(document.createElement("span"));
+		pin.classList.add("pin", "with-padding", "flex", "alt-center");
+		pin.ariaHidden = String(true);
+		DOMBuilder.newIcon(pin, "Pinned");
+		return pin;
+	}
+
 	static newTitle(content: Element, text: string): HTMLElement {
 		const title = content.appendChild(document.createElement("span"));
 		title.classList.add("title", "fittable");

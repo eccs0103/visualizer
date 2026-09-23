@@ -5,6 +5,7 @@ import { Model, Field, Optional, Enum } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
 import { type Layer } from "../services/layers.js";
 import { LayerSettings } from "./layer-settings.js";
+import { EngineSettings } from "./engine-settings.js";
 import { Playlist, type Reorder } from "./playlist.js";
 
 //#region Visualization settings
@@ -89,6 +90,9 @@ export class Settings extends Model {
 	@Field(String, { name: "visualization" })
 	visualization: string = Registry.default;
 
+	@Field(EngineSettings, { name: "engine" })
+	engine: EngineSettings = new EngineSettings();
+
 	@Field(Map.AsRecord(VisualizationSettings), { name: "attachments" })
 	attachments: Map<string, VisualizationSettings> = new Map(Array.from(Registry.names(), name => [name, new VisualizationSettings()]));
 
@@ -103,8 +107,7 @@ export class Settings extends Model {
 		const names = new Set(Registry.names());
 		for (const name of Array.from(this.attachments.keys())) if (!names.has(name)) this.attachments.delete(name);
 		for (const name of names) if (!this.attachments.has(name)) this.attachments.add(name, new VisualizationSettings());
-		for (const [name, attachment] of this.attachments) attachment.reconcile(Registry.layers(name));
-		if (!Registry.has(this.visualization)) this.visualization = Registry.default;
+		for (const [name, attachment] of this.attachments) attachment.reconcile(Registry.layers(name));		if (!Registry.has(this.visualization)) this.visualization = Registry.default;
 	}
 }
 //#endregion

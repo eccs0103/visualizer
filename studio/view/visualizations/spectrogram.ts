@@ -5,14 +5,18 @@ import { Color, Random, Vector2D } from "adaptive-extender/core";
 import { Blend } from "../../models/blend.js";
 import { type StageHost, type VisualizationHost } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
-import { BackgroundLayer, CodeLayer, LyricsLayer, type Layer } from "../../services/layers.js";
 import { ColorDriver, Shaper } from "../../services/visualization-tools.js";
 
 const { min, sign, PI, abs, trunc, exp, meanGeometric } = Math;
 const random = Random.global;
+const stopCount = 64;
 
 //#region Spectrogram
 Registry.attach("Spectrogram", class extends Visualization {
+	#layerRidge = this.newCustomLayer("Ridge", this.#drawRidge.bind(this));
+	#layerBloom = this.newCustomLayer("Bloom", this.#drawBloom.bind(this), { blend: Blend.lighter });
+	#layerThread = this.newCustomLayer("Thread", this.#drawThread.bind(this), { blend: Blend.lighter });
+	#layerVignette = this.newCustomLayer("Vignette", this.#drawVignette.bind(this), { blend: Blend.multiply });
 	#side: number;
 	#lineWidth: number;
 	#normPulseEnergy: number = 0;
@@ -101,7 +105,6 @@ Registry.attach("Spectrogram", class extends Visualization {
 	//#endregion
 	//#region Layers
 	#drawRidge(host: VisualizationHost): void {
-		const count = this.#count;
 		const lineWidth = this.#lineWidth;
 		const hueSpread = this.#hueSpread;
 		const hueBias = this.#hueBias;
@@ -113,8 +116,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const { width } = context.canvas;
 
 		const gradientRidge = context.createLinearGradient(-width / 2, 0, width / 2, 0);
-		for (let index = 1; index < count; index++) {
-			const normProgress = index.lerp(0, count - 1);
+		for (let index = 0; index <= stopCount; index++) {
+			const normProgress = index.lerp(0, stopCount);
 			gradientRidge.addColorStop(normProgress, new Color(colorRidgeSeed)
 				.rotate(hueSpread * normProgress + hueBias)
 				.illuminate(normLightness)
@@ -187,17 +190,6 @@ Registry.attach("Spectrogram", class extends Visualization {
 		gradientVignette.addColorStop(1, colorShadow.pass(0.45).toString());
 		context.fillStyle = gradientVignette;
 		context.fillRect(0, 0, width, height);
-	}
-
-	layers(): Layer[] {
-		return [
-			new BackgroundLayer("Background"),
-			new CodeLayer("Ridge", host => this.#drawRidge(host)),
-			new CodeLayer("Bloom", host => this.#drawBloom(host), { blend: Blend.lighter }),
-			new CodeLayer("Thread", host => this.#drawThread(host), { blend: Blend.lighter }),
-			new CodeLayer("Vignette", host => this.#drawVignette(host), { blend: Blend.multiply }),
-			new LyricsLayer("Lyrics"),
-		];
 	}
 	//#endregion
 });

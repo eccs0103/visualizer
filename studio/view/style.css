@@ -278,6 +278,16 @@ ol#visualization-layers > li > div.content {
 	min-width: 0;
 }
 
+ol#visualization-layers > li > span.pin {
+	visibility: hidden;
+}
+
+ol#visualization-layers > li > div.content > div.controls > span.title {
+	flex: 1;
+	overflow: hidden;
+	white-space: nowrap;
+}
+
 ol#visualization-layers > li > div.content > div.controls > input[type="range"] {
 	flex: 1;
 	min-width: 0;

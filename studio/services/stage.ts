@@ -9,6 +9,8 @@ import { type Layer } from "./layers.js";
 export class Stage implements StageHost {
 	#name: string;
 	#bundle: VisualizationBundle;
+	#background: Layer;
+	#lyrics: Layer;
 	#layers: Layer[];
 	#audioset: AudiosetView;
 	#environment: VisualizationEnvironment;
@@ -17,10 +19,12 @@ export class Stage implements StageHost {
 	#height: number = 0;
 	#isBroken: boolean = false;
 
-	constructor(name: string, bundle: VisualizationBundle, audioset: AudiosetView, environment: VisualizationEnvironment) {
+	constructor(name: string, bundle: VisualizationBundle, background: Layer, lyrics: Layer, audioset: AudiosetView, environment: VisualizationEnvironment) {
 		this.#name = name;
 		this.#bundle = bundle;
-		this.#layers = bundle.layers();
+		this.#background = background;
+		this.#lyrics = lyrics;
+		this.#layers = Array.from(bundle.layers);
 		this.#audioset = audioset;
 		this.#environment = environment;
 	}
@@ -33,6 +37,16 @@ export class Stage implements StageHost {
 
 	#report(subject: string, reason: unknown): void {
 		console.error(`${subject} of visualization '${this.#name}' failed and was disabled until the next rebuild:\n${Error.from(reason)}`);
+	}
+
+	#resetCamera(): void {
+		const camera = this.#camera;
+		camera.a = 1;
+		camera.b = 0;
+		camera.c = 0;
+		camera.d = 1;
+		camera.e = 0;
+		camera.f = 0;
 	}
 
 	#update(): void {
@@ -49,8 +63,7 @@ export class Stage implements StageHost {
 		if (!layer.isVisible) return;
 		if (layer.isDependent && this.#isBroken) return;
 		try {
-			layer.render(this);
-			layer.composite(output);
+			layer.render(this, output);
 		} catch (reason) {
 			layer.fault();
 			this.#report(`Layer '${layer.name}'`, reason);
@@ -75,7 +88,9 @@ export class Stage implements StageHost {
 		this.#width = width;
 		this.#height = height;
 		this.#isBroken = false;
-		this.#camera = new DOMMatrix();
+		this.#resetCamera();
+		this.#background.resize(width, height);
+		this.#lyrics.resize(width, height);
 		for (const layer of this.#layers) layer.resize(width, height);
 		try {
 			this.#bundle.rebuild(this);
@@ -85,11 +100,17 @@ export class Stage implements StageHost {
 		}
 	}
 
+	release(): void {
+		for (const layer of this.#layers) layer.release();
+	}
+
 	render(output: OffscreenCanvasRenderingContext2D): void {
-		this.#camera = new DOMMatrix();
+		this.#resetCamera();
 		this.#update();
 		output.reset();
+		this.#draw(this.#background, output);
 		for (const layer of this.#layers) this.#draw(layer, output);
+		this.#draw(this.#lyrics, output);
 	}
 }
 //#endregion
