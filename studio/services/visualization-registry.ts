@@ -90,5 +90,5 @@ ${Error.from(reason)}`);
 	}
 }
 
-export const Visualization: VisualizationDescriptor = Registry.Visualization;
+export const { Visualization } = Registry;
 //#endregion

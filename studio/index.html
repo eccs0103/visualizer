@@ -29,26 +29,26 @@
 	<!-- Interface -->
 	<div id="interface">
 		<div id="audio-control" class="with-padding large-padding flex">
-			<button id="open-playlist" type="button" class="flex alt-center with-gap">
+			<button id="open-playlist" type="button" class="flex alt-center with-gap" title="Playlist (Shift+Tab)">
 				<span class="icon with-padding small-padding">Open playlist</span>
 			</button>
 		</div>
 		<div id="audio-auxiliary" class="with-padding large-padding flex reversed">
-			<button id="open-configurator" type="button" class="flex alt-center with-gap">
+			<button id="open-configurator" type="button" class="flex alt-center with-gap" title="Settings (Tab)">
 				<span class="icon with-padding small-padding">Open configurator</span>
 			</button>
 		</div>
 		<div id="transport-bar" class="with-inline-padding large-padding flex column reversed with-gap">
 			<div id="playback-control" class="flex alt-center with-gap">
-				<button id="playback-previous" type="button" class="flex alt-center with-gap">
+				<button id="playback-previous" type="button" class="flex alt-center with-gap" title="Previous track (Shift+←)">
 					<span class="icon with-padding">Previous track</span>
 				</button>
-				<span class="icon with-padding small-padding">Toggle playback</span>
-				<button id="playback-next" type="button" class="flex alt-center with-gap">
+				<span class="icon with-padding small-padding" title="Play or pause (Space, or click anywhere)">Toggle playback</span>
+				<button id="playback-next" type="button" class="flex alt-center with-gap" title="Next track (Shift+→)">
 					<span class="icon with-padding">Next track</span>
 				</button>
 			</div>
-			<button id="clip-toggle" type="button" class="flex alt-center with-gap">
+			<button id="clip-toggle" type="button" class="flex alt-center with-gap" title="Record a video clip. Press again to stop and download it">
 				<span class="icon with-padding small-padding">Toggle recording</span>
 				<b id="clip-time" hidden>00:00</b>
 			</button>
@@ -57,13 +57,13 @@
 			<b id="playback-time">00:00</b>
 			<b id="playback-title"></b>
 		</div>
-		<input id="playback-track" type="range" min="0" max="100" step="0.1" value="0" title="Playback time track">
+		<input id="playback-track" type="range" min="0" max="100" step="0.1" value="0" title="Seek (← / →)">
 	</div>
 	<!-- Playlist -->
 	<dialog id="playlist" class="layer rounded flex column with-gap">
-		<input id="audio-loader" type="file" accept="audio/*,.lrc" multiple hidden>
+		<input id="audio-loader" type="file" accept="audio/*,.lrc,.txt" multiple hidden>
 		<div class="layer with-padding large-padding flex alt-center with-gap">
-			<button id="close-playlist" type="button" class="flex alt-center with-gap">
+			<button id="close-playlist" type="button" class="flex alt-center with-gap" title="Close (Esc)">
 				<span class="icon with-padding small-padding">Close playlist</span>
 			</button>
 			<button id="playlist-mode" type="button" class="flex alt-center with-gap" data-mode="once">
@@ -72,17 +72,18 @@
 		</div>
 		<ol id="playlist-tracks" class="flex column with-gap with-inline-padding large-padding"></ol>
 		<span id="playlist-empty" class="description with-inline-padding large-padding" hidden>No tracks yet — add some to get started.</span>
+		<span id="playlist-hint" class="description with-inline-padding large-padding">Drop files anywhere on the page. A .lrc file named like a song attaches to it as lyrics. Drag a track by its handle to reorder.</span>
 		<div class="layer flex column">
 			<button id="playlist-add" type="button" class="with-padding large-padding flex center with-gap">
-				<span class="icon with-padding small-padding">Add tracks</span>
-				<span>Add a track</span>
+				<span class="icon with-padding small-padding">Add songs or lyrics</span>
+				<span>Add songs or lyrics</span>
 			</button>
 		</div>
 	</dialog>
 	<!-- Configurator -->
 	<dialog id="configurator" class="layer rounded flex column with-gap">
 		<div class="layer with-padding large-padding flex reversed">
-			<button id="close-configurator" type="button" class="flex alt-center with-gap">
+			<button id="close-configurator" type="button" class="flex alt-center with-gap" title="Close (Esc)">
 				<span class="icon with-padding small-padding">Close configurator</span>
 			</button>
 		</div>
@@ -95,7 +96,7 @@
 			</section>
 			<section class="option">
 				<h4 class="title">Lyrics</h4>
-				<span class="definition">Sends synced lyrics to the active visualization when the current track has an attached .lrc file. Each visualization decides how to display them.</span>
+				<span class="definition">Sends synced lyrics to the active visualization when the current track has an attached .lrc file. Each visualization decides how to display them. Attach one by adding a .lrc file named like the song to the playlist.</span>
 				<input id="lyrics-toggle" type="checkbox" hidden>
 				<label for="lyrics-toggle" role="checkbox" class="value depth toggle">
 					<span class="layer knob"></span>
@@ -116,7 +117,7 @@
 			</section>
 			<section class="option">
 				<h4 class="title">AI</h4>
-				<span class="definition">Enables the neural network. When on, the AI continuously adjusts the visualization parameters to match the music.</span>
+				<span class="definition">Enables the neural network. When on, the AI continuously adjusts the visualization parameters to match the music. While it's on, Focus, Spread, Boost, Tilt and Punch are locked because the AI drives them.</span>
 				<input id="auto-correct-toggle" type="checkbox" hidden>
 				<label for="auto-correct-toggle" role="checkbox" class="value depth toggle">
 					<span class="layer knob"></span>
@@ -170,7 +171,7 @@
 			<h2>Visualization</h2>
 			<section class="option">
 				<h4 class="title">Type</h4>
-				<span class="definition">The visual style used to represent audio. Each style has a different look and feel.</span>
+				<span class="definition">The visual style used to represent audio. Each style has a different look and feel. Press <kbd class="depth rounded">↑</kbd> / <kbd class="depth rounded">↓</kbd> with the panels closed to switch.</span>
 				<select id="visualizer-visualization" class="value rounded depth with-padding"></select>
 				<section class="option">
 					<h4 class="title">Quality</h4>

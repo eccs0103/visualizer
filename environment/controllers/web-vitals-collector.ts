@@ -2,10 +2,11 @@
 
 import "adaptive-extender/web";
 import { PerformanceContext } from "../models/performance-context.js";
-import { analytics } from "../services/analytics-service.js";
+import { AnalyticsService } from "../services/analytics-service.js";
 import { Controller } from "adaptive-extender/web";
 
 const { round } = Math;
+const analytics = AnalyticsService.instance;
 
 //#region Web vitals collector
 declare global {

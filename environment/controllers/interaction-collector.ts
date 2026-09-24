@@ -3,8 +3,10 @@
 import "adaptive-extender/web";
 import { OutboundClick } from "../models/outbound-click.js";
 import { TextCopy } from "../models/text-copy.js";
-import { analytics } from "../services/analytics-service.js";
+import { AnalyticsService } from "../services/analytics-service.js";
 import { Controller } from "adaptive-extender/web";
+
+const analytics = AnalyticsService.instance;
 
 //#region Interaction collector
 export class InteractionCollector extends Controller {

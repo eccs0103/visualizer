@@ -89,7 +89,7 @@ export class LayersView extends EventTarget {
 		inputRange.type = "range";
 		inputRange.min = String(0);
 		inputRange.max = String(1);
-		inputRange.step = String(0.01);
+		inputRange.step = String(0.1);
 		inputRange.value = String(value);
 		inputRange.title = title;
 		inputRange.classList.add("value", "depth", "rounded");

@@ -4,9 +4,6 @@ import "adaptive-extender/core";
 import { BackgroundEffectKind } from "../models/background-settings.js";
 import { type StageHost } from "../models/visualization.js";
 
-const gain = 4;
-const decay = 4;
-
 //#region Placement
 export class Placement {
 	x: number = 0;
@@ -42,9 +39,11 @@ class NoEffect extends BackgroundEffect {
 //#endregion
 //#region Shake effect
 class ShakeEffect extends BackgroundEffect {
+	static #gain: number = 4;
+
 	place(stage: StageHost, intensity: number, placement: Placement): void {
 		const { camera } = stage;
-		const factor = intensity * gain;
+		const factor = intensity * ShakeEffect.#gain;
 		placement.x = camera.e * factor;
 		placement.y = camera.f * factor;
 		placement.scale = 1 + (camera.a - 1) * intensity;
@@ -53,12 +52,13 @@ class ShakeEffect extends BackgroundEffect {
 //#endregion
 //#region Pulse effect
 class PulseEffect extends BackgroundEffect {
+	static #decay: number = 4;
 	#energy: number = 0;
 
 	place(stage: StageHost, intensity: number, placement: Placement): void {
 		const { audioset, environment } = stage;
 		const { delta } = environment;
-		if (Number.isFinite(delta)) this.#energy = (this.#energy - delta * decay).clamp(0, 1);
+		if (Number.isFinite(delta)) this.#energy = (this.#energy - delta * PulseEffect.#decay).clamp(0, 1);
 		if (audioset.beatDetected) this.#energy = 1;
 		const level = this.#energy * 0.6 + audioset.bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0, 1) * 0.4;
 		placement.scale = 1 + intensity * level * 0.08;
@@ -67,9 +67,11 @@ class PulseEffect extends BackgroundEffect {
 //#endregion
 //#region Parallax effect
 class ParallaxEffect extends BackgroundEffect {
+	static #gain: number = 4;
+
 	place(stage: StageHost, intensity: number, placement: Placement): void {
 		const { camera } = stage;
-		const factor = intensity * gain;
+		const factor = intensity * ParallaxEffect.#gain;
 		placement.x = -camera.e * factor;
 		placement.y = -camera.f * factor;
 	}

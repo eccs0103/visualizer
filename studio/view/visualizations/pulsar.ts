@@ -8,13 +8,13 @@ import { ColorDriver, Shaper } from "../../services/visualization-tools.js";
 
 const { min, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
 const random = Random.global;
-const stopCount = 96;
 
 //#region Pulsar
 Registry.attach("Pulsar", class extends Visualization {
 	#layerHalo = this.newCustomLayer("Halo", this.#drawHalo.bind(this));
 	#layerWave = this.newCustomLayer("Wave", this.#drawWave.bind(this));
 	#layerShadow = this.newCustomLayer("Shadow", this.#drawShadow.bind(this));
+	#countStops: number = 96;
 	#radius: number;
 	#colorHaloOuter: Color = Color.fromHSL(0, 100, 60);
 	#colorHaloInner: Color;
@@ -56,6 +56,7 @@ Registry.attach("Pulsar", class extends Visualization {
 
 	#runHaloBuilding(stage: StageHost): void {
 		const radius = this.#radius;
+		const countStops = this.#countStops;
 		const colorHaloOuter = this.#colorHaloOuter;
 		const shaperFrequency = this.#shaperFrequency;
 		const stops = this.#stopsHalo;
@@ -67,8 +68,8 @@ Registry.attach("Pulsar", class extends Visualization {
 
 		this.#gradientHalo = null;
 		stops.length = 0;
-		for (let index = 0; index < stopCount; index++) {
-			const normEdge = abs(index.lerp(0, stopCount) - 0.5) * 2;
+		for (let index = 0; index < countStops; index++) {
+			const normEdge = abs(index.lerp(0, countStops) - 0.5) * 2;
 			stops.push(new Color(colorHaloOuter)
 				.rotate(180 * normEdge + hueBias)
 				.illuminate(normIllumination)

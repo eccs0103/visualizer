@@ -145,6 +145,7 @@ dialog#configurator > div:first-of-type {
 	position: sticky;
 	top: 0;
 	z-index: 2;
+	opacity: 0.9;
 }
 
 dialog#playlist > div:first-of-type {
@@ -155,6 +156,7 @@ dialog#playlist > div:last-of-type {
 	position: sticky;
 	bottom: 0;
 	z-index: 2;
+	opacity: 0.9;
 }
 
 dialog#configurator > div:last-of-type {

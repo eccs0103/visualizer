@@ -2,10 +2,11 @@
 
 import "adaptive-extender/web";
 import { BatteryContext } from "../models/battery-context.js";
-import { analytics } from "../services/analytics-service.js";
+import { AnalyticsService } from "../services/analytics-service.js";
 import { Controller } from "adaptive-extender/web";
 
 const { round } = Math;
+const analytics = AnalyticsService.instance;
 
 //#region Battery collector
 declare global {

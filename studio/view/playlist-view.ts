@@ -2,7 +2,7 @@
 
 import "adaptive-extender/web";
 import { Timespan } from "adaptive-extender/web";
-import { type Track, type PlaybackMode, Reorder } from "../models/playlist.js";
+import { type Track, PlaybackMode, Reorder } from "../models/playlist.js";
 import { TextExpert } from "../services/text-expert.js";
 import { DOMBuilder } from "./dom-builder.js";
 import { TrackDrag } from "./track-drag.js";
@@ -15,6 +15,13 @@ export interface PlaylistViewEventMap {
 }
 
 export class PlaylistView extends EventTarget {
+	static #titles: Map<PlaybackMode, string> = new Map([
+		[PlaybackMode.once, "Play once. Press to change the playback mode"],
+		[PlaybackMode.one, "Repeat track. Press to change the playback mode"],
+		[PlaybackMode.loop, "Loop playlist. Press to change the playback mode"],
+		[PlaybackMode.shuffle, "Shuffle. Press to change the playback mode"],
+	]);
+
 	#olPlaylistTracks: HTMLOListElement;
 	#spanPlaylistEmpty: HTMLElement;
 	#buttonPlaylistMode: HTMLButtonElement;
@@ -187,6 +194,7 @@ export class PlaylistView extends EventTarget {
 		this.#order = tracks.map(track => track.id);
 		this.#spanPlaylistEmpty.hidden = tracks.length > 0;
 		this.#buttonPlaylistMode.dataset["mode"] = mode;
+		this.#buttonPlaylistMode.title = ReferenceError.suppress(PlaylistView.#titles.get(mode));
 
 		if (focused !== null && olPlaylistTracks.contains(focused) && document.activeElement !== focused) focused.focus({ preventScroll: true });
 	}

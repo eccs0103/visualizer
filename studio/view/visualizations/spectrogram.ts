@@ -9,7 +9,6 @@ import { ColorDriver, Shaper } from "../../services/visualization-tools.js";
 
 const { min, sign, PI, abs, trunc, exp, meanGeometric } = Math;
 const random = Random.global;
-const stopCount = 64;
 
 //#region Spectrogram
 Registry.attach("Spectrogram", class extends Visualization {
@@ -17,6 +16,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#layerBloom = this.newCustomLayer("Bloom", this.#drawBloom.bind(this), { blend: Blend.lighter });
 	#layerThread = this.newCustomLayer("Thread", this.#drawThread.bind(this), { blend: Blend.lighter });
 	#layerVignette = this.newCustomLayer("Vignette", this.#drawVignette.bind(this), { blend: Blend.multiply });
+	#countStops: number = 64;
 	#side: number;
 	#lineWidth: number;
 	#normPulseEnergy: number = 0;
@@ -106,6 +106,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	//#region Layers
 	#drawRidge(host: VisualizationHost): void {
 		const lineWidth = this.#lineWidth;
+		const countStops = this.#countStops;
 		const hueSpread = this.#hueSpread;
 		const hueBias = this.#hueBias;
 		const normLightness = this.#normLightness;
@@ -116,8 +117,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const { width } = context.canvas;
 
 		const gradientRidge = context.createLinearGradient(-width / 2, 0, width / 2, 0);
-		for (let index = 0; index <= stopCount; index++) {
-			const normProgress = index.lerp(0, stopCount);
+		for (let index = 0; index <= countStops; index++) {
+			const normProgress = index.lerp(0, countStops);
 			gradientRidge.addColorStop(normProgress, new Color(colorRidgeSeed)
 				.rotate(hueSpread * normProgress + hueBias)
 				.illuminate(normLightness)

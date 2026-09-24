@@ -10,6 +10,7 @@ export class DOMBuilder {
 		const icon = parent.appendChild(document.createElement("span"));
 		icon.classList.add("icon", "with-padding");
 		icon.innerText = label;
+		icon.title = label;
 		return icon;
 	}
 
@@ -17,7 +18,7 @@ export class DOMBuilder {
 		const handle = row.appendChild(document.createElement("span"));
 		handle.classList.add("handle", "with-padding", "flex", "alt-center");
 		handle.tabIndex = 0;
-		DOMBuilder.newIcon(handle, "Drag to reorder");
+		DOMBuilder.newIcon(handle, "Drag to reorder (or focus and press ↑/↓)");
 		return handle;
 	}
 

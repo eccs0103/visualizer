@@ -67,6 +67,4 @@ export class AnalyticsService {
 		window.gtag("set", "user_properties", (constructor(instance) as typeof Model).export(instance));
 	}
 }
-
-export const analytics = AnalyticsService.instance;
 //#endregion

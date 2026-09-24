@@ -2,10 +2,11 @@
 
 import "adaptive-extender/web";
 import { PageLeave } from "../models/page-leave.js";
-import { analytics } from "../services/analytics-service.js";
+import { AnalyticsService } from "../services/analytics-service.js";
 import { Controller } from "adaptive-extender/web";
 
 const { round, min } = Math;
+const analytics = AnalyticsService.instance;
 
 //#region Engagement collector
 export class EngagementCollector extends Controller {

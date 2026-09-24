@@ -2,8 +2,10 @@
 
 import "adaptive-extender/web";
 import { JavaScriptError } from "../models/javascript-error.js";
-import { analytics } from "../services/analytics-service.js";
+import { AnalyticsService } from "../services/analytics-service.js";
 import { Controller } from "adaptive-extender/web";
+
+const analytics = AnalyticsService.instance;
 
 //#region Error collector
 export class ErrorCollector extends Controller {
