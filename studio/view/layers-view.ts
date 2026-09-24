@@ -2,7 +2,7 @@
 
 import "adaptive-extender/web";
 import { Blend } from "../models/blend.js";
-import { BackgroundFit, type BackgroundSettings } from "../models/engine-settings.js";
+import { BackgroundEffectKind, BackgroundFit, type BackgroundSettings } from "../models/engine-settings.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { Reorder } from "../models/playlist.js";
 import { DOMBuilder } from "./dom-builder.js";
@@ -175,6 +175,42 @@ export class LayersView extends EventTarget {
 				settings.fit = ReferenceError.suppress(Object.values(BackgroundFit).find(candidate => candidate === selectFit.value), `Unknown fit '${selectFit.value}'`);
 				this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
 			});
+		}
+
+		if (settings.hasImage) {
+			const divEffect = divContent.appendChild(document.createElement("div"));
+			divEffect.classList.add("controls", "flex", "alt-center", "with-gap");
+
+			const inputIntensity = document.createElement("input");
+			inputIntensity.type = "range";
+			inputIntensity.min = String(0);
+			inputIntensity.max = String(1);
+			inputIntensity.step = String(0.01);
+			inputIntensity.value = String(settings.intensity);
+			inputIntensity.title = "Effect intensity";
+			inputIntensity.disabled = settings.effect === BackgroundEffectKind.none;
+			inputIntensity.classList.add("layer", "rounded");
+			inputIntensity.addEventListener("input", event => {
+				settings.intensity = Number(inputIntensity.value);
+				this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
+			});
+
+			const selectEffect = divEffect.appendChild(document.createElement("select"));
+			selectEffect.title = "Effect";
+			selectEffect.classList.add("layer", "rounded", "with-padding");
+			for (const [name, value] of Object.entries(BackgroundEffectKind)) {
+				const option = selectEffect.appendChild(document.createElement("option"));
+				option.value = value;
+				option.innerText = name;
+			}
+			selectEffect.value = settings.effect;
+			selectEffect.addEventListener("change", event => {
+				settings.effect = ReferenceError.suppress(Object.values(BackgroundEffectKind).find(candidate => candidate === selectEffect.value), `Unknown effect '${selectEffect.value}'`);
+				inputIntensity.disabled = settings.effect === BackgroundEffectKind.none;
+				this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
+			});
+
+			divEffect.appendChild(inputIntensity);
 		}
 
 		const spanMessage = divContent.appendChild(document.createElement("span"));

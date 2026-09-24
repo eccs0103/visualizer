@@ -70,7 +70,7 @@ export class Settings extends Model {
 	panel: Panel = Panel.none;
 
 	@Field(Number, { name: "rate" })
-	rate: number = 240;
+	rate: number = 120;
 
 	@Field(Boolean, { name: "auto_correct" })
 	autoCorrect: boolean = true;

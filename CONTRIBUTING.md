@@ -67,10 +67,10 @@ Registry.attach("My custom title", class extends Visualization {
 
 Every visualization also gets two layers that the engine adds and owns. You do not declare them, and the names `Background` and `Lyrics` are reserved:
 
-| Layer        | Position | Description                                                                                                |
-| :----------- | :------- | :--------------------------------------------------------------------------------------------------------- |
-| `Background` | Bottom   | The theme colour, or an image the user uploaded (cover, contain or stretch). Shared by all visualizations. |
-| `Lyrics`     | Top      | Synced lyrics, following the camera by `lyrics.shake`. Drawn only while there are lyrics.                  |
+| Layer        | Position | Description                                                                                                                                                                                       |
+| :----------- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Background` | Bottom   | The theme colour, or an image the user uploaded (cover, contain or stretch) with an optional effect: shake and parallax follow your camera, pulse follows the beat. Shared by all visualizations. |
+| `Lyrics`     | Top      | Synced lyrics, following the camera by `lyrics.shake`. Drawn only while there are lyrics.                                                                                                         |
 
 Both are pinned: the user can change their opacity and blend mode, but cannot move them.
 
@@ -78,7 +78,7 @@ Both are pinned: the user can change their opacity and blend mode, but cannot mo
 
 - **Layers are isolated.** Each layer paints on its own canvas, so state set in one layer (`fillStyle`, `filter`, `globalCompositeOperation`, clipping) never leaks into another. Set what you need inside every painter, and use `blend` instead of `globalCompositeOperation` to mix layers.
 - **Share data through the visualization, never through the canvas.** Compute paths, colours and metrics in `rebuild()` and `update()` and store them in `#private` fields. `update()` always runs before the layers, so a layer can rely on it whatever order the user puts the layers in. If one layer must be masked by another's shape, share the `Path2D` and use `context.clip()`.
-- **The origin is the canvas centre.** `camera` starts as the identity matrix every frame; translate or scale it in `update()` to shake or zoom every layer at once. A painter that fills the whole canvas can call `context.resetTransform()` first.
+- **The origin is the canvas centre.** `camera` starts as the identity matrix every frame; translate or scale it in `update()` to shake or zoom every layer at once. A painter that fills the whole canvas can call `context.resetTransform()` first. The camera also drives the background's shake and parallax effects, so a visualization that never moves its camera gives them nothing to follow.
 - **Gradients can be shared.** A `CanvasGradient` created on one layer's context can be used by another layer's context, so build it once per frame (for example in the first painter that needs it, and reset the field in `update()`) instead of once per layer.
 - **Keep frames cheap.** The engine runs your code every frame. Avoid allocating per frequency bin (`new Color(...)`, template strings) inside loops over `audioset.length`; a gradient with a few dozen stops looks the same as one with hundreds. `environment.colorBackground` is a shared instance: copy it with `new Color(...)` before changing it.
 - **Failures stay local.** If `update()` throws, the visualization's own layers stop and the engine layers keep drawing; if a painter throws, only that layer is disabled. Both are logged once and recover on the next rebuild.

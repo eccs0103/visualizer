@@ -267,8 +267,6 @@ ol#playlist-tracks > li span.title {
 }
 
 section.option > ol#visualization-layers {
-	grid-area: auto;
-	grid-column: 1 / -1;
 	width: 100%;
 	list-style: none;
 }

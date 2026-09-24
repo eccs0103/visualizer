@@ -2,19 +2,25 @@
 
 import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
-import { BackgroundFit, BackgroundSettings } from "../models/engine-settings.js";
+import { BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "../models/engine-settings.js";
 import { type StageHost, type VisualizationHost } from "../models/visualization.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { Layer, PaintedLayer } from "./layers.js";
+import { BackgroundEffect, BackgroundEffects, Placement } from "./background-effects.js";
 
 const { min, max, round } = Math;
 
 //#region Background layer
 export class BackgroundLayer extends Layer {
 	static #limit: number = 3840;
+	static #overscan: number = 0.08;
 	#master: ImageBitmap | null = null;
 	#ticket: number = 0;
 	#fit: BackgroundFit = BackgroundFit.cover;
+	#kind: BackgroundEffectKind = BackgroundEffectKind.pulse;
+	#effect: BackgroundEffect = BackgroundEffects.create(BackgroundEffectKind.none);
+	#intensity: number = 0;
+	#placement: Placement = new Placement();
 	#width: number = 0;
 	#height: number = 0;
 	#color: Color | null = null;
@@ -41,9 +47,15 @@ export class BackgroundLayer extends Layer {
 	apply(settings: LayerSettings): void {
 		super.apply(settings);
 		if (!(settings instanceof BackgroundSettings)) throw new TypeError("The background layer requires background settings");
-		if (settings.fit === this.#fit) return;
-		this.#fit = settings.fit;
-		this.#isStale = true;
+		if (!Number.isFinite(settings.intensity)) throw new TypeError(`The background effect intensity ${settings.intensity} must be a finite number`);
+		if (settings.fit !== this.#fit) {
+			this.#fit = settings.fit;
+			this.#isStale = true;
+		}
+		this.#intensity = settings.intensity.clamp(0, 1);
+		if (settings.effect === this.#kind) return;
+		this.#kind = settings.effect;
+		this.#effect = BackgroundEffects.create(settings.effect);
 	}
 
 	async setImage(blob: Blob | null): Promise<void> {
@@ -108,6 +120,20 @@ export class BackgroundLayer extends Layer {
 		return canvas;
 	}
 
+	#blitMoved(stage: StageHost, output: OffscreenCanvasRenderingContext2D, canvas: OffscreenCanvas): void {
+		const width = this.#width;
+		const height = this.#height;
+		const placement = this.#placement;
+		placement.reset();
+		this.#effect.place(stage, this.#intensity, placement);
+		placement.clamp(width, height, BackgroundLayer.#overscan);
+		const scale = placement.scale * (1 + BackgroundLayer.#overscan);
+		output.save();
+		output.setTransform(scale, 0, 0, scale, (width - scale * width) / 2 + placement.x, (height - scale * height) / 2 + placement.y);
+		output.drawImage(canvas, 0, 0);
+		output.restore();
+	}
+
 	render(stage: StageHost, output: OffscreenCanvasRenderingContext2D): void {
 		const color = stage.environment.colorBackground;
 		let colorText = this.#colorText;
@@ -127,7 +153,11 @@ export class BackgroundLayer extends Layer {
 		}
 		let canvas = this.#canvas;
 		if (this.#isStale || canvas === null) canvas = this.#refit(master, colorText);
-		output.drawImage(canvas, 0, 0);
+		if (this.#kind === BackgroundEffectKind.none) {
+			output.drawImage(canvas, 0, 0);
+			return;
+		}
+		this.#blitMoved(stage, output, canvas);
 	}
 }
 //#endregion
