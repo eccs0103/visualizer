@@ -59,10 +59,13 @@ export class FrameProcessor {
 	#feedbackSign: number = 0;
 	#feedbackHold: number = 0;
 	#feedbackEngaged: boolean = false;
+	#active: boolean = true;
 
 	constructor() {
 		this.#emaVar.fill(1);
 	}
+
+	set active(value: boolean) { this.#active = value; }
 
 	injectFeedback(sign: number): void {
 		if (sign !== this.#feedbackSign) {
@@ -242,7 +245,11 @@ export class FrameProcessor {
 		this.#fillInput(flux, bandEnergies, zeroCrossingRate, centroid, percussiveness);
 		this.#pushHistory();
 
-		model.forwardControl(this.#featHistory, this.#lastControlOutput, this.#lastValueOutput);
+		if (this.#active) model.forwardControl(this.#featHistory, this.#lastControlOutput, this.#lastValueOutput);
+		else {
+			this.#lastControlOutput.fill(0);
+			this.#lastValueOutput.fill(0);
+		}
 
 		const dropIntensity = min(1, percussiveness * 3) * bandEnergies[0];
 		const bassLevel = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
@@ -259,6 +266,11 @@ export class FrameProcessor {
 		output[14] = distortionLevel;
 		for (let param = 0; param < NNAgent.sizeControl; param++) output[15 + param] = this.#lastControlOutput[param];
 		output[0] = frame;
+
+		if (!this.#active) {
+			output[20] = 0;
+			return;
+		}
 
 		const sign = this.#feedbackSign;
 		const gain = this.#computeFeedbackGain(sign);

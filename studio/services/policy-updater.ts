@@ -68,6 +68,11 @@ export class PolicyUpdater {
 		}
 	}
 
+	flush(): void {
+		this.#cursor = 0;
+		this.#filled = 0;
+	}
+
 	reset(): void {
 		this.#cursor = 0;
 		this.#filled = 0;

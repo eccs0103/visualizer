@@ -5,7 +5,7 @@ import { BufferedCell } from "adaptive-extender/web";
 import { NNWeights } from "../models/nn-agent.js";
 import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./client-bridge.js";
-import { Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadWeightsCommand, ProgressCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
+import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadWeightsCommand, ProgressCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 import { type AudiosetManager } from "../models/audioset.js";
 
 const { baseURI } = document;
@@ -60,6 +60,10 @@ export class AudioAnalyzer extends EventTarget {
 	feedback(sign: number): void {
 		if (!this.#isDeveloper) return;
 		this.#worker.postMessage(Command.export(new FeedbackCommand(sign)));
+	}
+
+	set active(value: boolean) {
+		this.#worker.postMessage(Command.export(new ActivityCommand(value)));
 	}
 
 	setLearning(enabled: boolean): void {

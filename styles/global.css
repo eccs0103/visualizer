@@ -334,6 +334,10 @@ span {
 			height: var(--size-large-standart);
 		}
 	}
+
+	&.icon {
+		overflow: hidden;
+	}
 }
 
 .in-line {

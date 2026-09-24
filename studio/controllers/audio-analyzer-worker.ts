@@ -6,7 +6,7 @@ import { SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
 import { PolicyUpdater } from "../services/policy-updater.js";
-import { Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
+import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 //#region Audio analyzer worker
 class AudioAnalyzerWorker extends Controller {
@@ -61,6 +61,12 @@ class AudioAnalyzerWorker extends Controller {
 
 		if (command instanceof LearningCommand) {
 			policy.enabled = command.enabled;
+			return;
+		}
+
+		if (command instanceof ActivityCommand) {
+			processor.active = command.enabled;
+			policy.flush();
 			return;
 		}
 

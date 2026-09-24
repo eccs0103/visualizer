@@ -6,7 +6,7 @@ import { NNWeights, type NNWeightsScheme } from "./nn-agent.js";
 import { SharedArrayBufferPortable } from "./render-commands.js";
 
 //#region Command
-export interface CommandDiscriminator extends InitializeCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, ResetCommandDiscriminator, FeedbackCommandDiscriminator, LearningCommandDiscriminator, ProgressCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, ResetCommandDiscriminator, FeedbackCommandDiscriminator, LearningCommandDiscriminator, ActivityCommandDiscriminator, ProgressCommandDiscriminator {
 }
 
 export interface CommandScheme {
@@ -20,6 +20,7 @@ export interface CommandScheme {
 @Descendant(Deferred(_ => ResetCommand))
 @Descendant(Deferred(_ => FeedbackCommand))
 @Descendant(Deferred(_ => LearningCommand))
+@Descendant(Deferred(_ => ActivityCommand))
 @Descendant(Deferred(_ => ProgressCommand))
 export abstract class Command extends Model {
 	constructor() {
@@ -176,6 +177,33 @@ export interface LearningCommandScheme extends CommandScheme {
 }
 
 export class LearningCommand extends Command {
+	@Field(Boolean, { name: "enabled" })
+	enabled: boolean;
+
+	constructor();
+	constructor(enabled: boolean);
+	constructor(enabled?: boolean) {
+		if (enabled === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.enabled = enabled;
+	}
+}
+//#endregion
+//#region Activity command
+export interface ActivityCommandDiscriminator {
+	"ActivityCommand": ActivityCommand;
+}
+
+export interface ActivityCommandScheme extends CommandScheme {
+	$type: keyof ActivityCommandDiscriminator;
+	enabled: boolean;
+}
+
+export class ActivityCommand extends Command {
 	@Field(Boolean, { name: "enabled" })
 	enabled: boolean;
 

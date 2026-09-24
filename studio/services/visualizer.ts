@@ -133,7 +133,10 @@ export class Visualizer extends EventTarget {
 	}
 
 	get autoCorrect(): boolean { return this.#manager.autoCorrect; }
-	set autoCorrect(value: boolean) { this.#manager.autoCorrect = value; }
+	set autoCorrect(value: boolean) {
+		this.#manager.autoCorrect = value;
+		this.#analyzer.active = value;
+	}
 	get quality(): number { return this.#manager.quality; }
 	set quality(value: number) { this.#manager.quality = value; }
 	get smoothing(): number { return this.#manager.smoothing; }
@@ -195,7 +198,6 @@ export class Visualizer extends EventTarget {
 
 	#correct(): void {
 		const manager = this.#manager;
-		this.#analyzer.analyze(manager);
 		const { djFocus, djSpread, djBoost, djTilt, djPunch } = manager.audioset;
 		const rate = 0.04;
 		manager.focus += (djFocus - manager.focus) * rate;
@@ -207,6 +209,7 @@ export class Visualizer extends EventTarget {
 
 	#update(): void {
 		const manager = this.#manager;
+		this.#analyzer.analyze(manager);
 		if (manager.autoCorrect) this.#correct();
 		this.#publish();
 		this.#worker.postMessage(Visualizer.#tick);
