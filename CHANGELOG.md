@@ -1,3 +1,16 @@
+## 3.5.0 (25.09.2026)
+- Added layers — every visualization is now drawn from a stack of layers, listed in a new **Layers** section of the configurator. Drag a layer by its handle (or focus the handle and press <kbd>↑</kbd>/<kbd>↓</kbd>) to reorder it, lower its opacity to fade it out, or pick a blend mode (`Normal`, `Lighter`, `Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten` or `Difference`). The arrangement is saved per visualization.
+- Added a **Background** layer, pinned to the bottom of every visualization. It shows the theme colour or an image you upload (cover, contain or stretch, up to 50 MB, anything wider or taller than 3840 px is scaled down), with an optional shake, beat pulse (the default) or parallax effect and an intensity slider. Each visualization keeps its own image and settings, and the image is remembered between sessions.
+- The **Lyrics** layer is now pinned on top of every visualization with its own opacity and blend mode, and follows the camera by the **Shake** amount.
+- `Pulsar` is now drawn from the `Shadow`, `Wave` and `Halo` layers, and `Spectrogram` from the `Vignette`, `Thread`, `Bloom` and `Ridge` layers.
+- A visualization that fails no longer takes the whole picture down: a failing `update()` stops only its own layers, a failing painter disables only that layer, and both recover on the next rebuild. A visualization that declares no layers, repeats a layer name, uses the reserved `Background` or `Lyrics` names, or repeats another visualization's name is rejected with a message in the console.
+- Added `this.newCustomLayer(name, painter, options?)`, `StageHost` (`width`, `height`, `camera`, `audioset`, `environment`) and `Blend` to the contributor API — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+- The playlist's file picker now offers `.txt` lyrics files too, and its button is renamed **Add songs or lyrics**.
+- Added tooltips to the interface buttons, a playlist hint about dropping files and attaching lyrics, a hint in the player while the playlist is empty, and a tooltip on the playback-mode button that names the current mode.
+- The neural network now stops running while auto-correction is off.
+- **Breaking:** `rebuild(host)` and `update(host)` of a `Visualization` now receive a `StageHost` and no longer paint. Declare each drawing step as a layer with `this.newCustomLayer()`, move the clearing, shaking and zooming of the canvas to `stage.camera`, and delete your background and lyrics drawing, which the engine now provides. See "Migrating from `update(host)`" in [CONTRIBUTING.md](./CONTRIBUTING.md).
+- **Breaking:** `environment.colorBackground` is now a shared instance. Copy it with `new Color(...)` before changing it.
+
 ## 3.4.1 (12.09.2026)
 - `Pulsar`'s halo and the `Spectrogram`'s ridge now draw their bass glow as a blurred extra pass instead of a canvas shadow, and skip it entirely when the blur would round below a pixel.
 - The `Spectrogram`'s bass bloom and shimmer thread now take their tint from the ridge's current rotated color instead of the fixed red seed, so they recolor along with the ridge.
