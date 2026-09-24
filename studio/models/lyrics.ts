@@ -26,15 +26,17 @@ export class Lyrics {
 	}
 
 	static parse(text: string): Lyrics {
+		const patternTimestamp = Lyrics.#patternTimestamp;
 		const offsetMatch = Lyrics.#patternOffset.exec(text);
-		const offset = (offsetMatch === null) ? 0 : Number(offsetMatch[1]) / 1000;
+		let offset = 0;
+		if (offsetMatch !== null) offset = Number(offsetMatch[1]) / 1000;
 
 		const lines: LyricLine[] = [];
 		for (const raw of text.split(/\r?\n/)) {
-			const timestamps = Array.from(raw.matchAll(Lyrics.#patternTimestamp));
+			const timestamps = Array.from(raw.matchAll(patternTimestamp));
 			if (timestamps.length < 1) continue;
 
-			const content = raw.replace(Lyrics.#patternTimestamp, String.empty).replace(Lyrics.#patternWordTiming, String.empty).trim();
+			const content = raw.replace(patternTimestamp, String.empty).replace(Lyrics.#patternWordTiming, String.empty).trim();
 			for (const [, minutes, seconds] of timestamps) {
 				const time = Number(minutes) * 60 + Number(seconds) - offset;
 				lines.push(new LyricLine(time, content));

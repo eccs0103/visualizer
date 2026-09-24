@@ -12,10 +12,10 @@ const analytics = AnalyticsService.instance;
 export class EngagementCollector extends Controller {
 	#maxScrollPercent = 0;
 	#totalVisibleMilliseconds = 0;
-	#visibleSince: number | null = null;
+	#sinceVisible: number | null = null;
 
 	async run(): Promise<void> {
-		if (document.visibilityState === "visible") this.#visibleSince = Date.now();
+		if (document.visibilityState === "visible") this.#sinceVisible = Date.now();
 		window.addEventListener("scroll", this.#onScroll.bind(this), { passive: true });
 		document.addEventListener("visibilitychange", this.#onVisibility.bind(this));
 	}
@@ -30,17 +30,18 @@ export class EngagementCollector extends Controller {
 
 	#onVisibility(): void {
 		if (document.visibilityState !== "hidden") {
-			this.#visibleSince = Date.now();
+			this.#sinceVisible = Date.now();
 			return;
 		}
-		if (this.#visibleSince !== null) {
-			this.#totalVisibleMilliseconds += Date.now() - this.#visibleSince;
-			this.#visibleSince = null;
+		const sinceVisible = this.#sinceVisible;
+		if (sinceVisible !== null) {
+			this.#totalVisibleMilliseconds += Date.now() - sinceVisible;
+			this.#sinceVisible = null;
 		}
-		const engagementTimeMsec = this.#totalVisibleMilliseconds;
-		const timeOnPage = round(engagementTimeMsec / 1000);
+		const engagement = this.#totalVisibleMilliseconds;
+		const timeOnPage = round(engagement / 1000);
 		const maxScrollPercent = this.#maxScrollPercent;
-		analytics.dispatch("page_leave", new PageLeave(engagementTimeMsec, timeOnPage, maxScrollPercent));
+		analytics.dispatch("page_leave", new PageLeave(engagement, timeOnPage, maxScrollPercent));
 	}
 
 	async catch(error: Error): Promise<void> {

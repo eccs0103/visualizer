@@ -131,9 +131,10 @@ export class Playlist extends Model {
 
 	append(track: Track): void {
 		this.tracks.push(track);
-		if (this.mode !== PlaybackMode.shuffle || this.#queue === null) return;
-		const position = Random.global.integer(0, this.#queue.length);
-		this.#queue.splice(position, 0, track.id);
+		const queue = this.#queue;
+		if (this.mode !== PlaybackMode.shuffle || queue === null) return;
+		const position = Random.global.integer(0, queue.length);
+		queue.splice(position, 0, track.id);
 	}
 
 	remove(id: string): boolean {
@@ -141,7 +142,8 @@ export class Playlist extends Model {
 		if (position < 0) return false;
 		this.tracks.splice(position, 1);
 		this.#fixIndexAfterRemoval(position);
-		if (this.#queue !== null) this.#queue.remove(id);
+		const queue = this.#queue;
+		if (queue !== null) queue.remove(id);
 		return true;
 	}
 
@@ -159,7 +161,8 @@ export class Playlist extends Model {
 		const track = this.tracks[index];
 		if (track.isPending) return null;
 		this.index = index;
-		if (this.#queue !== null) this.#queue.remove(track.id);
+		const queue = this.#queue;
+		if (queue !== null) queue.remove(track.id);
 		return this.current;
 	}
 

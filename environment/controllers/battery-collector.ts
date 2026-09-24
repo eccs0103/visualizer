@@ -32,8 +32,8 @@ export class BatteryCollector extends Controller {
 	}
 
 	#update(battery: BatteryManager): void {
-		const batteryLevel = round(battery.level * 100);
-		analytics.setProperties(new BatteryContext(batteryLevel, battery.charging));
+		const level = round(battery.level * 100);
+		analytics.setProperties(new BatteryContext(level, battery.charging));
 	}
 
 	async catch(error: Error): Promise<void> {

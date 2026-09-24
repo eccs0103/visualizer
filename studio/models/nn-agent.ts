@@ -89,7 +89,7 @@ export class NNAgent {
 	#varMatrixW: Float32Array;
 	#varBiasW: Float32Array;
 
-	#rlStepCount: number = 0;
+	#rlSteps: number = 0;
 
 	#layer1: Float32Array = new Float32Array(NNAgent.#sizeHidden1);
 	#layer2: Float32Array = new Float32Array(NNAgent.#sizeHidden2);
@@ -148,7 +148,8 @@ export class NNAgent {
 	}
 
 	static #leaky(x: number): number {
-		return x >= 0 ? x : NNAgent.#alpha * x;
+		if (x >= 0) return x;
+		return NNAgent.#alpha * x;
 	}
 
 	static #adamStep(param: Float32Array, grad: Float32Array, mean: Float32Array, variance: Float32Array, bias1Scale: number, bias2Scale: number, rateScale: number = 1): void {
@@ -183,7 +184,7 @@ export class NNAgent {
 		}
 	}
 
-	forwardControl(input: Float32Array, controlOut: Float32Array, valueOut: Float32Array): void {
+	forwardControl(input: Float32Array, outputControl: Float32Array, outputValue: Float32Array): void {
 		const sizeHidden2 = NNAgent.#sizeHidden2, sizeControl = NNAgent.#sizeControl;
 		const matrixV = this.#matrixV, biasV = this.#biasV;
 		const matrixW = this.#matrixW, biasW = this.#biasW;
@@ -195,34 +196,40 @@ export class NNAgent {
 			let sum = biasV[param];
 			const row = param * sizeHidden2;
 			for (let source = 0; source < sizeHidden2; source++) sum += matrixV[row + source] * layer2[source];
-			controlOut[param] = tanh(sum);
+			outputControl[param] = tanh(sum);
 		}
-		let valueSum = biasW[0];
-		for (let source = 0; source < sizeHidden2; source++) valueSum += matrixW[source] * layer2[source];
-		valueOut[0] = valueSum;
+		let sumValue = biasW[0];
+		for (let source = 0; source < sizeHidden2; source++) sumValue += matrixW[source] * layer2[source];
+		outputValue[0] = sumValue;
 	}
 
 	// RL step: updates control head and value head.
 	// storedControl: the control output recorded at the time this experience was collected.
 	// When advantage > 0 (good action): push control head toward storedControl (reinforce).
 	// When advantage ≤ 0 (bad action): push control head toward 0 (neutralize — return to default).
-	// feedbackSign: non-zero when held thumb overrides; feedbackGain: triangular ramp scale for control-head Adam rate.
-	rlStep(input: Float32Array, storedControl: Float32Array, tdTarget: number, advantage: number, feedbackSign: number, feedbackGain: number): void {
+	// sign: non-zero when held thumb overrides; gain: triangular ramp scale for control-head Adam rate.
+	rlStep(input: Float32Array, storedControl: Float32Array, tdTarget: number, advantage: number, sign: number, gain: number): void {
 		const sizeHidden2 = NNAgent.#sizeHidden2, sizeControl = NNAgent.#sizeControl;
 		const matrixV = this.#matrixV, biasV = this.#biasV;
 		const matrixW = this.#matrixW, biasW = this.#biasW;
 		const layer2 = this.#layer2;
 
-		this.#rlStepCount++;
-		const b1 = 1 / (1 - NNAgent.#adamBeta1 ** this.#rlStepCount);
-		const b2 = 1 / (1 - NNAgent.#adamBeta2 ** this.#rlStepCount);
+		this.#rlSteps++;
+		const rlSteps = this.#rlSteps;
+		const b1 = 1 / (1 - NNAgent.#adamBeta1 ** rlSteps);
+		const b2 = 1 / (1 - NNAgent.#adamBeta2 ** rlSteps);
 
 		this.#forward(input);
 
-		const isFeedback = feedbackSign !== 0;
-		const weight = isFeedback ? 1 : abs(advantage);
-		const isPositive = isFeedback ? feedbackSign > 0 : advantage > 0;
-		const scale = isFeedback ? feedbackGain : 1;
+		const isFeedback = sign !== 0;
+		let weight = abs(advantage);
+		let isPositive = advantage > 0;
+		let scale = 1;
+		if (isFeedback) {
+			weight = 1;
+			isPositive = sign > 0;
+			scale = gain;
+		}
 		if (isFeedback || weight > 0.001) {
 			const gradMatrixV = this.#gradMatrixV, gradBiasV = this.#gradBiasV;
 			gradMatrixV.fill(0);
@@ -232,7 +239,8 @@ export class NNAgent {
 				const row = param * sizeHidden2;
 				for (let source = 0; source < sizeHidden2; source++) sum += matrixV[row + source] * layer2[source];
 				const output = tanh(sum);
-				const target = isPositive ? storedControl[param] : 0;
+				let target = 0;
+				if (isPositive) target = storedControl[param];
 				const grad = weight * (output - target) * (1 - output * output);
 				gradBiasV[param] = grad;
 				for (let source = 0; source < sizeHidden2; source++) gradMatrixV[row + source] = grad * layer2[source];
@@ -242,11 +250,11 @@ export class NNAgent {
 		}
 
 		const gradMatrixW = this.#gradMatrixW, gradBiasW = this.#gradBiasW;
-		let valueSum = biasW[0];
-		for (let source = 0; source < sizeHidden2; source++) valueSum += matrixW[source] * layer2[source];
-		const valueGrad = 2 * (valueSum - tdTarget);
-		gradBiasW[0] = valueGrad;
-		for (let source = 0; source < sizeHidden2; source++) gradMatrixW[source] = valueGrad * layer2[source];
+		let sumValue = biasW[0];
+		for (let source = 0; source < sizeHidden2; source++) sumValue += matrixW[source] * layer2[source];
+		const gradValue = 2 * (sumValue - tdTarget);
+		gradBiasW[0] = gradValue;
+		for (let source = 0; source < sizeHidden2; source++) gradMatrixW[source] = gradValue * layer2[source];
 		NNAgent.#adamStep(matrixW, gradMatrixW, this.#meanMatrixW, this.#varMatrixW, b1, b2);
 		NNAgent.#adamStep(biasW, gradBiasW, this.#meanBiasW, this.#varBiasW, b1, b2);
 	}
@@ -277,13 +285,15 @@ export class NNAgent {
 	}
 
 	loadWeights(weights: NNWeights): void {
-		if (weights.matrix1.length !== this.#matrix1.length) return;
-		this.#matrix1.set(weights.matrix1);
+		const matrix1 = this.#matrix1;
+		if (weights.matrix1.length !== matrix1.length) return;
+		matrix1.set(weights.matrix1);
 		this.#bias1.set(weights.bias1);
 		this.#matrix2.set(weights.matrix2);
 		this.#bias2.set(weights.bias2);
-		if (weights.matrixV.length === this.#matrixV.length) {
-			this.#matrixV.set(weights.matrixV);
+		const matrixV = this.#matrixV;
+		if (weights.matrixV.length === matrixV.length) {
+			matrixV.set(weights.matrixV);
 			this.#biasV.set(weights.biasV);
 			this.#matrixW.set(weights.matrixW);
 			this.#biasW.set(weights.biasW);
@@ -292,7 +302,7 @@ export class NNAgent {
 	}
 
 	#zeroAdam(): void {
-		this.#rlStepCount = 0;
+		this.#rlSteps = 0;
 		this.#meanMatrix1.fill(0); this.#meanBias1.fill(0);
 		this.#meanMatrix2.fill(0); this.#meanBias2.fill(0);
 		this.#meanMatrixV.fill(0); this.#meanBiasV.fill(0);

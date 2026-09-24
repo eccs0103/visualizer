@@ -7,7 +7,7 @@ import { Field, Model } from "adaptive-extender/core";
 export class PageLeave extends Model {
 	/** GA4 native engagement time in milliseconds. Accumulated foreground-visible time for this page. GA4 uses this field to mark sessions as engaged (≥ 10 000 ms) and to populate "Average engagement time" in standard reports. */
 	@Field(Number, { name: "engagement_time_msec" })
-	engagementTimeMsec: number;
+	engagement: number;
 
 	/** Total seconds the tab was in the foreground (visible state). Human-readable counterpart of engagement_time_msec for GA4 Explorer filters and BigQuery queries. Rounded to the nearest whole second. */
 	@Field(Number, { name: "time_on_page" })
@@ -18,15 +18,15 @@ export class PageLeave extends Model {
 	maxScrollPercent: number;
 
 	constructor();
-	constructor(engagementTimeMsec: number, timeOnPage: number, maxScrollPercent: number);
-	constructor(engagementTimeMsec?: number, timeOnPage?: number, maxScrollPercent?: number) {
-		if (engagementTimeMsec === undefined || timeOnPage === undefined || maxScrollPercent === undefined) {
+	constructor(engagement: number, timeOnPage: number, maxScrollPercent: number);
+	constructor(engagement?: number, timeOnPage?: number, maxScrollPercent?: number) {
+		if (engagement === undefined || timeOnPage === undefined || maxScrollPercent === undefined) {
 			super();
 			return;
 		}
 
 		super();
-		this.engagementTimeMsec = engagementTimeMsec;
+		this.engagement = engagement;
 		this.timeOnPage = timeOnPage;
 		this.maxScrollPercent = maxScrollPercent;
 	}

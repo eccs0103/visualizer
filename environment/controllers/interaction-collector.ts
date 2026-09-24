@@ -20,12 +20,14 @@ export class InteractionCollector extends Controller {
 		if (anchor === undefined) return;
 		const { href } = anchor;
 		if (String.isWhitespace(href) || anchor.target !== "_blank") return;
-		const linkText = anchor.textContent.trim();
-		analytics.dispatch("outbound_click", new OutboundClick(href, linkText));
+		const text = anchor.textContent.trim();
+		analytics.dispatch("outbound_click", new OutboundClick(href, text));
 	}
 
 	#onCopy(): void {
-		const text = window.getSelection()?.toString() ?? String.empty;
+		const selection = window.getSelection();
+		if (selection === null) return;
+		const text = selection.toString();
 		if (String.isWhitespace(text)) return;
 		analytics.dispatch("text_copy", new TextCopy(text));
 	}

@@ -19,7 +19,7 @@ export class UserProfile extends Model {
 
 	/** Device model string (e.g. "Pixel 9 Pro", "SM-A546B"). Available on Android Chrome via UA-CH; absent on desktops, iOS, and Firefox/Safari. */
 	@Field(Optional.Of(String), { name: "device_model" })
-	deviceModel: string | undefined;
+	model: string | undefined;
 
 	/** Logical CPU core count (navigator.hardwareConcurrency). Firefox caps this at 2 to resist fingerprinting. */
 	@Field(Number, { name: "cpu_cores" })
@@ -55,7 +55,7 @@ export class UserProfile extends Model {
 
 	/** Primary pointer input method: "fine" (mouse or trackpad), "coarse" (touchscreen), "none" (keyboard-only or TV remote). */
 	@Field(String, { name: "pointer_type" })
-	pointerType: string;
+	pointer: string;
 
 	/** First (highest-priority) language tag from navigator.languages (e.g. "en-US", "ru"). Reflects the browser's UI language preference. */
 	@Field(String, { name: "primary_language" })
@@ -66,9 +66,9 @@ export class UserProfile extends Model {
 	doNotTrack: string;
 
 	constructor();
-	constructor(platform: string, isMobile: boolean, cpuArchitecture: string, deviceModel: string | undefined, cpuCores: number, memoryGigabytes: number | undefined, maxTouchPoints: number, pixelRatio: number, bitDepth: number, darkMode: boolean, lowMotion: boolean, highContrast: boolean, pointerType: string, primaryLanguage: string, doNotTrack: string);
-	constructor(platform?: string, isMobile?: boolean, cpuArchitecture?: string, deviceModel?: string, cpuCores?: number, memoryGigabytes?: number, maxTouchPoints?: number, pixelRatio?: number, bitDepth?: number, darkMode?: boolean, lowMotion?: boolean, highContrast?: boolean, pointerType?: string, primaryLanguage?: string, doNotTrack?: string) {
-		if (platform === undefined || isMobile === undefined || cpuArchitecture === undefined || cpuCores === undefined || maxTouchPoints === undefined || pixelRatio === undefined || bitDepth === undefined || darkMode === undefined || lowMotion === undefined || highContrast === undefined || pointerType === undefined || primaryLanguage === undefined || doNotTrack === undefined) {
+	constructor(platform: string, isMobile: boolean, cpuArchitecture: string, model: string | undefined, cpuCores: number, memoryGigabytes: number | undefined, maxTouchPoints: number, pixelRatio: number, bitDepth: number, darkMode: boolean, lowMotion: boolean, highContrast: boolean, pointer: string, primaryLanguage: string, doNotTrack: string);
+	constructor(platform?: string, isMobile?: boolean, cpuArchitecture?: string, model?: string, cpuCores?: number, memoryGigabytes?: number, maxTouchPoints?: number, pixelRatio?: number, bitDepth?: number, darkMode?: boolean, lowMotion?: boolean, highContrast?: boolean, pointer?: string, primaryLanguage?: string, doNotTrack?: string) {
+		if (platform === undefined || isMobile === undefined || cpuArchitecture === undefined || cpuCores === undefined || maxTouchPoints === undefined || pixelRatio === undefined || bitDepth === undefined || darkMode === undefined || lowMotion === undefined || highContrast === undefined || pointer === undefined || primaryLanguage === undefined || doNotTrack === undefined) {
 			super();
 			return;
 		}
@@ -77,7 +77,7 @@ export class UserProfile extends Model {
 		this.platform = platform;
 		this.isMobile = isMobile;
 		this.cpuArchitecture = cpuArchitecture;
-		this.deviceModel = deviceModel;
+		this.model = model;
 		this.cpuCores = cpuCores;
 		this.memoryGigabytes = memoryGigabytes;
 		this.maxTouchPoints = maxTouchPoints;
@@ -86,7 +86,7 @@ export class UserProfile extends Model {
 		this.darkMode = darkMode;
 		this.lowMotion = lowMotion;
 		this.highContrast = highContrast;
-		this.pointerType = pointerType;
+		this.pointer = pointer;
 		this.primaryLanguage = primaryLanguage;
 		this.doNotTrack = doNotTrack;
 	}

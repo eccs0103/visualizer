@@ -26,7 +26,7 @@ export class WebVitalsCollector extends Controller {
 	#ttfbMs?: number;
 	#clsTotal = 0;
 	#inpWorstMs = 0;
-	#longTaskCount = 0;
+	#longTasks = 0;
 
 	async run(): Promise<void> {
 		const [navEntry] = performance.getEntriesByType("navigation");
@@ -41,16 +41,23 @@ export class WebVitalsCollector extends Controller {
 		this.#observeInp();
 		this.#observeLongTasks();
 
-		document.addEventListener("visibilitychange", (event) => {
-			if (document.visibilityState !== "hidden") return;
-			const fcpMs = this.#fcpMs;
-			const lcpMs = this.#lcpMs;
-			const ttfbMs = this.#ttfbMs;
-			const clsScore = this.#clsTotal > 0 ? round(this.#clsTotal * 1000) : undefined;
-			const inpMs = this.#inpWorstMs > 0 ? this.#inpWorstMs : undefined;
-			const longTasks = this.#longTaskCount > 0 ? this.#longTaskCount : undefined;
-			analytics.dispatch("performance_context", new PerformanceContext(fcpMs, lcpMs, ttfbMs, clsScore, inpMs, longTasks));
-		}, { once: true });
+		document.addEventListener("visibilitychange", this.#onHidden.bind(this), { once: true });
+	}
+
+	static #measure(value: number, scale: number): number | undefined {
+		if (value > 0) return round(value * scale);
+		return undefined;
+	}
+
+	#onHidden(): void {
+		if (document.visibilityState !== "hidden") return;
+		const fcpMs = this.#fcpMs;
+		const lcpMs = this.#lcpMs;
+		const ttfbMs = this.#ttfbMs;
+		const clsScore = WebVitalsCollector.#measure(this.#clsTotal, 1000);
+		const inpMs = WebVitalsCollector.#measure(this.#inpWorstMs, 1);
+		const longTasks = WebVitalsCollector.#measure(this.#longTasks, 1);
+		analytics.dispatch("performance_context", new PerformanceContext(fcpMs, lcpMs, ttfbMs, clsScore, inpMs, longTasks));
 	}
 
 	#isLayoutShift(entry: PerformanceEntry): entry is LayoutShiftEntry {
@@ -105,7 +112,7 @@ export class WebVitalsCollector extends Controller {
 	#observeLongTasks(): void {
 		try {
 			const observer = new PerformanceObserver((list) => {
-				this.#longTaskCount += list.getEntries().length;
+				this.#longTasks += list.getEntries().length;
 			});
 			observer.observe({ type: "longtask", buffered: true });
 		} catch { /* longtask not supported in this browser */ }

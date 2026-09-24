@@ -7,23 +7,23 @@ import { Field, Model, Optional } from "adaptive-extender/core";
 export class SessionContext extends Model {
 	/** Full URL that navigated to this page. "direct" when document.referrer is empty (typed URL, bookmark, or referrer policy stripped it). */
 	@Field(String, { name: "referrer_url" })
-	referrerUrl: string;
+	urlReferrer: string;
 
 	/** Hostname of the referring page (e.g. "google.com", "t.me"). "direct" when there is no referrer. "unknown" if the referrer URL could not be parsed. */
 	@Field(String, { name: "referrer_domain" })
-	referrerDomain: string;
+	domainReferrer: string;
 
 	/** PerformanceNavigationTiming.type — how the current document was reached: "navigate" (fresh load), "reload", "back_forward" (history traversal), or "prerender". Falls back to "navigate" when Navigation Timing API is unavailable. */
 	@Field(String, { name: "navigation_type" })
-	navigationType: string;
+	typeNavigation: string;
 
 	/** Full navigator.languages list joined by comma (e.g. "en-US,ru,fr"). Ordered by priority; the first entry matches primary_language in user properties. */
 	@Field(String, { name: "all_languages" })
-	allLanguages: string;
+	languages: string;
 
 	/** NetworkInformation.type — physical connection category: "wifi", "cellular", "ethernet", "bluetooth", "wimax", "other", "none", or "unknown". Available in Chromium only; absent in Firefox and Safari. */
 	@Field(Optional.Of(String), { name: "connection_type" })
-	connectionType: string | undefined;
+	typeConnection: string | undefined;
 
 	/** NetworkInformation.effectiveType — estimated quality bracket: "4g", "3g", "2g", or "slow-2g". Derived from RTT and downlink measurements. Chromium only. */
 	@Field(Optional.Of(String), { name: "effective_connection" })
@@ -31,7 +31,7 @@ export class SessionContext extends Model {
 
 	/** NetworkInformation.downlink in Mbit/s, rounded to 25 kbit/s granularity and capped at 10 Mbit/s. Chromium only. */
 	@Field(Optional.Of(Number), { name: "downlink_mbps" })
-	downlinkMbps: number | undefined;
+	downlink: number | undefined;
 
 	/** NetworkInformation.rtt — estimated round-trip time in milliseconds, rounded to the nearest 25 ms. Chromium only. */
 	@Field(Optional.Of(Number), { name: "round_trip_time_ms" })
@@ -39,7 +39,7 @@ export class SessionContext extends Model {
 
 	/** NetworkInformation.saveData — true when the user has enabled "Lite mode" or data-saving in browser / OS settings. Chromium only. */
 	@Field(Optional.Of(Boolean), { name: "data_saver_enabled" })
-	dataSaverEnabled: boolean | undefined;
+	dataSaver: boolean | undefined;
 
 	/** utm_source query parameter from the landing URL. Present only when the user arrived via a tracked campaign link. */
 	@Field(Optional.Of(String), { name: "utm_source" })
@@ -54,23 +54,23 @@ export class SessionContext extends Model {
 	utmCampaign: string | undefined;
 
 	constructor();
-	constructor(referrerUrl: string, referrerDomain: string, navigationType: string, allLanguages: string, connectionType: string | undefined, effectiveConnection: string | undefined, downlinkMbps: number | undefined, roundTripTimeMs: number | undefined, dataSaverEnabled: boolean | undefined, utmSource: string | undefined, utmMedium: string | undefined, utmCampaign: string | undefined);
-	constructor(referrerUrl?: string, referrerDomain?: string, navigationType?: string, allLanguages?: string, connectionType?: string, effectiveConnection?: string, downlinkMbps?: number, roundTripTimeMs?: number, dataSaverEnabled?: boolean, utmSource?: string, utmMedium?: string, utmCampaign?: string) {
-		if (referrerUrl === undefined || referrerDomain === undefined || navigationType === undefined || allLanguages === undefined) {
+	constructor(urlReferrer: string, domainReferrer: string, typeNavigation: string, languages: string, typeConnection: string | undefined, effectiveConnection: string | undefined, downlink: number | undefined, roundTripTimeMs: number | undefined, dataSaver: boolean | undefined, utmSource: string | undefined, utmMedium: string | undefined, utmCampaign: string | undefined);
+	constructor(urlReferrer?: string, domainReferrer?: string, typeNavigation?: string, languages?: string, typeConnection?: string, effectiveConnection?: string, downlink?: number, roundTripTimeMs?: number, dataSaver?: boolean, utmSource?: string, utmMedium?: string, utmCampaign?: string) {
+		if (urlReferrer === undefined || domainReferrer === undefined || typeNavigation === undefined || languages === undefined) {
 			super();
 			return;
 		}
 
 		super();
-		this.referrerUrl = referrerUrl;
-		this.referrerDomain = referrerDomain;
-		this.navigationType = navigationType;
-		this.allLanguages = allLanguages;
-		this.connectionType = connectionType;
+		this.urlReferrer = urlReferrer;
+		this.domainReferrer = domainReferrer;
+		this.typeNavigation = typeNavigation;
+		this.languages = languages;
+		this.typeConnection = typeConnection;
 		this.effectiveConnection = effectiveConnection;
-		this.downlinkMbps = downlinkMbps;
+		this.downlink = downlink;
 		this.roundTripTimeMs = roundTripTimeMs;
-		this.dataSaverEnabled = dataSaverEnabled;
+		this.dataSaver = dataSaver;
 		this.utmSource = utmSource;
 		this.utmMedium = utmMedium;
 		this.utmCampaign = utmCampaign;

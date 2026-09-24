@@ -7,23 +7,23 @@ import { Field, Model } from "adaptive-extender/core";
 export class BatteryContext extends Model {
 	/** Battery charge as an integer percentage 0–100. Derived from BatteryManager.level × 100, rounded. */
 	@Field(Number, { name: "battery_level" })
-	batteryLevel: number;
+	level: number;
 
 	/** true when the device is currently plugged in and the battery is gaining charge. */
 	@Field(Boolean, { name: "battery_charging" })
-	batteryCharging: boolean;
+	charging: boolean;
 
 	constructor();
-	constructor(batteryLevel: number, batteryCharging: boolean);
-	constructor(batteryLevel?: number, batteryCharging?: boolean) {
-		if (batteryLevel === undefined || batteryCharging === undefined) {
+	constructor(level: number, charging: boolean);
+	constructor(level?: number, charging?: boolean) {
+		if (level === undefined || charging === undefined) {
 			super();
 			return;
 		}
 
 		super();
-		this.batteryLevel = batteryLevel;
-		this.batteryCharging = batteryCharging;
+		this.level = level;
+		this.charging = charging;
 	}
 }
 //#endregion

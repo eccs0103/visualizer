@@ -3,15 +3,15 @@
 import "adaptive-extender/web";
 
 export class SessionCollector {
-	static #userKey = "_uaf";
-	static #sessionKey = "_saf";
+	static #keyUser = "_uaf";
+	static #keySession = "_saf";
 
 	userFingerprint: string;
 	sessionFingerprint: string;
 
 	constructor() {
-		this.userFingerprint = SessionCollector.#loadKey(localStorage, SessionCollector.#userKey);
-		this.sessionFingerprint = SessionCollector.#loadKey(sessionStorage, SessionCollector.#sessionKey);
+		this.userFingerprint = SessionCollector.#loadKey(localStorage, SessionCollector.#keyUser);
+		this.sessionFingerprint = SessionCollector.#loadKey(sessionStorage, SessionCollector.#keySession);
 	}
 
 	static #loadKey(storage: Storage, key: string): string {

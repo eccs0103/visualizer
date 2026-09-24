@@ -105,9 +105,15 @@ export class ViteConfig {
 		return { outDir, emptyOutDir, target, rollupOptions };
 	}
 
-	#buildServer(): ServerOptions {
+	#buildOpen(): ServerOptions["open"] {
 		const [entry] = Object.keys(this.#normalizeInputs());
-		const open: string | boolean = entry === undefined ? true : (entry === "main" ? "/" : `/${entry}/`);
+		if (entry === undefined) return true;
+		if (entry === "main") return "/";
+		return `/${entry}/`;
+	}
+
+	#buildServer(): ServerOptions {
+		const open: ServerOptions["open"] = this.#buildOpen();
 		const strictPort: boolean = true;
 		const headers: Readonly<OutgoingHttpHeaders> = this.#headers;
 		const preTransformRequests: boolean = false;
@@ -120,7 +126,7 @@ export class ViteConfig {
 		return { target, keepNames };
 	}
 
-	#buildWorker(): { format?: "es"; } {
+	#buildWorker(): NonNullable<UserConfig["worker"]> {
 		const format = "es" as const;
 		return { format };
 	}
