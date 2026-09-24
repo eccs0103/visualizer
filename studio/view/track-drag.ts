@@ -8,16 +8,16 @@ export class TrackDrag {
 	#row: HTMLLIElement;
 	#rows: HTMLLIElement[];
 	#height: number;
-	#startY: number;
+	#yStart: number;
 	#from: number;
 	#target: number;
 
-	constructor(row: HTMLLIElement, rows: HTMLLIElement[], startY: number) {
+	constructor(row: HTMLLIElement, rows: HTMLLIElement[], yStart: number) {
 		this.#row = row;
 		this.#rows = rows;
 		this.#from = rows.indexOf(row);
 		this.#target = this.#from;
-		this.#startY = startY;
+		this.#yStart = yStart;
 		this.#height = TrackDrag.#measure(rows, row);
 		row.dataset["dragging"] = String.empty;
 	}
@@ -35,13 +35,14 @@ export class TrackDrag {
 	#shiftSiblings(next: number): void {
 		const rows = this.#rows;
 		const from = this.#from;
+		const height = this.#height;
 		for (const sibling of rows) {
 			if (sibling === this.#row) continue;
 			delete sibling.dataset["shifted"];
 			sibling.style.removeProperty("--drag-offset");
 		}
-		if (next < from) for (let index = next; index < from; index++) this.#applyShift(rows[index], this.#height);
-		else if (next > from) for (let index = from + 1; index <= next; index++) this.#applyShift(rows[index], -this.#height);
+		if (next < from) for (let index = next; index < from; index++) this.#applyShift(rows[index], height);
+		else if (next > from) for (let index = from + 1; index <= next; index++) this.#applyShift(rows[index], -height);
 		this.#target = next;
 	}
 
@@ -56,7 +57,7 @@ export class TrackDrag {
 	}
 
 	track(clientY: number): void {
-		const delta = clientY - this.#startY;
+		const delta = clientY - this.#yStart;
 		this.#row.style.setProperty("--drag-offset", `${delta}px`);
 		const next = Math.round(this.#from + delta / this.#height).clamp(0, this.#rows.length - 1);
 		if (next !== this.#target) this.#shiftSiblings(next);

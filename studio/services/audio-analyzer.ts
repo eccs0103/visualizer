@@ -33,7 +33,7 @@ export class AudioAnalyzer extends EventTarget {
 		super();
 
 		this.#rate = rate;
-		this.#isDeveloper = options.isDeveloper ?? false;
+		this.#isDeveloper = options.isDeveloper === true;
 
 		const { inSAB, outSAB } = this.#bridge;
 		const worker = this.#worker;

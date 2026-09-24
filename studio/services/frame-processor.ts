@@ -34,9 +34,9 @@ export class FrameProcessor {
 	static #emaAlpha: number = 0.9995;
 	static #emaWarmup: number = 200;
 	static #epsNorm: number = 1e-6;
-	static #feedbackStep: number = 64;
-	static #feedbackMaxGain: number = 15;
-	static #heuristicScale: number = 0.2;
+	static #holdStep: number = 64;
+	static #maxGain: number = 15;
+	static #scaleHeuristic: number = 0.2;
 
 	#prevFrequency: Float32Array = new Float32Array(SabLayout.inputMaxLength);
 	#fluxHistory: Float32Array = new Float32Array(FrameProcessor.#fluxWindow);
@@ -56,9 +56,9 @@ export class FrameProcessor {
 	#featHistory: Float32Array = new Float32Array(FrameProcessor.#histSize * FrameProcessor.#featCount);
 	#lastControlOutput: Float32Array = new Float32Array(NNAgent.sizeControl);
 	#lastValueOutput: Float32Array = new Float32Array(1);
-	#feedbackSign: number = 0;
-	#feedbackHold: number = 0;
-	#feedbackEngaged: boolean = false;
+	#sign: number = 0;
+	#hold: number = 0;
+	#engaged: boolean = false;
 	#active: boolean = true;
 
 	constructor() {
@@ -68,11 +68,11 @@ export class FrameProcessor {
 	set active(value: boolean) { this.#active = value; }
 
 	injectFeedback(sign: number): void {
-		if (sign !== this.#feedbackSign) {
-			this.#feedbackSign = sign;
-			this.#feedbackHold = 0;
+		if (sign !== this.#sign) {
+			this.#sign = sign;
+			this.#hold = 0;
 		}
-		if (sign !== 0) this.#feedbackEngaged = true;
+		if (sign !== 0) this.#engaged = true;
 	}
 
 	#computeBins(length: number, sampleRate: number): [number, number][] {
@@ -92,13 +92,14 @@ export class FrameProcessor {
 	}
 
 	#computeSpectralFlux(frequency: Float32Array, length: number): number {
+		const prevFrequency = this.#prevFrequency;
 		let flux = 0;
 		for (let binIndex = 0; binIndex < length; binIndex++) {
-			const diff = frequency[binIndex] - this.#prevFrequency[binIndex];
+			const diff = frequency[binIndex] - prevFrequency[binIndex];
 			if (diff > 0) flux += diff;
 		}
 		flux /= length;
-		this.#prevFrequency.set(frequency);
+		prevFrequency.set(frequency);
 		this.#fluxHistory[this.#fluxCursor % FrameProcessor.#fluxWindow] = flux;
 		this.#fluxCursor++;
 		return flux;
@@ -128,22 +129,24 @@ export class FrameProcessor {
 	}
 
 	#computeSpectralCentroid(frequency: Float32Array, length: number): number {
-		let weightedSum = 0, energySum = 0;
+		let sumWeighted = 0, sumEnergy = 0;
 		for (let binIndex = 0; binIndex < length; binIndex++) {
-			weightedSum += frequency[binIndex] * binIndex;
-			energySum += frequency[binIndex];
+			sumWeighted += frequency[binIndex] * binIndex;
+			sumEnergy += frequency[binIndex];
 		}
-		return energySum > 0.001 ? weightedSum / (energySum * length) : 0;
+		if (sumEnergy > 0.001) return sumWeighted / (sumEnergy * length);
+		return 0;
 	}
 
 	#computeFluxStats(): FluxStats {
+		const fluxHistory = this.#fluxHistory;
 		const filled = min(this.#fluxCursor, FrameProcessor.#fluxWindow);
 		let mean = 0;
-		for (let index = 0; index < filled; index++) mean += this.#fluxHistory[index];
+		for (let index = 0; index < filled; index++) mean += fluxHistory[index];
 		mean /= max(1, filled);
 		let variance = 0;
 		for (let index = 0; index < filled; index++) {
-			const diff = this.#fluxHistory[index] - mean;
+			const diff = fluxHistory[index] - mean;
 			variance += diff * diff;
 		}
 		return new FluxStats(mean, sqrt(variance / max(1, filled)));
@@ -173,7 +176,8 @@ export class FrameProcessor {
 			mean[index] = alpha * mean[index] + (1 - alpha) * rawValue;
 			const diff = rawValue - mean[index];
 			variance[index] = alpha * variance[index] + (1 - alpha) * diff * diff;
-			norm[index] = doNorm ? (rawValue - mean[index]) / sqrt(variance[index] + epsilon) : rawValue;
+			norm[index] = rawValue;
+			if (doNorm) norm[index] = (rawValue - mean[index]) / sqrt(variance[index] + epsilon);
 		}
 	}
 
@@ -185,11 +189,17 @@ export class FrameProcessor {
 
 	#computeFeedbackGain(sign: number): number {
 		if (sign === 0) return 0;
-		const hold = this.#feedbackHold;
-		this.#feedbackHold = hold + 1;
-		const step = trunc(hold / FrameProcessor.#feedbackStep) + 1;
+		const hold = this.#hold;
+		this.#hold = hold + 1;
+		const step = trunc(hold / FrameProcessor.#holdStep) + 1;
 		const gain = step * (step + 1) / 2;
-		return gain.clamp(0, FrameProcessor.#feedbackMaxGain);
+		return gain.clamp(0, FrameProcessor.#maxGain);
+	}
+
+	#computeBeatReward(beatDetected: boolean, engagement: number): number {
+		if (!beatDetected) return 0;
+		if (engagement > 0.3) return 1;
+		return -0.5;
 	}
 
 	#computeRlReward(sign: number, controlOutput: Float32Array, bassLevel: number, dropIntensity: number, percussiveness: number, beatDetected: boolean): number {
@@ -208,13 +218,14 @@ export class FrameProcessor {
 		const rSync = 1 - 2 * abs(engagement - audioEnergy);
 
 		// rBeat: engagement should spike on beats
-		const rBeat = beatDetected ? (engagement > 0.3 ? 1 : -0.5) : 0;
+		const rBeat = this.#computeBeatReward(beatDetected, engagement);
 
 		const rBase = 0.8 * rSync + 0.2 * rBeat;
 
 		// After the user has given feedback at least once, soften the heuristic so taught
 		// behavior is not slowly overwritten when no thumb is held
-		return this.#feedbackEngaged ? rBase * FrameProcessor.#heuristicScale : rBase;
+		if (this.#engaged) return rBase * FrameProcessor.#scaleHeuristic;
+		return rBase;
 	}
 
 	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array, model: NNAgent, policy: PolicyUpdater): void {
@@ -230,13 +241,13 @@ export class FrameProcessor {
 			this.#cachedSampleRate = sampleRate;
 		}
 
-		const frequencySlice = frequency.subarray(0, length);
-		const temporalSlice = temporal.subarray(0, length);
+		const sliceFrequency = frequency.subarray(0, length);
+		const sliceTemporal = temporal.subarray(0, length);
 
-		const flux = this.#computeSpectralFlux(frequencySlice, length);
-		const bandEnergies = this.#computeBandEnergies(frequencySlice);
-		const zeroCrossingRate = this.#computeZeroCrossingRate(temporalSlice, length);
-		const centroid = this.#computeSpectralCentroid(frequencySlice, length);
+		const flux = this.#computeSpectralFlux(sliceFrequency, length);
+		const bandEnergies = this.#computeBandEnergies(sliceFrequency);
+		const zeroCrossingRate = this.#computeZeroCrossingRate(sliceTemporal, length);
+		const centroid = this.#computeSpectralCentroid(sliceFrequency, length);
 
 		const fluxStats = this.#computeFluxStats();
 		const percussiveness = min(1, flux / (fluxStats.mean + 0.001));
@@ -245,40 +256,44 @@ export class FrameProcessor {
 		this.#fillInput(flux, bandEnergies, zeroCrossingRate, centroid, percussiveness);
 		this.#pushHistory();
 
-		if (this.#active) model.forwardControl(this.#featHistory, this.#lastControlOutput, this.#lastValueOutput);
+		const active = this.#active;
+		const featHistory = this.#featHistory;
+		const lastControlOutput = this.#lastControlOutput;
+		const lastValueOutput = this.#lastValueOutput;
+		if (active) model.forwardControl(featHistory, lastControlOutput, lastValueOutput);
 		else {
-			this.#lastControlOutput.fill(0);
-			this.#lastValueOutput.fill(0);
+			lastControlOutput.fill(0);
+			lastValueOutput.fill(0);
 		}
 
 		const dropIntensity = min(1, percussiveness * 3) * bandEnergies[0];
 		const bassLevel = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
-		const distortionLevel = min(1, percussiveness * zeroCrossingRate * 5);
+		const distortion = min(1, percussiveness * zeroCrossingRate * 5);
 
 		output[1] = flux;
 		for (let bandIndex = 0; bandIndex < 6; bandIndex++) output[2 + bandIndex] = bandEnergies[bandIndex];
 		output[8] = zeroCrossingRate;
 		output[9] = centroid;
 		output[10] = percussiveness;
-		output[11] = beatDetected ? 1 : 0;
+		output[11] = Number(beatDetected);
 		output[12] = dropIntensity;
 		output[13] = bassLevel;
-		output[14] = distortionLevel;
-		for (let param = 0; param < NNAgent.sizeControl; param++) output[15 + param] = this.#lastControlOutput[param];
+		output[14] = distortion;
+		for (let param = 0; param < NNAgent.sizeControl; param++) output[15 + param] = lastControlOutput[param];
 		output[0] = frame;
 
-		if (!this.#active) {
+		if (!active) {
 			output[20] = 0;
 			return;
 		}
 
-		const sign = this.#feedbackSign;
+		const sign = this.#sign;
 		const gain = this.#computeFeedbackGain(sign);
 
-		const reward = this.#computeRlReward(sign, this.#lastControlOutput, bassLevel, dropIntensity, percussiveness, beatDetected);
+		const reward = this.#computeRlReward(sign, lastControlOutput, bassLevel, dropIntensity, percussiveness, beatDetected);
 		output[20] = reward;
 
-		policy.consider(this.#featHistory, this.#lastControlOutput, this.#lastValueOutput[0], reward, model, this.#frameCount, sign, gain);
+		policy.consider(featHistory, lastControlOutput, lastValueOutput[0], reward, model, this.#frameCount, sign, gain);
 	}
 }
 //#endregion

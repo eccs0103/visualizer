@@ -19,7 +19,7 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 	#lyrics: Lyrics | null = null;
 	#index: number = -1;
 	#frame: number | null = null;
-	#trackId: string | null = null;
+	#idTrack: string | null = null;
 	#abort: AbortController | null = null;
 
 	static #delays: readonly number[] = [5000, 15000, 40000];
@@ -32,14 +32,15 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 	}
 
 	#render(): void {
-		if (!this.#enabled) { this.#visualizer.updateLyrics(null, null, null); return; }
+		const visualizer = this.#visualizer;
+		if (!this.#enabled) { visualizer.updateLyrics(null, null, null); return; }
 		const lyrics = this.#lyrics;
-		if (lyrics === null || lyrics.isEmpty) { this.#visualizer.updateLyrics(null, null, null); return; }
+		if (lyrics === null || lyrics.isEmpty) { visualizer.updateLyrics(null, null, null); return; }
 		const index = this.#index;
 		const previous = this.#lineAt(lyrics, index - 1);
 		const current = this.#lineAt(lyrics, index);
 		const next = this.#lineAt(lyrics, index + 1);
-		this.#visualizer.updateLyrics(previous, current, next);
+		visualizer.updateLyrics(previous, current, next);
 	}
 
 	#sync(): void {
@@ -62,15 +63,16 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 	}
 
 	#stopLoop(): void {
-		if (this.#frame === null) return;
-		cancelAnimationFrame(this.#frame);
+		const frame = this.#frame;
+		if (frame === null) return;
+		cancelAnimationFrame(frame);
 		this.#frame = null;
 	}
 
 	async #revalidate(track: Track, stored: string, signal: AbortSignal): Promise<void> {
 		try {
 			const found = await LyricsFinder.find(track.signature, track.duration, signal);
-			if (this.#trackId !== track.id) return;
+			if (this.#idTrack !== track.id) return;
 
 			let text = found ?? String.empty;
 			if (String.isEmpty(text) && !String.isEmpty(stored)) text = stored;
@@ -98,11 +100,11 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 
 		const delays = LyricsController.#delays;
 		for (let attempt = 0; attempt <= delays.length; attempt++) {
-			if (this.#trackId !== track.id) return null;
+			if (this.#idTrack !== track.id) return null;
 			try {
 				const found = await LyricsFinder.find(track.signature, track.duration, signal);
 				const text = found ?? String.empty;
-				if (this.#trackId !== track.id) return null;
+				if (this.#idTrack !== track.id) return null;
 				await player.setLyrics(track, text, Date.now());
 				return text;
 			} catch {
@@ -115,10 +117,11 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 	}
 
 	async #onTrack(track: Track | null): Promise<void> {
-		if (this.#abort !== null) this.#abort.abort();
-		let trackId: string | null = null;
-		if (track !== null) trackId = track.id;
-		this.#trackId = trackId;
+		const abort2 = this.#abort;
+		if (abort2 !== null) abort2.abort();
+		let idTrack: string | null = null;
+		if (track !== null) idTrack = track.id;
+		this.#idTrack = idTrack;
 		this.#lyrics = null;
 		this.#index = -1;
 		this.#stopLoop();
@@ -132,7 +135,7 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 		const abort = new AbortController();
 		this.#abort = abort;
 		const resolved = await this.#resolveLyrics(track, abort.signal);
-		if (this.#trackId !== track.id) return;
+		if (this.#idTrack !== track.id) return;
 
 		let content = resolved;
 		if (content === null) content = String.empty;
@@ -144,42 +147,46 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 	async run(cell: BufferedCell<typeof Settings>, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, visualizer: Visualizer, inputLyricsToggle: HTMLInputElement, inputShake: HTMLInputElement, inputLyricsLookupToggle: HTMLInputElement): Promise<void> {
 		this.#player = player;
 		this.#audioPlayer = audioPlayer;
-		this.#settings = cell.content;
+		const settings = this.#settings = cell.content;
 		this.#visualizer = visualizer;
-		this.#enabled = this.#settings.lyrics;
+		this.#enabled = settings.lyrics;
 
 		player.addEventListener("track", event => void this.#onTrack(event.detail));
-		audioPlayer.addEventListener("play", event => { if (this.#lyrics !== null && !this.#lyrics.isEmpty) this.#startLoop(); });
+		audioPlayer.addEventListener("play", (event) => {
+			const lyrics = this.#lyrics;
+			if (lyrics === null || lyrics.isEmpty) return;
+			this.#startLoop();
+		});
 		audioPlayer.addEventListener("pause", event => this.#stopLoop());
 		audioPlayer.addEventListener("emptied", event => this.#stopLoop());
 		audioPlayer.addEventListener("seeked", event => this.#sync());
 
-		inputLyricsToggle.checked = this.#settings.lyrics;
+		inputLyricsToggle.checked = settings.lyrics;
 		inputLyricsToggle.addEventListener("input", (event) => {
 			this.#enabled = inputLyricsToggle.checked;
 			this.#render();
 		});
 		inputLyricsToggle.addEventListener("change", async (event) => {
-			this.#settings.lyrics = inputLyricsToggle.checked;
+			settings.lyrics = inputLyricsToggle.checked;
 			await cell.save(500);
 		});
 
 		inputShake.min = String(0);
 		inputShake.max = String(1);
 		inputShake.step = String(0.1);
-		inputShake.value = String(this.#settings.shake);
-		visualizer.shake = this.#settings.shake;
+		inputShake.value = String(settings.shake);
+		visualizer.shake = settings.shake;
 		inputShake.addEventListener("input", (event) => {
 			visualizer.shake = Number(inputShake.value);
 		});
 		inputShake.addEventListener("change", async (event) => {
-			this.#settings.shake = Number(inputShake.value);
+			settings.shake = Number(inputShake.value);
 			await cell.save(500);
 		});
 
-		inputLyricsLookupToggle.checked = this.#settings.lookup;
+		inputLyricsLookupToggle.checked = settings.lookup;
 		inputLyricsLookupToggle.addEventListener("change", async (event) => {
-			this.#settings.lookup = inputLyricsLookupToggle.checked;
+			settings.lookup = inputLyricsLookupToggle.checked;
 			await cell.save(500);
 		});
 

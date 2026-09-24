@@ -25,8 +25,9 @@ class VisualizationWorker extends Controller {
 	}
 
 	#select(name: string): void {
-		if (name === this.#selection) return;
-		this.#findStage(this.#selection).release();
+		const selection = this.#selection;
+		if (name === selection) return;
+		this.#findStage(selection).release();
 		this.#selection = name;
 	}
 
@@ -69,10 +70,11 @@ class VisualizationWorker extends Controller {
 
 		if (command instanceof TickCommand) {
 			if (!this.#rebuilt) return;
-			const frame = this.#audioset.frame;
+			const audioset = this.#audioset;
+			const frame = audioset.frame;
 			if (frame === this.#frame) return;
 			this.#frame = frame;
-			this.#audioset.sync();
+			audioset.sync();
 			this.#environment.tick();
 			this.#findStage(this.#selection).render(this.#context);
 			return;

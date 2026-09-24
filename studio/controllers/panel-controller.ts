@@ -28,15 +28,18 @@ export class PanelController extends Controller<[BufferedCell<typeof Settings>, 
 		if (current === next) return;
 		this.#panel = next;
 
-		const outgoing = this.#dialogs.get(current);
+		const dialogs = this.#dialogs;
+		const cell = this.#cell;
+
+		const outgoing = dialogs.get(current);
 		if (outgoing !== undefined) await this.#setActivity(outgoing, false);
 
-		const incoming = this.#dialogs.get(next);
+		const incoming = dialogs.get(next);
 		if (incoming !== undefined) await this.#setActivity(incoming, true);
 
-		const settings = this.#cell.content;
+		const settings = cell.content;
 		settings.panel = next;
-		await this.#cell.save(500);
+		await cell.save(500);
 	}
 
 	async #toggle(panel: Panel): Promise<void> {
@@ -60,9 +63,9 @@ export class PanelController extends Controller<[BufferedCell<typeof Settings>, 
 			dialog.addEventListener("close", async (event) => {
 				if (this.#panel !== panel) return;
 				this.#panel = Panel.none;
-				const settings = this.#cell.content;
+				const settings = cell.content;
 				settings.panel = Panel.none;
-				await this.#cell.save(500);
+				await cell.save(500);
 			});
 			dialog.addEventListener("click", async (event) => {
 				if (!this.#isOutside(dialog, event)) return;

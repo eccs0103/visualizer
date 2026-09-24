@@ -28,9 +28,10 @@ export class ObjectStore {
 	}
 
 	async keys(): Promise<IDBValidKey[]> {
+		const nameStore = this.#nameStore;
 		const database = await this.#open();
-		const transaction = database.transaction(this.#nameStore, "readonly");
-		const store = transaction.objectStore(this.#nameStore);
+		const transaction = database.transaction(nameStore, "readonly");
+		const store = transaction.objectStore(nameStore);
 		const request = store.getAllKeys();
 		const result = await Promise.withSignal<IDBValidKey[]>((signal, resolve, reject) => {
 			request.addEventListener("success", event => resolve(request.result), { signal });
@@ -41,9 +42,10 @@ export class ObjectStore {
 	}
 
 	async get(key: IDBValidKey): Promise<unknown> {
+		const nameStore = this.#nameStore;
 		const database = await this.#open();
-		const transaction = database.transaction(this.#nameStore, "readonly");
-		const store = transaction.objectStore(this.#nameStore);
+		const transaction = database.transaction(nameStore, "readonly");
+		const store = transaction.objectStore(nameStore);
 		const request = store.get(key);
 		const result = await Promise.withSignal((signal, resolve, reject) => {
 			request.addEventListener("success", event => resolve(request.result), { signal });
@@ -54,9 +56,10 @@ export class ObjectStore {
 	}
 
 	async put(key: IDBValidKey, value: unknown): Promise<void> {
+		const nameStore = this.#nameStore;
 		const database = await this.#open();
-		const transaction = database.transaction(this.#nameStore, "readwrite");
-		const store = transaction.objectStore(this.#nameStore);
+		const transaction = database.transaction(nameStore, "readwrite");
+		const store = transaction.objectStore(nameStore);
 		const request = store.put(value, key);
 		const result = await Promise.withSignal((signal, resolve, reject) => {
 			request.addEventListener("success", event => resolve(), { signal });
@@ -67,9 +70,10 @@ export class ObjectStore {
 	}
 
 	async delete(key: IDBValidKey): Promise<void> {
+		const nameStore = this.#nameStore;
 		const database = await this.#open();
-		const transaction = database.transaction(this.#nameStore, "readwrite");
-		const store = transaction.objectStore(this.#nameStore);
+		const transaction = database.transaction(nameStore, "readwrite");
+		const store = transaction.objectStore(nameStore);
 		const request = store.delete(key);
 		const result = await Promise.withSignal((signal, resolve, reject) => {
 			request.addEventListener("success", event => resolve(), { signal });

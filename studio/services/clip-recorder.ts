@@ -60,7 +60,7 @@ class ClipSession {
 	#recorder: MediaRecorder;
 	#streamVideo: MediaStream;
 	#streamAudio: MediaStream;
-	#trackVideo: CanvasCaptureMediaStreamTrack | null;
+	#trackVideo: CanvasCaptureMediaStreamTrack | null = null;
 
 	constructor(recorder: MediaRecorder, streamVideo: MediaStream, streamAudio: MediaStream) {
 		this.#recorder = recorder;
@@ -117,7 +117,9 @@ class ClipSession {
 	}
 
 	capture(): void {
-		this.#trackVideo?.requestFrame();
+		const trackVideo = this.#trackVideo;
+		if (trackVideo === null) return;
+		trackVideo.requestFrame();
 	}
 
 	finish(): Promise<ClipFile> {

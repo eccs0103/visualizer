@@ -15,13 +15,13 @@ export class FeatureBridge {
 	#out: Float32Array;
 
 	constructor() {
-		this.#inSAB = new SharedArrayBuffer(SabLayout.inputByteSize());
+		const inSAB = this.#inSAB = new SharedArrayBuffer(SabLayout.inputByteSize());
 		this.#outSAB = new SharedArrayBuffer(SabLayout.outputSize * 4);
 
-		this.#inControl = new Int32Array(this.#inSAB, 0, 2);
-		this.#inMetadata = new Float32Array(this.#inSAB, 8, 3);
-		this.#inFrequency = new Float32Array(this.#inSAB, 20, SabLayout.inputMaxLength);
-		this.#inTemporal = new Float32Array(this.#inSAB, 20 + SabLayout.inputMaxLength * 4, SabLayout.inputMaxLength);
+		this.#inControl = new Int32Array(inSAB, 0, 2);
+		this.#inMetadata = new Float32Array(inSAB, 8, 3);
+		this.#inFrequency = new Float32Array(inSAB, 20, SabLayout.inputMaxLength);
+		this.#inTemporal = new Float32Array(inSAB, 20 + SabLayout.inputMaxLength * 4, SabLayout.inputMaxLength);
 		this.#out = new Float32Array(this.#outSAB);
 	}
 
@@ -30,13 +30,15 @@ export class FeatureBridge {
 	get output(): Float32Array { return this.#out; }
 
 	writeInput(length: number, sampleRate: number, volume: number, amplitude: number, dataFrequency: Float32Array, dataTemporal: Float32Array): void {
-		this.#inMetadata[0] = sampleRate;
-		this.#inMetadata[1] = volume;
-		this.#inMetadata[2] = amplitude;
+		const inMetadata = this.#inMetadata;
+		const inControl = this.#inControl;
+		inMetadata[0] = sampleRate;
+		inMetadata[1] = volume;
+		inMetadata[2] = amplitude;
 		this.#inFrequency.set(dataFrequency);
 		this.#inTemporal.set(dataTemporal);
-		Atomics.store(this.#inControl, 1, length);
-		Atomics.add(this.#inControl, 0, 1);
+		Atomics.store(inControl, 1, length);
+		Atomics.add(inControl, 0, 1);
 	}
 
 }

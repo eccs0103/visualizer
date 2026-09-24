@@ -23,8 +23,8 @@ export class WorkerAudioset implements AudiosetView {
 		this.#control = new Int32Array(sabVideo, 0, 2);
 		this.#metadata = new Float32Array(sabVideo, 8, 2);
 		this.#color = new Float32Array(sabVideo, 16, 3);
-		this.#frequency = new Float32Array(sabVideo, RenderBridge.frequencyOffset(), SabLayout.inputMaxLength);
-		this.#temporal = new Float32Array(sabVideo, RenderBridge.temporalOffset(), SabLayout.inputMaxLength);
+		this.#frequency = new Float32Array(sabVideo, RenderBridge.offsetFrequency(), SabLayout.inputMaxLength);
+		this.#temporal = new Float32Array(sabVideo, RenderBridge.offsetTemporal(), SabLayout.inputMaxLength);
 		this.#viewFrequency = this.#frequency.subarray(0, 0);
 		this.#viewTemporal = this.#temporal.subarray(0, 0);
 		this.#bufferFeatures = new Float32Array(sabAudio);
@@ -58,9 +58,9 @@ export class WorkerAudioset implements AudiosetView {
 	isActive(): boolean { return this.#features.isActive(); }
 	isPercussive(): boolean { return this.#features.isPercussive(); }
 
-	get colorH(): number { return this.#color[0]; }
-	get colorS(): number { return this.#color[1]; }
-	get colorL(): number { return this.#color[2]; }
+	get hue(): number { return this.#color[0]; }
+	get saturation(): number { return this.#color[1]; }
+	get lightness(): number { return this.#color[2]; }
 
 	sync(): void {
 		const length = Atomics.load(this.#control, 1);
@@ -84,9 +84,9 @@ export class WorkerEnvironment implements VisualizationEnvironment {
 	#shake: number = 0.2;
 	#lyrics: LyricsView | null = null;
 	#color: Color | null = null;
-	#colorH: number = NaN;
-	#colorS: number = NaN;
-	#colorL: number = NaN;
+	#hue: number = NaN;
+	#saturation: number = NaN;
+	#lightness: number = NaN;
 
 	constructor(audioset: WorkerAudioset) {
 		this.#audioset = audioset;
@@ -117,7 +117,9 @@ export class WorkerEnvironment implements VisualizationEnvironment {
 
 	tick(): void {
 		const now = performance.now() / 1000;
-		this.#delta = Number.isFinite(this.#lastTime) ? now - this.#lastTime : NaN;
+		const lastTime = this.#lastTime;
+		this.#delta = NaN;
+		if (Number.isFinite(lastTime)) this.#delta = now - lastTime;
 		this.#lastTime = now;
 	}
 
@@ -130,20 +132,20 @@ export class WorkerEnvironment implements VisualizationEnvironment {
 	get delta(): number { return this.#delta; }
 
 	get fps(): number {
-		return Number.isFinite(this.#delta) && this.#delta > 0
-			? 1 / this.#delta
-			: 0;
+		const delta = this.#delta;
+		if (Number.isFinite(delta) && delta > 0) return 1 / delta;
+		return 0;
 	}
 
 	get colorBackground(): Color {
-		const { colorH, colorS, colorL } = this.#audioset;
+		const { hue, saturation, lightness } = this.#audioset;
 		const cached = this.#color;
-		if (cached !== null && colorH === this.#colorH && colorS === this.#colorS && colorL === this.#colorL) return cached;
-		const color = Color.fromHSL(colorH, colorS, colorL);
+		if (cached !== null && hue === this.#hue && saturation === this.#saturation && lightness === this.#lightness) return cached;
+		const color = Color.fromHSL(hue, saturation, lightness);
 		this.#color = color;
-		this.#colorH = colorH;
-		this.#colorS = colorS;
-		this.#colorL = colorL;
+		this.#hue = hue;
+		this.#saturation = saturation;
+		this.#lightness = lightness;
 		return color;
 	}
 

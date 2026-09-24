@@ -127,14 +127,15 @@ export class PlaylistPlayer extends EventTarget {
 
 	async #adoptLegacy(playlist: Playlist): Promise<void> {
 		if (!playlist.isEmpty) return;
-		const legacy = await this.#store.get(0);
+		const store = this.#store;
+		const legacy = await store.get(0);
 		if (!(legacy instanceof File)) return;
 
 		const id = crypto.randomUUID();
 		const signature = Track.probeSignature(legacy.name);
 		const duration = await PlaylistPlayer.#probeDuration(legacy);
-		await this.#store.put(id, legacy);
-		await this.#store.delete(0);
+		await store.put(id, legacy);
+		await store.delete(0);
 		playlist.append(new Track(id, signature, duration));
 		playlist.index = 0;
 	}
@@ -148,7 +149,8 @@ export class PlaylistPlayer extends EventTarget {
 		const ids = new Set(playlist.tracks.map(track => track.id));
 		for (const key of await store.keys()) {
 			const name = String(key);
-			const id = name.endsWith(".lrc") ? name.slice(0, -".lrc".length) : name;
+			let id = name;
+			if (name.endsWith(".lrc")) id = name.slice(0, -".lrc".length);
 			if (ids.has(id)) continue;
 			await store.delete(key);
 		}
@@ -258,8 +260,9 @@ export class PlaylistPlayer extends EventTarget {
 		if (!playlist.remove(id)) return;
 		this.#emitChange();
 
-		await this.#store.delete(id);
-		await this.#store.delete(PlaylistPlayer.#keyLyrics(id));
+		const store = this.#store;
+		await store.delete(id);
+		await store.delete(PlaylistPlayer.#keyLyrics(id));
 		if (wasCurrent) await this.#load(playlist.current);
 		void this.#persist();
 	}

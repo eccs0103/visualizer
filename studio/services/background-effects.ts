@@ -18,10 +18,10 @@ export class Placement {
 
 	clamp(width: number, height: number, overscan: number): void {
 		const enlarged = this.scale * (1 + overscan);
-		const limitX = (enlarged - 1) * width / 2;
-		const limitY = (enlarged - 1) * height / 2;
-		this.x = this.x.clamp(-limitX, limitX);
-		this.y = this.y.clamp(-limitY, limitY);
+		const xLimit = (enlarged - 1) * width / 2;
+		const yLimit = (enlarged - 1) * height / 2;
+		this.x = this.x.clamp(-xLimit, xLimit);
+		this.y = this.y.clamp(-yLimit, yLimit);
 	}
 }
 //#endregion
@@ -58,9 +58,11 @@ class PulseEffect extends BackgroundEffect {
 	place(stage: StageHost, intensity: number, placement: Placement): void {
 		const { audioset, environment } = stage;
 		const { delta } = environment;
-		if (Number.isFinite(delta)) this.#energy = (this.#energy - delta * PulseEffect.#decay).clamp(0, 1);
-		if (audioset.beatDetected) this.#energy = 1;
-		const level = this.#energy * 0.6 + audioset.bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0, 1) * 0.4;
+		let energy = this.#energy;
+		if (Number.isFinite(delta)) energy = (energy - delta * PulseEffect.#decay).clamp(0, 1);
+		if (audioset.beatDetected) energy = 1;
+		this.#energy = energy;
+		const level = energy * 0.6 + audioset.bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0, 1) * 0.4;
 		placement.scale = 1 + intensity * level * 0.08;
 	}
 }

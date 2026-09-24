@@ -126,21 +126,24 @@ export class PlaylistView extends EventTarget {
 	}
 
 	#onPointerMove(event: PointerEvent): void {
-		if (this.#drag === null) return;
-		this.#drag.track(event.clientY);
+		const drag = this.#drag;
+		if (drag === null) return;
+		drag.track(event.clientY);
 	}
 
 	#onPointerUp(event: PointerEvent): void {
-		if (this.#drag === null) return;
-		const reorder = this.#drag.commit();
+		const drag = this.#drag;
+		if (drag === null) return;
+		const reorder = drag.commit();
 		this.#drag = null;
 		if (!reorder.isEffective) return;
 		this.dispatchEvent(new CustomEvent("reorder", { detail: reorder }));
 	}
 
 	#onPointerCancel(event: PointerEvent): void {
-		if (this.#drag === null) return;
-		this.#drag.cancel();
+		const drag = this.#drag;
+		if (drag === null) return;
+		drag.cancel();
 		this.#drag = null;
 	}
 
@@ -152,9 +155,10 @@ export class PlaylistView extends EventTarget {
 		const row = this.#findTrackRow(event);
 		if (row === undefined) return;
 		const id = ReferenceError.suppress(row.dataset["id"], "Playlist row missing id");
-		const from = this.#order.indexOf(id);
+		const order = this.#order;
+		const from = order.indexOf(id);
 		if (from < 0) return;
-		const to = (from + step).clamp(0, this.#order.length - 1);
+		const to = (from + step).clamp(0, order.length - 1);
 		event.preventDefault();
 		const reorder = new Reorder(from, to);
 		if (!reorder.isEffective) return;
@@ -193,8 +197,9 @@ export class PlaylistView extends EventTarget {
 
 		this.#order = tracks.map(track => track.id);
 		this.#spanPlaylistEmpty.hidden = tracks.length > 0;
-		this.#buttonPlaylistMode.dataset["mode"] = mode;
-		this.#buttonPlaylistMode.title = ReferenceError.suppress(PlaylistView.#titles.get(mode));
+		const buttonPlaylistMode = this.#buttonPlaylistMode;
+		buttonPlaylistMode.dataset["mode"] = mode;
+		buttonPlaylistMode.title = ReferenceError.suppress(PlaylistView.#titles.get(mode));
 
 		if (focused !== null && olPlaylistTracks.contains(focused) && document.activeElement !== focused) focused.focus({ preventScroll: true });
 	}

@@ -57,7 +57,8 @@ export class Registry {
 	}
 
 	static attach(name: string, descriptor: VisualizationDescriptor): void {
-		if (this.#descriptors.has(name)) {
+		const descriptors = this.#descriptors;
+		if (descriptors.has(name)) {
 			console.error(`Visualization '${name}' is already attached, the duplicate was ignored`);
 			return;
 		}
@@ -69,7 +70,7 @@ export class Registry {
 ${Error.from(reason)}`);
 			return;
 		}
-		this.#descriptors.set(name, descriptor);
+		descriptors.set(name, descriptor);
 	}
 
 	static layers(name: string): readonly Layer[] {

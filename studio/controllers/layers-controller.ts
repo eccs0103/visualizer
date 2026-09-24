@@ -30,7 +30,8 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 	}
 
 	async #restore(): Promise<void> {
-		const settings = this.#cell.content;
+		const cell = this.#cell;
+		const settings = cell.content;
 		let isReset = false;
 		for (const [name, configuration] of settings.attachments) {
 			const { background } = configuration;
@@ -46,7 +47,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		}
 		if (!isReset) return;
 		this.#render();
-		await this.#cell.save(500);
+		await cell.save(500);
 	}
 
 	async #validate(file: File): Promise<string | null> {
@@ -62,28 +63,31 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 	}
 
 	async #upload(file: File): Promise<void> {
-		const { visualization, configuration } = this.#cell.content;
+		const cell = this.#cell;
+		const view = this.#view;
+		const { visualization, configuration } = cell.content;
 		const problem = await this.#validate(file);
-		if (problem !== null) return this.#view.showMessage(problem);
+		if (problem !== null) return view.showMessage(problem);
 		try {
 			await this.#store.put(LayersController.#keyOf(visualization), file);
 		} catch (reason) {
 			console.error(`Failed to store the background image:\n${Error.from(reason)}`);
-			return this.#view.showMessage("The image could not be stored, the browser storage may be full");
+			return view.showMessage("The image could not be stored, the browser storage may be full");
 		}
 		configuration.background.image = file.name;
 		this.#visualizer.setBackground(visualization, file);
 		this.#render();
-		await this.#cell.save(500);
+		await cell.save(500);
 	}
 
 	async #remove(): Promise<void> {
-		const { visualization, configuration } = this.#cell.content;
+		const cell = this.#cell;
+		const { visualization, configuration } = cell.content;
 		await this.#store.delete(LayersController.#keyOf(visualization));
 		configuration.background.image = null;
 		this.#visualizer.setBackground(visualization, null);
 		this.#render();
-		await this.#cell.save(500);
+		await cell.save(500);
 	}
 
 	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {

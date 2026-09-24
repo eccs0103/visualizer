@@ -212,21 +212,24 @@ export class LayersView extends EventTarget {
 	}
 
 	#onPointerMove(event: PointerEvent): void {
-		if (this.#drag === null) return;
-		this.#drag.track(event.clientY);
+		const drag = this.#drag;
+		if (drag === null) return;
+		drag.track(event.clientY);
 	}
 
 	#onPointerUp(event: PointerEvent): void {
-		if (this.#drag === null) return;
-		const reorder = this.#drag.commit();
+		const drag = this.#drag;
+		if (drag === null) return;
+		const reorder = drag.commit();
 		this.#drag = null;
 		if (!reorder.isEffective) return;
 		this.dispatchEvent(new CustomEvent("reorder", { detail: this.#toStorage(reorder, this.#readRows().length) }));
 	}
 
 	#onPointerCancel(event: PointerEvent): void {
-		if (this.#drag === null) return;
-		this.#drag.cancel();
+		const drag = this.#drag;
+		if (drag === null) return;
+		drag.cancel();
 		this.#drag = null;
 	}
 
