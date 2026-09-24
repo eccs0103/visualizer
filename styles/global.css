@@ -138,7 +138,7 @@ body {
 	cursor: pointer;
 	font-family: inherit;
 	font-size: inherit;
-	font-weight: bold;
+	font-weight: 600;
 	resize: none;
 }
 
@@ -390,7 +390,7 @@ kbd {
 	white-space: nowrap;
 	padding: 0.15em 0.35em !important;
 	font-family: 'Consolas', sans-serif, system-ui, monospace;
-	font-weight: bold;
+	font-weight: 600;
 }
 
 code,

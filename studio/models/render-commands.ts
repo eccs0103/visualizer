@@ -3,7 +3,7 @@
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/core";
 import { LayerSettings } from "./layer-settings.js";
-import { BackgroundSettings } from "./engine-settings.js";
+import { BackgroundSettings } from "./background-settings.js";
 
 //#region Shared array buffer portable
 export class SharedArrayBufferPortable {
@@ -43,7 +43,7 @@ class OffscreenCanvasPortable {
 //#endregion
 
 //#region Render command
-export interface RenderCommandDiscriminator extends InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator, EngineRenderCommandDiscriminator, ImageRenderCommandDiscriminator {
+export interface RenderCommandDiscriminator extends InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator {
 }
 
 export interface RenderCommandScheme {
@@ -56,7 +56,6 @@ export interface RenderCommandScheme {
 @Descendant(Deferred(_ => LyricsRenderCommand))
 @Descendant(Deferred(_ => ShakeRenderCommand))
 @Descendant(Deferred(_ => LayersRenderCommand))
-@Descendant(Deferred(_ => EngineRenderCommand))
 @Descendant(Deferred(_ => ImageRenderCommand))
 export abstract class RenderCommand extends Model {
 	constructor() {
@@ -224,6 +223,8 @@ export interface LayersRenderCommandScheme extends RenderCommandScheme {
 	$type: keyof LayersRenderCommandDiscriminator;
 	visualization: string;
 	layers: LayerSettings[];
+	background: BackgroundSettings;
+	lyrics: LayerSettings;
 }
 
 export class LayersRenderCommand extends RenderCommand {
@@ -233,32 +234,6 @@ export class LayersRenderCommand extends RenderCommand {
 	@Field(Array.Of(LayerSettings))
 	layers: LayerSettings[];
 
-	constructor();
-	constructor(visualization: string, layers: LayerSettings[]);
-	constructor(visualization?: string, layers?: LayerSettings[]) {
-		if (visualization === undefined || layers === undefined) {
-			super();
-			return;
-		}
-
-		super();
-		this.visualization = visualization;
-		this.layers = layers;
-	}
-}
-//#endregion
-//#region Engine render command
-export interface EngineRenderCommandDiscriminator {
-	"EngineRenderCommand": EngineRenderCommand;
-}
-
-export interface EngineRenderCommandScheme extends RenderCommandScheme {
-	$type: keyof EngineRenderCommandDiscriminator;
-	background: BackgroundSettings;
-	lyrics: LayerSettings;
-}
-
-export class EngineRenderCommand extends RenderCommand {
 	@Field(BackgroundSettings)
 	background: BackgroundSettings;
 
@@ -266,14 +241,16 @@ export class EngineRenderCommand extends RenderCommand {
 	lyrics: LayerSettings;
 
 	constructor();
-	constructor(background: BackgroundSettings, lyrics: LayerSettings);
-	constructor(background?: BackgroundSettings, lyrics?: LayerSettings) {
-		if (background === undefined || lyrics === undefined) {
+	constructor(visualization: string, layers: LayerSettings[], background: BackgroundSettings, lyrics: LayerSettings);
+	constructor(visualization?: string, layers?: LayerSettings[], background?: BackgroundSettings, lyrics?: LayerSettings) {
+		if (visualization === undefined || layers === undefined || background === undefined || lyrics === undefined) {
 			super();
 			return;
 		}
 
 		super();
+		this.visualization = visualization;
+		this.layers = layers;
 		this.background = background;
 		this.lyrics = lyrics;
 	}
@@ -286,22 +263,27 @@ export interface ImageRenderCommandDiscriminator {
 
 export interface ImageRenderCommandScheme extends RenderCommandScheme {
 	$type: keyof ImageRenderCommandDiscriminator;
+	visualization: string;
 	image: Blob | null;
 }
 
 export class ImageRenderCommand extends RenderCommand {
+	@Field(String)
+	visualization: string;
+
 	@Field(Nullable.Of(BlobPortable))
 	image: Blob | null;
 
 	constructor();
-	constructor(image: Blob | null);
-	constructor(image?: Blob | null) {
-		if (image === undefined) {
+	constructor(visualization: string, image: Blob | null);
+	constructor(visualization?: string, image?: Blob | null) {
+		if (visualization === undefined || image === undefined) {
 			super();
 			return;
 		}
 
 		super();
+		this.visualization = visualization;
 		this.image = image;
 	}
 }

@@ -2,11 +2,13 @@
 
 import "adaptive-extender/web";
 import { Blend } from "../models/blend.js";
-import { BackgroundEffectKind, BackgroundFit, type BackgroundSettings } from "../models/engine-settings.js";
+import { BackgroundEffectKind, BackgroundFit, type BackgroundSettings } from "../models/background-settings.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { Reorder } from "../models/playlist.js";
 import { DOMBuilder } from "./dom-builder.js";
 import { TrackDrag } from "./track-drag.js";
+
+type Listener<T> = (value: T) => void;
 
 //#region Layers view
 export interface LayersViewEventMap {
@@ -78,6 +80,37 @@ export class LayersView extends EventTarget {
 		return new Reorder(count - 1 - reorder.from, count - 1 - reorder.to);
 	}
 
+	#adjust(settings: LayerSettings): void {
+		this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
+	}
+
+	#buildRange(option: HTMLElement, title: string, value: number, onInput: Listener<number>): HTMLInputElement {
+		const inputRange = option.appendChild(document.createElement("input"));
+		inputRange.type = "range";
+		inputRange.min = String(0);
+		inputRange.max = String(1);
+		inputRange.step = String(0.01);
+		inputRange.value = String(value);
+		inputRange.title = title;
+		inputRange.classList.add("value", "depth", "rounded");
+		inputRange.addEventListener("input", event => onInput(Number(inputRange.value)));
+		return inputRange;
+	}
+
+	#buildSelect<T extends string>(option: HTMLElement, title: string, reference: Readonly<Record<string, T>>, value: T, onChange: Listener<T>): HTMLSelectElement {
+		const selectChoice = option.appendChild(document.createElement("select"));
+		selectChoice.title = title;
+		selectChoice.classList.add("value", "depth", "rounded", "with-padding");
+		for (const [name, item] of Object.entries(reference)) {
+			const choice = selectChoice.appendChild(document.createElement("option"));
+			choice.value = item;
+			choice.innerText = name.toTitleCase();
+		}
+		selectChoice.value = value;
+		selectChoice.addEventListener("change", event => onChange(ReferenceError.suppress(Object.values(reference).find(candidate => candidate === selectChoice.value), `Unknown option '${selectChoice.value}'`)));
+		return selectChoice;
+	}
+
 	#buildRow(settings: LayerSettings, isPinned: boolean): HTMLLIElement {
 		const row = document.createElement("li");
 		row.classList.add("rounded", "depth", "flex", "alt-center");
@@ -87,38 +120,18 @@ export class LayersView extends EventTarget {
 		if (isPinned) DOMBuilder.newPin(row);
 		else DOMBuilder.newHandle(row);
 
-		const divContent = row.appendChild(document.createElement("div"));
-		divContent.classList.add("content", "flex", "column", "with-gap", "with-padding");
-		DOMBuilder.newTitle(divContent, settings.name);
+		const group = DOMBuilder.newGroup(row, settings.name);
 
-		const divControls = divContent.appendChild(document.createElement("div"));
-		divControls.classList.add("controls", "flex", "alt-center", "with-gap");
-
-		const inputOpacity = divControls.appendChild(document.createElement("input"));
-		inputOpacity.type = "range";
-		inputOpacity.min = String(0);
-		inputOpacity.max = String(1);
-		inputOpacity.step = String(0.01);
-		inputOpacity.value = String(settings.opacity);
-		inputOpacity.title = "Opacity";
-		inputOpacity.classList.add("layer", "rounded");
-		inputOpacity.addEventListener("input", event => {
-			settings.opacity = Number(inputOpacity.value);
-			this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
+		const optionOpacity = DOMBuilder.newOption(group, "Opacity", "How visible the layer is. 0 hides it completely.");
+		this.#buildRange(optionOpacity, "Opacity", settings.opacity, value => {
+			settings.opacity = value;
+			this.#adjust(settings);
 		});
 
-		const selectBlend = divControls.appendChild(document.createElement("select"));
-		selectBlend.title = "Blend mode";
-		selectBlend.classList.add("layer", "rounded", "with-padding");
-		for (const [name, value] of Object.entries(Blend)) {
-			const option = selectBlend.appendChild(document.createElement("option"));
-			option.value = value;
-			option.innerText = name;
-		}
-		selectBlend.value = settings.blend;
-		selectBlend.addEventListener("change", event => {
-			settings.blend = ReferenceError.suppress(Object.values(Blend).find(candidate => candidate === selectBlend.value), `Unknown blend '${selectBlend.value}'`);
-			this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
+		const optionBlend = DOMBuilder.newOption(group, "Blend mode", "How the layer mixes with the layers below it.");
+		this.#buildSelect(optionBlend, "Blend mode", Blend, settings.blend, value => {
+			settings.blend = value;
+			this.#adjust(settings);
 		});
 
 		return row;
@@ -126,15 +139,13 @@ export class LayersView extends EventTarget {
 
 	#buildBackgroundRow(settings: BackgroundSettings): HTMLLIElement {
 		const row = this.#buildRow(settings, true);
-		const divContent = row.getElement(HTMLDivElement, "div.content");
+		const group = row.getElement(HTMLElement, "section.option");
 
-		const divImage = divContent.appendChild(document.createElement("div"));
-		divImage.classList.add("controls", "flex", "alt-center", "with-gap");
-
-		const spanImage = divImage.appendChild(document.createElement("span"));
-		spanImage.classList.add("title", "fittable");
-		spanImage.innerText = "No image";
-		if (settings.image !== null) spanImage.innerText = settings.image;
+		let definition = "No image, the theme colour is used.";
+		if (settings.image !== null) definition = settings.image;
+		const optionImage = DOMBuilder.newOption(group, "Image", definition);
+		const divImage = optionImage.appendChild(document.createElement("div"));
+		divImage.classList.add("value", "flex", "with-gap");
 
 		const inputImage = divImage.appendChild(document.createElement("input"));
 		inputImage.type = "file";
@@ -151,70 +162,40 @@ export class LayersView extends EventTarget {
 
 		const buttonUpload = divImage.appendChild(document.createElement("button"));
 		buttonUpload.type = "button";
-		buttonUpload.classList.add("layer", "rounded", "with-padding");
+		buttonUpload.classList.add("depth", "rounded", "with-padding");
 		buttonUpload.innerText = "Upload";
 		buttonUpload.addEventListener("click", event => inputImage.click());
 
 		if (settings.hasImage) {
 			const buttonRemove = divImage.appendChild(document.createElement("button"));
 			buttonRemove.type = "button";
-			buttonRemove.classList.add("layer", "rounded", "with-padding");
+			buttonRemove.classList.add("depth", "rounded", "with-padding");
 			buttonRemove.innerText = "Remove";
 			buttonRemove.addEventListener("click", event => this.dispatchEvent(new Event("remove")));
 
-			const selectFit = divImage.appendChild(document.createElement("select"));
-			selectFit.title = "Fit";
-			selectFit.classList.add("layer", "rounded", "with-padding");
-			for (const [name, value] of Object.entries(BackgroundFit)) {
-				const option = selectFit.appendChild(document.createElement("option"));
-				option.value = value;
-				option.innerText = name;
-			}
-			selectFit.value = settings.fit;
-			selectFit.addEventListener("change", event => {
-				settings.fit = ReferenceError.suppress(Object.values(BackgroundFit).find(candidate => candidate === selectFit.value), `Unknown fit '${selectFit.value}'`);
-				this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
+			const optionFit = DOMBuilder.newOption(group, "Fit", "How the image fills the canvas. Cover crops the edges, contain shows the whole image, stretch distorts it to fit.");
+			this.#buildSelect(optionFit, "Fit", BackgroundFit, settings.fit, value => {
+				settings.fit = value;
+				this.#adjust(settings);
 			});
-		}
 
-		if (settings.hasImage) {
-			const divEffect = divContent.appendChild(document.createElement("div"));
-			divEffect.classList.add("controls", "flex", "alt-center", "with-gap");
+			const optionEffect = DOMBuilder.newOption(group, "Effect", "Moves the image with the music. Shake and parallax follow the visualization's own motion, pulse follows the beat.");
+			this.#buildSelect(optionEffect, "Effect", BackgroundEffectKind, settings.effect, value => {
+				settings.effect = value;
+				inputIntensity.disabled = value === BackgroundEffectKind.none;
+				this.#adjust(settings);
+			});
 
-			const inputIntensity = document.createElement("input");
-			inputIntensity.type = "range";
-			inputIntensity.min = String(0);
-			inputIntensity.max = String(1);
-			inputIntensity.step = String(0.01);
-			inputIntensity.value = String(settings.intensity);
-			inputIntensity.title = "Effect intensity";
+			const optionIntensity = DOMBuilder.newOption(optionEffect, "Intensity", "How strong the effect is.");
+			const inputIntensity = this.#buildRange(optionIntensity, "Intensity", settings.intensity, value => {
+				settings.intensity = value;
+				this.#adjust(settings);
+			});
 			inputIntensity.disabled = settings.effect === BackgroundEffectKind.none;
-			inputIntensity.classList.add("layer", "rounded");
-			inputIntensity.addEventListener("input", event => {
-				settings.intensity = Number(inputIntensity.value);
-				this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
-			});
-
-			const selectEffect = divEffect.appendChild(document.createElement("select"));
-			selectEffect.title = "Effect";
-			selectEffect.classList.add("layer", "rounded", "with-padding");
-			for (const [name, value] of Object.entries(BackgroundEffectKind)) {
-				const option = selectEffect.appendChild(document.createElement("option"));
-				option.value = value;
-				option.innerText = name;
-			}
-			selectEffect.value = settings.effect;
-			selectEffect.addEventListener("change", event => {
-				settings.effect = ReferenceError.suppress(Object.values(BackgroundEffectKind).find(candidate => candidate === selectEffect.value), `Unknown effect '${selectEffect.value}'`);
-				inputIntensity.disabled = settings.effect === BackgroundEffectKind.none;
-				this.dispatchEvent(new CustomEvent("adjust", { detail: settings }));
-			});
-
-			divEffect.appendChild(inputIntensity);
 		}
 
-		const spanMessage = divContent.appendChild(document.createElement("span"));
-		spanMessage.classList.add("message", "alert");
+		const spanMessage = group.appendChild(document.createElement("span"));
+		spanMessage.classList.add("message", "alert", "grid-line");
 		spanMessage.hidden = true;
 
 		return row;

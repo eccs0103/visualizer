@@ -5,7 +5,8 @@ import { Model, Field, Optional, Enum } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
 import { type Layer } from "../services/layers.js";
 import { LayerSettings } from "./layer-settings.js";
-import { EngineSettings } from "./engine-settings.js";
+import { BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "./background-settings.js";
+import { Blend } from "./blend.js";
 import { Playlist, type Reorder } from "./playlist.js";
 
 //#region Visualization settings
@@ -33,6 +34,12 @@ export class VisualizationSettings extends Model {
 
 	@Field(Array.Of(LayerSettings), { name: "layers" })
 	layers: LayerSettings[] = [];
+
+	@Field(BackgroundSettings, { name: "background" })
+	background: BackgroundSettings = new BackgroundSettings(1, Blend.normal, BackgroundFit.cover, null, BackgroundEffectKind.pulse, 0.5);
+
+	@Field(LayerSettings, { name: "lyrics" })
+	lyrics: LayerSettings = new LayerSettings("Lyrics", 1, Blend.normal);
 
 	reconcile(declared: readonly Layer[]): void {
 		const kept: LayerSettings[] = [];
@@ -90,9 +97,6 @@ export class Settings extends Model {
 	@Field(String, { name: "visualization" })
 	visualization: string = Registry.default;
 
-	@Field(EngineSettings, { name: "engine" })
-	engine: EngineSettings = new EngineSettings();
-
 	@Field(Map.AsRecord(VisualizationSettings), { name: "attachments" })
 	attachments: Map<string, VisualizationSettings> = new Map(Array.from(Registry.names(), name => [name, new VisualizationSettings()]));
 
@@ -107,7 +111,8 @@ export class Settings extends Model {
 		const names = new Set(Registry.names());
 		for (const name of Array.from(this.attachments.keys())) if (!names.has(name)) this.attachments.delete(name);
 		for (const name of names) if (!this.attachments.has(name)) this.attachments.add(name, new VisualizationSettings());
-		for (const [name, attachment] of this.attachments) attachment.reconcile(Registry.layers(name));		if (!Registry.has(this.visualization)) this.visualization = Registry.default;
+		for (const [name, attachment] of this.attachments) attachment.reconcile(Registry.layers(name));
+		if (!Registry.has(this.visualization)) this.visualization = Registry.default;
 	}
 }
 //#endregion

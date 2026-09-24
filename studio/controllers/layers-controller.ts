@@ -2,40 +2,49 @@
 
 import "adaptive-extender/web";
 import { Controller, BufferedCell } from "adaptive-extender/web";
-import { Settings } from "../models/settings.js";
+import { Settings, type VisualizationSettings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { ObjectStore } from "../services/object-store.js";
 import { LayersView } from "../view/layers-view.js";
 
 //#region Layers controller
 export class LayersController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement, HTMLSelectElement]> {
-	static #key: string = "background";
 	static #maxSize: number = 50 * 1024 * 1024;
 	#cell: BufferedCell<typeof Settings>;
 	#visualizer: Visualizer;
 	#view: LayersView;
 	#store: ObjectStore = new ObjectStore("Visualizer\\Backgrounds", "Images");
 
-	#arrange(): void {
-		const { visualization, configuration } = this.#cell.content;
-		this.#visualizer.arrange(visualization, configuration.layers);
+	static #keyOf(visualization: string): string {
+		return `background:${visualization}`;
+	}
+
+	#arrange(visualization: string, configuration: VisualizationSettings): void {
+		const { layers, background, lyrics } = configuration;
+		this.#visualizer.arrange(visualization, layers, background, lyrics);
 	}
 
 	#render(): void {
-		const { engine, configuration } = this.#cell.content;
-		this.#view.render(engine.lyrics, configuration.layers, engine.background);
+		const { lyrics, layers, background } = this.#cell.content.configuration;
+		this.#view.render(lyrics, layers, background);
 	}
 
 	async #restore(): Promise<void> {
-		const { background } = this.#cell.content.engine;
-		if (!background.hasImage) return;
-		const image = await this.#store.get(LayersController.#key);
-		if (image instanceof Blob) {
-			this.#visualizer.setBackground(image);
-			return;
+		const settings = this.#cell.content;
+		let isReset = false;
+		for (const [name, configuration] of settings.attachments) {
+			const { background } = configuration;
+			if (!background.hasImage) continue;
+			const image = await this.#store.get(LayersController.#keyOf(name));
+			if (image instanceof Blob) {
+				this.#visualizer.setBackground(name, image);
+				continue;
+			}
+			console.error(`The stored background image of '${name}' is missing, the background image was reset`);
+			background.image = null;
+			isReset = true;
 		}
-		console.error("The stored background image is missing, the background image was reset");
-		background.image = null;
+		if (!isReset) return;
 		this.#render();
 		await this.#cell.save(500);
 	}
@@ -53,24 +62,26 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 	}
 
 	async #upload(file: File): Promise<void> {
+		const { visualization, configuration } = this.#cell.content;
 		const problem = await this.#validate(file);
 		if (problem !== null) return this.#view.showMessage(problem);
 		try {
-			await this.#store.put(LayersController.#key, file);
+			await this.#store.put(LayersController.#keyOf(visualization), file);
 		} catch (reason) {
 			console.error(`Failed to store the background image:\n${Error.from(reason)}`);
 			return this.#view.showMessage("The image could not be stored, the browser storage may be full");
 		}
-		this.#cell.content.engine.background.image = file.name;
-		this.#visualizer.setBackground(file);
+		configuration.background.image = file.name;
+		this.#visualizer.setBackground(visualization, file);
 		this.#render();
 		await this.#cell.save(500);
 	}
 
 	async #remove(): Promise<void> {
-		await this.#store.delete(LayersController.#key);
-		this.#cell.content.engine.background.image = null;
-		this.#visualizer.setBackground(null);
+		const { visualization, configuration } = this.#cell.content;
+		await this.#store.delete(LayersController.#keyOf(visualization));
+		configuration.background.image = null;
+		this.#visualizer.setBackground(visualization, null);
 		this.#render();
 		await this.#cell.save(500);
 	}
@@ -81,23 +92,20 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		const olVisualizationLayers = dialogConfigurator.getElement(HTMLOListElement, "ol#visualization-layers");
 		const view = this.#view = new LayersView(olVisualizationLayers);
 		const settings = cell.content;
-		const { engine } = settings;
 
-		for (const [name, configuration] of settings.attachments) visualizer.arrange(name, configuration.layers);
-		visualizer.configure(engine);
+		for (const [name, configuration] of settings.attachments) this.#arrange(name, configuration);
 		this.#render();
 
 		selectVisualizerVisualization.addEventListener("change", event => this.#render());
 
 		view.addEventListener("adjust", async event => {
-			if (event.detail === engine.background || event.detail === engine.lyrics) visualizer.configure(engine);
-			else this.#arrange();
+			this.#arrange(settings.visualization, settings.configuration);
 			await cell.save(500);
 		});
 
 		view.addEventListener("reorder", async event => {
 			if (!settings.configuration.move(event.detail)) return;
-			this.#arrange();
+			this.#arrange(settings.visualization, settings.configuration);
 			this.#render();
 			await cell.save(500);
 		});

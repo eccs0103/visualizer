@@ -69,10 +69,10 @@ Every visualization also gets two layers that the engine adds and owns. You do n
 
 | Layer        | Position | Description                                                                                                                                                                                       |
 | :----------- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Background` | Bottom   | The theme colour, or an image the user uploaded (cover, contain or stretch) with an optional effect: shake and parallax follow your camera, pulse follows the beat. Shared by all visualizations. |
+| `Background` | Bottom   | The theme colour, or an image the user uploaded (cover, contain or stretch) with an optional effect: shake and parallax follow your camera, pulse follows the beat (the default). Each visualization keeps its own image and settings. |
 | `Lyrics`     | Top      | Synced lyrics, following the camera by `lyrics.shake`. Drawn only while there are lyrics.                                                                                                         |
 
-Both are pinned: the user can change their opacity and blend mode, but cannot move them.
+Both are pinned: the user can change their opacity and blend mode, separately for each visualization, but cannot move them.
 
 ### Rules
 

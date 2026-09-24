@@ -230,6 +230,10 @@ ol#playlist-tracks > li[data-active] {
 	outline: var(--size-separator) solid var(--color-highlight);
 }
 
+ol#visualization-layers > li {
+	outline: var(--size-separator) solid var(--color-heavy-main);
+}
+
 ol#playlist-tracks > li[data-dragging],
 ol#playlist-tracks > li[data-shifted],
 ol#visualization-layers > li[data-dragging],
@@ -266,29 +270,19 @@ ol#playlist-tracks > li span.title {
 	white-space: nowrap;
 }
 
-section.option > ol#visualization-layers {
-	width: 100%;
+ol#visualization-layers {
 	list-style: none;
 }
 
-ol#visualization-layers > li > div.content {
+ol#visualization-layers > li > section.option {
 	flex: 1;
 	min-width: 0;
+	padding-block: var(--size-gap);
+	padding-inline-start: var(--size-gap);
 }
 
 ol#visualization-layers > li > span.pin {
 	visibility: hidden;
-}
-
-ol#visualization-layers > li > div.content > div.controls > span.title {
-	flex: 1;
-	overflow: hidden;
-	white-space: nowrap;
-}
-
-ol#visualization-layers > li > div.content > div.controls > input[type="range"] {
-	flex: 1;
-	min-width: 0;
 }
 
 input#feedback-good + label[for="feedback-good"] > span.icon {

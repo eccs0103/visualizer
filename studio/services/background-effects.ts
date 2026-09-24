@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { BackgroundEffectKind } from "../models/engine-settings.js";
+import { BackgroundEffectKind } from "../models/background-settings.js";
 import { type StageHost } from "../models/visualization.js";
 
 const gain = 4;

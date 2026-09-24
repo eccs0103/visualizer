@@ -29,6 +29,27 @@ export class DOMBuilder {
 		return pin;
 	}
 
+	static newGroup(parent: Element, title: string): HTMLElement {
+		const group = parent.appendChild(document.createElement("section"));
+		group.classList.add("option", "layer", "with-padding", "large-padding");
+		const heading = group.appendChild(document.createElement("h3"));
+		heading.classList.add("title");
+		heading.innerText = title;
+		return group;
+	}
+
+	static newOption(parent: Element, title: string, definition: string): HTMLElement {
+		const option = parent.appendChild(document.createElement("section"));
+		option.classList.add("option");
+		const heading = option.appendChild(document.createElement("h4"));
+		heading.classList.add("title");
+		heading.innerText = title;
+		const description = option.appendChild(document.createElement("span"));
+		description.classList.add("definition");
+		description.innerText = definition;
+		return option;
+	}
+
 	static newTitle(content: Element, text: string): HTMLElement {
 		const title = content.appendChild(document.createElement("span"));
 		title.classList.add("title", "fittable");

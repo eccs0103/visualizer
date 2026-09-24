@@ -3,14 +3,16 @@
 import "adaptive-extender/core";
 import { type AudiosetView, type StageHost, type VisualizationBundle, type VisualizationEnvironment } from "../models/visualization.js";
 import { type LayerSettings } from "../models/layer-settings.js";
+import { type BackgroundSettings } from "../models/background-settings.js";
 import { type Layer } from "./layers.js";
+import { BackgroundLayer, LyricsLayer } from "./engine-layers.js";
 
 //#region Stage
 export class Stage implements StageHost {
 	#name: string;
 	#bundle: VisualizationBundle;
-	#background: Layer;
-	#lyrics: Layer;
+	#background: BackgroundLayer = new BackgroundLayer();
+	#lyrics: LyricsLayer = new LyricsLayer();
 	#layers: Layer[];
 	#audioset: AudiosetView;
 	#environment: VisualizationEnvironment;
@@ -19,11 +21,9 @@ export class Stage implements StageHost {
 	#height: number = 0;
 	#isBroken: boolean = false;
 
-	constructor(name: string, bundle: VisualizationBundle, background: Layer, lyrics: Layer, audioset: AudiosetView, environment: VisualizationEnvironment) {
+	constructor(name: string, bundle: VisualizationBundle, audioset: AudiosetView, environment: VisualizationEnvironment) {
 		this.#name = name;
 		this.#bundle = bundle;
-		this.#background = background;
-		this.#lyrics = lyrics;
 		this.#layers = Array.from(bundle.layers);
 		this.#audioset = audioset;
 		this.#environment = environment;
@@ -70,7 +70,9 @@ export class Stage implements StageHost {
 		}
 	}
 
-	arrange(settings: readonly LayerSettings[]): void {
+	arrange(settings: readonly LayerSettings[], background: BackgroundSettings, lyrics: LayerSettings): void {
+		this.#background.apply(background);
+		this.#lyrics.apply(lyrics);
 		const layers = this.#layers;
 		const ordered: Layer[] = [];
 		for (const entry of settings) {
@@ -82,6 +84,10 @@ export class Stage implements StageHost {
 		}
 		for (const layer of layers) if (!ordered.includes(layer)) ordered.push(layer);
 		this.#layers = ordered;
+	}
+
+	async setBackground(image: Blob | null): Promise<void> {
+		await this.#background.setImage(image);
 	}
 
 	rebuild(width: number, height: number): void {
@@ -101,6 +107,8 @@ export class Stage implements StageHost {
 	}
 
 	release(): void {
+		this.#background.release();
+		this.#lyrics.release();
 		for (const layer of this.#layers) layer.release();
 	}
 

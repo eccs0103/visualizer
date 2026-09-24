@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field, Enum, Nullable } from "adaptive-extender/core";
+import { Field, Enum, Nullable } from "adaptive-extender/core";
 import { Blend } from "./blend.js";
 import { LayerSettings } from "./layer-settings.js";
 
@@ -27,7 +27,7 @@ export class BackgroundSettings extends LayerSettings {
 	image: string | null = null;
 
 	@Field(Enum.Of(BackgroundEffectKind), { name: "effect" })
-	effect: BackgroundEffectKind = BackgroundEffectKind.none;
+	effect: BackgroundEffectKind = BackgroundEffectKind.pulse;
 
 	@Field(Number, { name: "intensity" })
 	intensity: number = 0.5;
@@ -48,14 +48,5 @@ export class BackgroundSettings extends LayerSettings {
 	}
 
 	get hasImage(): boolean { return this.image !== null; }
-}
-//#endregion
-//#region Engine settings
-export class EngineSettings extends Model {
-	@Field(BackgroundSettings, { name: "background" })
-	background: BackgroundSettings = new BackgroundSettings(1, Blend.normal, BackgroundFit.cover, null, BackgroundEffectKind.none, 0.5);
-
-	@Field(LayerSettings, { name: "lyrics" })
-	lyrics: LayerSettings = new LayerSettings("Lyrics", 1, Blend.normal);
 }
 //#endregion

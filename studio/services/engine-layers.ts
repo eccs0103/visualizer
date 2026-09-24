@@ -2,7 +2,7 @@
 
 import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
-import { BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "../models/engine-settings.js";
+import { BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "../models/background-settings.js";
 import { type StageHost, type VisualizationHost } from "../models/visualization.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { Layer, PaintedLayer } from "./layers.js";
@@ -17,7 +17,7 @@ export class BackgroundLayer extends Layer {
 	#master: ImageBitmap | null = null;
 	#ticket: number = 0;
 	#fit: BackgroundFit = BackgroundFit.cover;
-	#kind: BackgroundEffectKind = BackgroundEffectKind.pulse;
+	#kind: BackgroundEffectKind = BackgroundEffectKind.none;
 	#effect: BackgroundEffect = BackgroundEffects.create(BackgroundEffectKind.none);
 	#intensity: number = 0;
 	#placement: Placement = new Placement();
@@ -61,7 +61,13 @@ export class BackgroundLayer extends Layer {
 	async setImage(blob: Blob | null): Promise<void> {
 		const ticket = ++this.#ticket;
 		let master: ImageBitmap | null = null;
-		if (blob !== null) master = await BackgroundLayer.#decode(blob);
+		try {
+			if (blob !== null) master = await BackgroundLayer.#decode(blob);
+		} catch (reason) {
+			console.error(`The background image could not be decoded:
+${Error.from(reason)}`);
+			return;
+		}
 		if (ticket !== this.#ticket) {
 			if (master !== null) master.close();
 			return;
@@ -76,6 +82,14 @@ export class BackgroundLayer extends Layer {
 		super.resize(width, height);
 		this.#width = width;
 		this.#height = height;
+		this.#isStale = true;
+	}
+
+	release(): void {
+		const canvas = this.#canvas;
+		if (canvas === null) return;
+		canvas.width = 0;
+		canvas.height = 0;
 		this.#isStale = true;
 	}
 

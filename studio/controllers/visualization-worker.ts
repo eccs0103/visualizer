@@ -3,17 +3,14 @@
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 import { Registry } from "../services/visualization-registry.js";
-import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, EngineRenderCommand, ImageRenderCommand } from "../models/render-commands.js";
+import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/render-commands.js";
 import { WorkerAudioset, WorkerEnvironment } from "../services/worker-visualization.js";
 import { Stage } from "../services/stage.js";
-import { BackgroundLayer, LyricsLayer } from "../services/engine-layers.js";
 import "../view/visualizations.js";
 
 //#region Visualization worker
 class VisualizationWorker extends Controller {
 	#stages: Map<string, Stage> = new Map();
-	#background: BackgroundLayer = new BackgroundLayer();
-	#lyrics: LyricsLayer = new LyricsLayer();
 	#context: OffscreenCanvasRenderingContext2D;
 	#audioset: WorkerAudioset;
 	#environment: WorkerEnvironment;
@@ -25,15 +22,6 @@ class VisualizationWorker extends Controller {
 
 	#findStage(name: string): Stage {
 		return ReferenceError.suppress(this.#stages.get(name), `Visualization with name '${name}' is not attached`);
-	}
-
-	async #loadImage(image: Blob | null): Promise<void> {
-		try {
-			await this.#background.setImage(image);
-		} catch (reason) {
-			console.error(`The background image could not be decoded:
-${Error.from(reason)}`);
-		}
 	}
 
 	#select(name: string): void {
@@ -70,7 +58,7 @@ ${Error.from(reason)}`);
 			const environment = this.#environment = new WorkerEnvironment(audioset);
 			let selection: string | null = null;
 			for (const [name, descriptor] of Registry.entries()) {
-				stages.set(name, new Stage(name, Registry.createBundle(descriptor), this.#background, this.#lyrics, audioset, environment));
+				stages.set(name, new Stage(name, Registry.createBundle(descriptor), audioset, environment));
 				if (selection === null) selection = name;
 			}
 			this.#selection = ReferenceError.suppress(selection, "Failed to find any visualization");
@@ -111,20 +99,14 @@ ${Error.from(reason)}`);
 		}
 
 		if (command instanceof LayersRenderCommand) {
-			const { visualization, layers } = command;
-			this.#findStage(visualization).arrange(layers);
-			return;
-		}
-
-		if (command instanceof EngineRenderCommand) {
-			const { background, lyrics } = command;
-			this.#background.apply(background);
-			this.#lyrics.apply(lyrics);
+			const { visualization, layers, background, lyrics } = command;
+			this.#findStage(visualization).arrange(layers, background, lyrics);
 			return;
 		}
 
 		if (command instanceof ImageRenderCommand) {
-			void this.#loadImage(command.image);
+			const { visualization, image } = command;
+			void this.#findStage(visualization).setBackground(image);
 			return;
 		}
 	}
