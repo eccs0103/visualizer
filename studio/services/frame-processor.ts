@@ -2,6 +2,7 @@
 
 import "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
+import { type Calibration } from "../models/calibration.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { type PolicyUpdater } from "./policy-updater.js";
 
@@ -20,37 +21,43 @@ class FluxStats {
 	get mean(): number { return this.#mean; }
 	get standardDeviation(): number { return this.#standardDeviation; }
 
-	onsetThreshold(): number {
-		return this.#mean + 1.5 * this.#standardDeviation;
+	onsetThreshold(multiplier: number): number {
+		return this.#mean + multiplier * this.#standardDeviation;
 	}
 }
 //#endregion
 //#region Frame processor
 export class FrameProcessor {
-	static #fluxWindow: number = 43;
-	static #minBeatGap: number = 8;
+	static #capacity: number = 128;
 	static #featCount: number = 10;
 	static #histSize: number = 32;
-	static #emaAlpha: number = 0.9995;
-	static #emaWarmup: number = 200;
-	static #epsNorm: number = 1e-6;
 	static #holdStep: number = 64;
 	static #maxGain: number = 15;
 	static #scaleHeuristic: number = 0.2;
 
 	#prevFrequency: Float32Array = new Float32Array(SabLayout.inputMaxLength);
-	#fluxHistory: Float32Array = new Float32Array(FrameProcessor.#fluxWindow);
+	#fluxHistory: Float32Array = new Float32Array(FrameProcessor.#capacity);
 	#fluxCursor: number = 0;
 	#lastFrame: number = -1;
 	#frameCount: number = 0;
-	#beatGap: number = FrameProcessor.#minBeatGap;
+	#beatGap: number = 8;
 
 	#bins: [number, number][] | null = null;
 	#cachedLength: number = 0;
 	#cachedSampleRate: number = 0;
 
-	#emaMean: Float32Array = new Float32Array(FrameProcessor.#featCount);
-	#emaVar: Float32Array = new Float32Array(FrameProcessor.#featCount);
+	// Beat-detector constants — defaults match the pre-calibration behavior;
+	// overwritten by loadCalibration() once resources/data/calibration.json arrives.
+	#multiplier: number = 1.5;
+	#minGap: number = 8;
+	#window: number = 43;
+
+	// Per-feature normalization — identity (mean 0, std 1) until calibration loads,
+	// then the fixed corpus stats replace the old EMA-with-warmup normalizer:
+	// no more cold start, no more raw garbage for the first 200 frames of every song.
+	#means: Float32Array = new Float32Array(FrameProcessor.#featCount);
+	#deviations: Float32Array = new Float32Array(FrameProcessor.#featCount).fill(1);
+
 	#rawFeats: Float32Array = new Float32Array(FrameProcessor.#featCount);
 	#normBuf: Float32Array = new Float32Array(FrameProcessor.#featCount);
 	#featHistory: Float32Array = new Float32Array(FrameProcessor.#histSize * FrameProcessor.#featCount);
@@ -61,10 +68,6 @@ export class FrameProcessor {
 	#engaged: boolean = false;
 	#active: boolean = true;
 
-	constructor() {
-		this.#emaVar.fill(1);
-	}
-
 	set active(value: boolean) { this.#active = value; }
 
 	injectFeedback(sign: number): void {
@@ -73,6 +76,16 @@ export class FrameProcessor {
 			this.#hold = 0;
 		}
 		if (sign !== 0) this.#engaged = true;
+	}
+
+	loadCalibration(calibration: Calibration): void {
+		this.#multiplier = calibration.multiplier;
+		this.#minGap = calibration.minGap;
+		this.#window = min(calibration.window, FrameProcessor.#capacity);
+
+		if (calibration.means.length !== FrameProcessor.#featCount || calibration.deviations.length !== FrameProcessor.#featCount) return;
+		this.#means.set(calibration.means);
+		for (let index = 0; index < FrameProcessor.#featCount; index++) this.#deviations[index] = max(calibration.deviations[index], 1e-6);
 	}
 
 	#computeBins(length: number, sampleRate: number): [number, number][] {
@@ -100,7 +113,7 @@ export class FrameProcessor {
 		}
 		flux /= length;
 		prevFrequency.set(frequency);
-		this.#fluxHistory[this.#fluxCursor % FrameProcessor.#fluxWindow] = flux;
+		this.#fluxHistory[this.#fluxCursor % this.#window] = flux;
 		this.#fluxCursor++;
 		return flux;
 	}
@@ -140,7 +153,7 @@ export class FrameProcessor {
 
 	#computeFluxStats(): FluxStats {
 		const fluxHistory = this.#fluxHistory;
-		const filled = min(this.#fluxCursor, FrameProcessor.#fluxWindow);
+		const filled = min(this.#fluxCursor, this.#window);
 		let mean = 0;
 		for (let index = 0; index < filled; index++) mean += fluxHistory[index];
 		mean /= max(1, filled);
@@ -154,7 +167,7 @@ export class FrameProcessor {
 
 	#detectBeat(flux: number, stats: FluxStats): boolean {
 		this.#beatGap++;
-		const detected = flux > stats.onsetThreshold() && this.#beatGap >= FrameProcessor.#minBeatGap;
+		const detected = flux > stats.onsetThreshold(this.#multiplier) && this.#beatGap >= this.#minGap;
 		if (detected) this.#beatGap = 0;
 		return detected;
 	}
@@ -167,17 +180,10 @@ export class FrameProcessor {
 		raw[8] = centroid;
 		raw[9] = percussiveness;
 
-		const mean = this.#emaMean, variance = this.#emaVar;
-		const alpha = FrameProcessor.#emaAlpha, epsilon = FrameProcessor.#epsNorm;
+		const mean = this.#means, standardDeviation = this.#deviations;
 		const norm = this.#normBuf;
-		const doNorm = this.#frameCount >= FrameProcessor.#emaWarmup;
 		for (let index = 0; index < FrameProcessor.#featCount; index++) {
-			const rawValue = raw[index];
-			mean[index] = alpha * mean[index] + (1 - alpha) * rawValue;
-			const diff = rawValue - mean[index];
-			variance[index] = alpha * variance[index] + (1 - alpha) * diff * diff;
-			norm[index] = rawValue;
-			if (doNorm) norm[index] = (rawValue - mean[index]) / sqrt(variance[index] + epsilon);
+			norm[index] = (raw[index] - mean[index]) / standardDeviation[index];
 		}
 	}
 

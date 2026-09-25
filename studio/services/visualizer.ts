@@ -81,10 +81,11 @@ export class Visualizer extends EventTarget {
 
 		const manager = this.#manager = new Audioset.Manager(media);
 		this.#analyzer = new AudioAnalyzer(manager.rate, { isDeveloper });
+		manager.attachMaskSab(this.#analyzer.sabMask);
 		engine.addEventListener("trigger", event => manager.refresh());
 
 		const offscreen = canvas.transferControlToOffscreen();
-		this.#worker.postMessage(RenderCommand.export(new InitializeRenderCommand(this.#bridge.sab, this.#analyzer.outSAB, offscreen)), [offscreen]);
+		this.#worker.postMessage(RenderCommand.export(new InitializeRenderCommand(this.#bridge.sab, this.#analyzer.outSAB, this.#analyzer.sabMask, offscreen)), [offscreen]);
 
 		this.#rebuild();
 		window.addEventListener("resize", event => this.#rebuild());

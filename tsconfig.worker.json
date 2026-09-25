@@ -1,13 +1,15 @@
 {
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"lib": [ "WebWorker", "ES2025", "ESNext.Array" ]
+		"lib": [ "WebWorker", "ES2025", "ESNext.Array" ],
+		"skipLibCheck": true
 	},
 	"include": [
 		"environment/controllers/coi-worker.ts",
 		"studio/models/audio-analyzer-commands.ts",
 		"studio/models/audio-features.ts",
 		"studio/models/blend.ts",
+		"studio/models/calibration.ts",
 		"studio/models/clip-commands.ts",
 		"studio/models/layer-settings.ts",
 		"studio/models/nn-agent.ts",
@@ -26,6 +28,7 @@
 		"studio/view/visualizations/pulsar.ts",
 		"studio/view/visualizations/spectrogram.ts",
 		"studio/controllers/audio-analyzer-worker.ts",
-		"studio/controllers/visualization-worker.ts"
+		"studio/controllers/visualization-worker.ts",
+		"studio/controllers/stem-mask-worker.ts"
 	]
 }

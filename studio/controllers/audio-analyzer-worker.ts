@@ -6,7 +6,7 @@ import { SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
 import { PolicyUpdater } from "../services/policy-updater.js";
-import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
+import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadCalibrationCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 //#region Audio analyzer worker
 class AudioAnalyzerWorker extends Controller {
@@ -51,6 +51,11 @@ class AudioAnalyzerWorker extends Controller {
 			this.#inputFrequency = new Float32Array(inSAB, 20, SabLayout.inputMaxLength);
 			this.#inputTemporal = new Float32Array(inSAB, 20 + SabLayout.inputMaxLength * 4, SabLayout.inputMaxLength);
 			this.#outputBuffer = new Float32Array(outSAB);
+			return;
+		}
+
+		if (command instanceof LoadCalibrationCommand) {
+			processor.loadCalibration(command.calibration);
 			return;
 		}
 

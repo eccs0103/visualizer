@@ -12,6 +12,7 @@ export class FeatureBridge {
 	#inMetadata: Float32Array;
 	#inFrequency: Float32Array;
 	#inTemporal: Float32Array;
+	#inModel: Float32Array;
 	#out: Float32Array;
 
 	constructor() {
@@ -22,6 +23,7 @@ export class FeatureBridge {
 		this.#inMetadata = new Float32Array(inSAB, 8, 3);
 		this.#inFrequency = new Float32Array(inSAB, 20, SabLayout.inputMaxLength);
 		this.#inTemporal = new Float32Array(inSAB, 20 + SabLayout.inputMaxLength * 4, SabLayout.inputMaxLength);
+		this.#inModel = new Float32Array(inSAB, 20 + SabLayout.inputMaxLength * 4 * 2, SabLayout.bins);
 		this.#out = new Float32Array(this.#outSAB);
 	}
 
@@ -29,7 +31,7 @@ export class FeatureBridge {
 	get outSAB(): SharedArrayBuffer { return this.#outSAB; }
 	get output(): Float32Array { return this.#out; }
 
-	writeInput(length: number, sampleRate: number, volume: number, amplitude: number, dataFrequency: Float32Array, dataTemporal: Float32Array): void {
+	writeInput(length: number, sampleRate: number, volume: number, amplitude: number, dataFrequency: Float32Array, dataTemporal: Float32Array, dataModel: Float32Array): void {
 		const inMetadata = this.#inMetadata;
 		const inControl = this.#inControl;
 		inMetadata[0] = sampleRate;
@@ -37,6 +39,7 @@ export class FeatureBridge {
 		inMetadata[2] = amplitude;
 		this.#inFrequency.set(dataFrequency);
 		this.#inTemporal.set(dataTemporal);
+		this.#inModel.set(dataModel);
 		Atomics.store(inControl, 1, length);
 		Atomics.add(inControl, 0, 1);
 	}

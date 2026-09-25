@@ -2,7 +2,7 @@
 
 import "adaptive-extender/core";
 
-const { max } = Math;
+const { max, min } = Math;
 
 //#region SAB layout
 /**
@@ -11,6 +11,8 @@ const { max } = Math;
  *   Bytes  8–19: Float32[3] → [sampleRate, volume, amplitude]
  *   Bytes 20.. : Float32[inputMaxLength] dataFrequency
  *              + Float32[inputMaxLength] dataTemporal
+ *              + Float32[bins]           dataModel — fixed-settings analysis tap,
+ *                untouched by quality/DJ, read by stem-mask-worker only
  *
  * outSAB layout (Float32Array of outputSize = 21 floats):
  *   [0]     frameCounter
@@ -25,16 +27,32 @@ const { max } = Math;
  *   [14]    distortionLevel
  *   [15–19] djControl[5]   (bipolar tanh deltas: focus, spread, boost, tilt, punch)
  *   [20]    reward         (diagnostic)
+ *
+ * mask SAB layout (written by stem-mask-worker.ts through StemMasks.publish):
+ *   Bytes  0–3 : Int32[1]                        version counter
+ *   Bytes  8–23: Float64[2]                      [stamp, interval] — epoch ms of the latest
+ *                                                publication and the gap since the one before
+ *   Bytes 24.. : Float32[bins * stems] previous masks, then Float32[bins * stems] current masks,
+ *                each bin-major/stem-minor (mask[bin*stems+stem], stem order
+ *                drums/bass/vocals/other, sums to ~1 per bin)
  */
 export class SabLayout {
 	static #inputMaxLength: number = 16384;
+	static #bins: number = 512;
 	static #outputSize: number = 21;
+	static #stems: number = 4;
 
 	static get inputMaxLength(): number { return SabLayout.#inputMaxLength; }
+	static get bins(): number { return SabLayout.#bins; }
 	static get outputSize(): number { return SabLayout.#outputSize; }
+	static get stems(): number { return SabLayout.#stems; }
 
 	static inputByteSize(): number {
-		return 20 + SabLayout.#inputMaxLength * 4 * 2;
+		return 20 + SabLayout.#inputMaxLength * 4 * 2 + SabLayout.#bins * 4;
+	}
+
+	static maskBytes(): number {
+		return 24 + SabLayout.#bins * SabLayout.#stems * 4 * 2;
 	}
 }
 //#endregion
@@ -71,6 +89,137 @@ export class BandEnergy {
 		this.#mid = out[offset + 3];
 		this.#highMid = out[offset + 4];
 		this.#high = out[offset + 5];
+	}
+}
+//#endregion
+//#region Stem masks
+/**
+ * A view over the mask SAB — owns resampling the fixed `bins`-bin mask onto
+ * whatever `length` the main analyser is using (linear interpolation: both are
+ * linear FFT bins over 0..Nyquist, so this is exact, not an approximation) and
+ * multiplying by `dataFrequency` to produce an isolated-stem spectrum. Computed
+ * lazily per stem, cached until the blended masks or the requested length change —
+ * a visualization using one stem never pays to resample the other three.
+ *
+ * The model publishes a few times per second, so the masks are not read raw: each
+ * frame blends the previous publication into the current one over the measured gap
+ * between them (`invalidate`), which keeps every stem moving at the render rate.
+ * The blend trails the model by one publication interval — it shows the model's own
+ * output, smoothed in time, never a prediction of what it will say next.
+ *
+ * The blended masks are then squared and renormalised per bin (a Wiener-style power 2):
+ * the model's softmax cannot say a stem is absent — on frames with no vocals it still
+ * hands vocals ~10% of the spectrum — and squaring roughly halves that floor. Measured on
+ * MUSDB18HQ test tracks, powers 2 to 6 cut the false share about the same, and power 2
+ * costs the least correlation with the true stems.
+ */
+export class StemMasks {
+	static #drums: number = 0;
+	static #bass: number = 1;
+	static #vocals: number = 2;
+	static #other: number = 3;
+	static #ceiling: number = 500; // ms — a longer gap (paused audio) must not stretch the next blend
+
+	#control: Int32Array;
+	#timing: Float64Array;
+	#previous: Float32Array;
+	#current: Float32Array;
+	#blended: Float32Array = new Float32Array(SabLayout.bins * SabLayout.stems);
+	#version: number = -1;
+	#weight: number = -1;
+	#length: number = -1;
+	#cache: Float32Array[] = [new Float32Array(0), new Float32Array(0), new Float32Array(0), new Float32Array(0)];
+	#fresh: boolean[] = [false, false, false, false];
+
+	constructor(sabMask: SharedArrayBuffer) {
+		const size = SabLayout.bins * SabLayout.stems;
+		this.#control = new Int32Array(sabMask, 0, 1);
+		this.#timing = new Float64Array(sabMask, 8, 2);
+		this.#previous = new Float32Array(sabMask, 24, size);
+		this.#current = new Float32Array(sabMask, 24 + size * 4, size);
+		this.#blend(1);
+	}
+
+	/** A fresh mask buffer at the uniform 1/stems prior — an honest "no separation yet", not zeros. */
+	static createBuffer(): SharedArrayBuffer {
+		const sab = new SharedArrayBuffer(SabLayout.maskBytes());
+		new Float32Array(sab, 24).fill(1 / SabLayout.stems);
+		return sab;
+	}
+
+	/** Mask worker only: `masks` becomes the current masks, the old current ones become the previous, and `now` (epoch ms) starts the blend between them. */
+	publish(masks: Float32Array, now: number): void {
+		const timing = this.#timing;
+		this.#previous.set(this.#current);
+		this.#current.set(masks);
+		timing[1] = timing[0] === 0 ? 0 : min(now - timing[0], StemMasks.#ceiling);
+		timing[0] = now;
+		Atomics.add(this.#control, 0, 1);
+	}
+
+	/** Call once per rendered frame — cheap: the blend is rebuilt only when a new version was published or the blend weight moved. */
+	invalidate(now: number = performance.timeOrigin + performance.now()): void {
+		const version = Atomics.load(this.#control, 0);
+		const weight = this.#weightAt(now);
+		if (version === this.#version && weight === this.#weight) return;
+		this.#version = version;
+		this.#weight = weight;
+		this.#blend(weight);
+		this.#fresh.fill(false);
+	}
+
+	#weightAt(now: number): number {
+		const [stamp, interval] = this.#timing;
+		if (interval <= 0) return 1;
+		return ((now - stamp) / interval).clamp(0, 1);
+	}
+
+	#blend(weight: number): void {
+		const previous = this.#previous, current = this.#current, blended = this.#blended;
+		const stems = SabLayout.stems;
+		for (let bin = 0; bin < SabLayout.bins; bin++) {
+			const base = bin * stems;
+			let sum = 1e-12;
+			for (let stem = 0; stem < stems; stem++) {
+				const mask = previous[base + stem] + (current[base + stem] - previous[base + stem]) * weight;
+				blended[base + stem] = mask * mask;
+				sum += mask * mask;
+			}
+			for (let stem = 0; stem < stems; stem++) blended[base + stem] /= sum;
+		}
+	}
+
+	drums(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#drums, length, whole); }
+	bass(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#bass, length, whole); }
+	vocals(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#vocals, length, whole); }
+	other(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#other, length, whole); }
+
+	#spectrum(stem: number, length: number, whole: Float32Array): Float32Array {
+		if (this.#length !== length) {
+			this.#length = length;
+			this.#fresh.fill(false);
+		}
+		if (this.#fresh[stem]) return this.#cache[stem];
+		let target = this.#cache[stem];
+		if (target.length !== length) target = this.#cache[stem] = new Float32Array(length);
+		this.#interpolate(stem, length, whole, target);
+		this.#fresh[stem] = true;
+		return target;
+	}
+
+	#interpolate(stem: number, length: number, whole: Float32Array, out: Float32Array): void {
+		const masks = this.#blended;
+		const stems = SabLayout.stems;
+		const bins = SabLayout.bins;
+		const scale = (bins - 1) / max(1, length - 1);
+		for (let index = 0; index < length; index++) {
+			const position = index * scale;
+			const bin = position | 0;
+			const nextBin = min(bin + 1, bins - 1);
+			const weight = position - bin;
+			const mask = masks[bin * stems + stem] * (1 - weight) + masks[nextBin * stems + stem] * weight;
+			out[index] = whole[index] * mask;
+		}
 	}
 }
 //#endregion

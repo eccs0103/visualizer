@@ -14,6 +14,8 @@
   Cache-Control: public, max-age=0, must-revalidate
 /data/*
   Cache-Control: public, max-age=300, must-revalidate
+/wasm/*
+  Cache-Control: public, max-age=300, must-revalidate
 /icons/*
   Cache-Control: public, max-age=86400
 /*.html

@@ -10,6 +10,10 @@ export interface AudiosetView {
 	get volume(): number;
 	get amplitude(): number;
 	get dataFrequency(): Float32Array;
+	get dataFrequencyDrums(): Float32Array;
+	get dataFrequencyBass(): Float32Array;
+	get dataFrequencyVocals(): Float32Array;
+	get dataFrequencyOther(): Float32Array;
 	get dataTemporal(): Float32Array;
 	get spectralFlux(): number;
 	get subBass(): number;

@@ -14,6 +14,7 @@
 		"environment/controllers/coi-worker.ts",
 		"studio/controllers/audio-analyzer-worker.ts",
 		"studio/controllers/visualization-worker.ts",
+		"studio/controllers/stem-mask-worker.ts",
 		"studio/services/clip-accumulator-worker.ts",
 		"studio/services/frame-processor.ts",
 		"studio/services/policy-updater.ts",

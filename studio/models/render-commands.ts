@@ -73,6 +73,7 @@ export interface InitializeRenderCommandScheme extends RenderCommandScheme {
 	$type: keyof InitializeRenderCommandDiscriminator;
 	sabVideo: SharedArrayBuffer;
 	sabAudio: SharedArrayBuffer;
+	sabMask: SharedArrayBuffer;
 	canvas: OffscreenCanvas;
 }
 
@@ -83,13 +84,16 @@ export class InitializeRenderCommand extends RenderCommand {
 	@Field(SharedArrayBufferPortable)
 	sabAudio: SharedArrayBuffer;
 
+	@Field(SharedArrayBufferPortable)
+	sabMask: SharedArrayBuffer;
+
 	@Field(OffscreenCanvasPortable)
 	canvas: OffscreenCanvas;
 
 	constructor();
-	constructor(sabVideo: SharedArrayBuffer, sabAudio: SharedArrayBuffer, canvas: OffscreenCanvas);
-	constructor(sabVideo?: SharedArrayBuffer, sabAudio?: SharedArrayBuffer, canvas?: OffscreenCanvas) {
-		if (sabVideo === undefined || sabAudio === undefined || canvas === undefined) {
+	constructor(sabVideo: SharedArrayBuffer, sabAudio: SharedArrayBuffer, sabMask: SharedArrayBuffer, canvas: OffscreenCanvas);
+	constructor(sabVideo?: SharedArrayBuffer, sabAudio?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, canvas?: OffscreenCanvas) {
+		if (sabVideo === undefined || sabAudio === undefined || sabMask === undefined || canvas === undefined) {
 			super();
 			return;
 		}
@@ -97,6 +101,7 @@ export class InitializeRenderCommand extends RenderCommand {
 		super();
 		this.sabVideo = sabVideo;
 		this.sabAudio = sabAudio;
+		this.sabMask = sabMask;
 		this.canvas = canvas;
 	}
 }

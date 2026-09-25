@@ -52,10 +52,10 @@ class VisualizationWorker extends Controller {
 		const stages = this.#stages;
 
 		if (command instanceof InitializeRenderCommand) {
-			const { sabVideo, sabAudio, canvas } = command;
+			const { sabVideo, sabAudio, sabMask, canvas } = command;
 
 			this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
-			const audioset = this.#audioset = new WorkerAudioset(sabVideo, sabAudio);
+			const audioset = this.#audioset = new WorkerAudioset(sabVideo, sabAudio, sabMask);
 			const environment = this.#environment = new WorkerEnvironment(audioset);
 			let selection: string | null = null;
 			for (const [name, descriptor] of Registry.entries()) {

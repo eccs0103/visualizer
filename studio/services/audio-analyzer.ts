@@ -3,9 +3,11 @@
 import "adaptive-extender/web";
 import { BufferedCell } from "adaptive-extender/web";
 import { NNWeights } from "../models/nn-agent.js";
+import { StemMasks } from "../models/audio-features.js";
+import { Calibration } from "../models/calibration.js";
 import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./client-bridge.js";
-import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadWeightsCommand, ProgressCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
+import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadCalibrationCommand, LoadMaskModelCommand, LoadWeightsCommand, ProgressCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 import { type AudiosetManager } from "../models/audioset.js";
 
 const { baseURI } = document;
@@ -23,7 +25,9 @@ export class AudioAnalyzer extends EventTarget {
 	#isDeveloper: boolean;
 	#cell: BufferedCell<typeof NNWeights> = localStorage.openBufferedCell("Visualizer\\Studio\\NN weights\\1.1", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
+	#sabMask: SharedArrayBuffer = StemMasks.createBuffer();
 	#worker: Worker = new Worker(new URL("./controllers/audio-analyzer-worker.js", baseURI), { type: "module" });
+	#workerMask: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
 	#rate: number;
 	#pendingExport: boolean = false;
 
@@ -40,6 +44,10 @@ export class AudioAnalyzer extends EventTarget {
 		worker.postMessage(Command.export(new InitializeCommand(inSAB, outSAB)));
 		worker.addEventListener("message", this.#onMessage.bind(this));
 		void this.#loadWeights();
+		void this.#loadCalibration();
+
+		this.#workerMask.postMessage(Command.export(new InitializeCommand(inSAB, this.#sabMask)));
+		void this.#loadMaskModel();
 	}
 
 	addEventListener<K extends keyof AudioAnalyzerEventMap>(type: K, listener: (this: Document, ev: AudioAnalyzerEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -56,6 +64,7 @@ export class AudioAnalyzer extends EventTarget {
 
 	get isDeveloper(): boolean { return this.#isDeveloper; }
 	get outSAB(): SharedArrayBuffer { return this.#bridge.outSAB; }
+	get sabMask(): SharedArrayBuffer { return this.#sabMask; }
 
 	feedback(sign: number): void {
 		if (!this.#isDeveloper) return;
@@ -86,8 +95,8 @@ export class AudioAnalyzer extends EventTarget {
 	analyze(manager: AudiosetManager): void {
 		const bridge = this.#bridge;
 		manager.readFeatures(bridge.output);
-		const { length, volume, amplitude, dataFrequency, dataTemporal } = manager.audioset;
-		bridge.writeInput(length, this.#rate, volume, amplitude, dataFrequency, dataTemporal);
+		const { length, volume, amplitude, dataFrequency, dataTemporal, dataModel } = manager.audioset;
+		bridge.writeInput(length, this.#rate, volume, amplitude, dataFrequency, dataTemporal, dataModel);
 	}
 
 	async #loadWeights(): Promise<void> {
@@ -102,6 +111,20 @@ export class AudioAnalyzer extends EventTarget {
 		if (content === null) return;
 		weights = NNWeights.import(JSON.parse(content), "nn-weights");
 		worker.postMessage(Command.export(new LoadWeightsCommand(weights)));
+	}
+
+	async #loadCalibration(): Promise<void> {
+		const bridge = new ClientBridge();
+		const content = await bridge.read(new URL("../data/calibration.json", baseURI));
+		if (content === null) return;
+		const calibration = Calibration.import(JSON.parse(content), "calibration");
+		this.#worker.postMessage(Command.export(new LoadCalibrationCommand(calibration)));
+	}
+
+	async #loadMaskModel(): Promise<void> {
+		const urlModel = new URL("../data/stem-mask/model.json", baseURI).toString();
+		const urlWasm = new URL("../wasm/", baseURI).toString();
+		this.#workerMask.postMessage(Command.export(new LoadMaskModelCommand(urlModel, urlWasm)));
 	}
 
 	#onMessage(event: MessageEvent): void {

@@ -114,6 +114,10 @@ Earlier versions had one `update(host)` that painted the whole canvas, including
 | :----------------- | :------------- | :--------------------------------------------- |
 | `length`           | `number`       | Number of frequency bins.                      |
 | `dataFrequency`    | `Float32Array` | Normalised frequency-domain data `[0, 1]`.     |
+| `dataFrequencyDrums`  | `Float32Array` | Isolated drums spectrum, same bins and scale as `dataFrequency`. |
+| `dataFrequencyBass`   | `Float32Array` | Isolated bass spectrum, same bins and scale as `dataFrequency`. |
+| `dataFrequencyVocals` | `Float32Array` | Isolated vocals spectrum, same bins and scale as `dataFrequency`. |
+| `dataFrequencyOther`  | `Float32Array` | Isolated spectrum of everything else, same bins and scale as `dataFrequency`. |
 | `dataTemporal`     | `Float32Array` | Normalised time-domain data `[0, 1]`.          |
 | `volume`           | `number`       | Normalised RMS volume `[0, 1]`.                |
 | `amplitude`        | `number`       | Normalised peak amplitude `[0, 1]`.            |
@@ -138,6 +142,8 @@ Earlier versions had one `update(host)` that painted the whole canvas, including
 | `djPunch`          | `number`       | DJ-adjusted compressor punch `[0, 1]`.         |
 | `isActive()`       | `boolean`      | `true` when the audio has meaningful signal.   |
 | `isPercussive()`   | `boolean`      | `true` when the audio is primarily percussive. |
+
+The four `dataFrequency<Stem>` arrays come from a small neural model, so they are estimates: each is `dataFrequency` multiplied by a soft per-bin mask, and the four sum back to the whole spectrum. Draw each on its own scale, the way you would draw `dataFrequency`. A stem that is absent is quiet but never exactly zero, so do not turn the four into shares of the total: that makes every stem inherit the beat of the whole mix.
 
 ### `environment` properties
 

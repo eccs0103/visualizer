@@ -3,10 +3,11 @@
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model } from "adaptive-extender/core";
 import { NNWeights, type NNWeightsScheme } from "./nn-agent.js";
+import { Calibration, type CalibrationScheme } from "./calibration.js";
 import { SharedArrayBufferPortable } from "./render-commands.js";
 
 //#region Command
-export interface CommandDiscriminator extends InitializeCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, ResetCommandDiscriminator, FeedbackCommandDiscriminator, LearningCommandDiscriminator, ActivityCommandDiscriminator, ProgressCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, ResetCommandDiscriminator, FeedbackCommandDiscriminator, LearningCommandDiscriminator, ActivityCommandDiscriminator, ProgressCommandDiscriminator, LoadCalibrationCommandDiscriminator, LoadMaskModelCommandDiscriminator {
 }
 
 export interface CommandScheme {
@@ -22,6 +23,8 @@ export interface CommandScheme {
 @Descendant(Deferred(_ => LearningCommand))
 @Descendant(Deferred(_ => ActivityCommand))
 @Descendant(Deferred(_ => ProgressCommand))
+@Descendant(Deferred(_ => LoadCalibrationCommand))
+@Descendant(Deferred(_ => LoadMaskModelCommand))
 export abstract class Command extends Model {
 	constructor() {
 		super();
@@ -244,6 +247,68 @@ export class ProgressCommand extends Command {
 
 		super();
 		this.count = count;
+	}
+}
+//#endregion
+//#region Load calibration command
+export interface LoadCalibrationCommandDiscriminator {
+	"LoadCalibrationCommand": LoadCalibrationCommand;
+}
+
+export interface LoadCalibrationCommandScheme extends CommandScheme {
+	$type: keyof LoadCalibrationCommandDiscriminator;
+	calibration: CalibrationScheme;
+}
+
+export class LoadCalibrationCommand extends Command {
+	@Field(Calibration, { name: "calibration" })
+	calibration: Calibration;
+
+	constructor();
+	constructor(calibration: Calibration);
+	constructor(calibration?: Calibration) {
+		if (calibration === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.calibration = calibration;
+	}
+}
+//#endregion
+//#region Load mask model command
+export interface LoadMaskModelCommandDiscriminator {
+	"LoadMaskModelCommand": LoadMaskModelCommand;
+}
+
+export interface LoadMaskModelCommandScheme extends CommandScheme {
+	$type: keyof LoadMaskModelCommandDiscriminator;
+	url_model: string;
+	url_wasm: string;
+}
+
+// The stem-mask model (~6.75MB of weights) is fetched by the worker itself via
+// loadLayersModel(urlModel), not shipped through postMessage. Both URLs are resolved from
+// document.baseURI on the main thread — a worker has no document to resolve against.
+export class LoadMaskModelCommand extends Command {
+	@Field(String, { name: "url_model" })
+	urlModel: string;
+
+	@Field(String, { name: "url_wasm" })
+	urlWasm: string;
+
+	constructor();
+	constructor(urlModel: string, urlWasm: string);
+	constructor(urlModel?: string, urlWasm?: string) {
+		if (urlModel === undefined || urlWasm === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.urlModel = urlModel;
+		this.urlWasm = urlWasm;
 	}
 }
 //#endregion

@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { AudioFeatures } from "./audio-features.js";
+import { AudioFeatures, StemMasks } from "./audio-features.js";
 import { type AudiosetView } from "./visualization.js";
 
 const { trunc, sqrt, sqpw, abs, log2, round } = Math;
@@ -28,6 +28,7 @@ export interface AudiosetManager {
 	get audioset(): Audioset;
 	refresh(): void;
 	readFeatures(out: Float32Array): void;
+	attachMaskSab(sabMask: SharedArrayBuffer): void;
 }
 
 export interface AudiosetManagerConstructor {
@@ -68,6 +69,8 @@ export class Audioset implements AudiosetView {
 		#autoCorrect: boolean = false;
 		#audioset: Audioset;
 		#dataTemporary: Uint8Array<ArrayBuffer>;
+		#analyserModel: AnalyserNode;
+		#dataModelTemporary: Uint8Array<ArrayBuffer>;
 
 		constructor(media: HTMLMediaElement) {
 			const context = this.#context = new AudioContext();
@@ -104,8 +107,19 @@ export class Audioset implements AudiosetView {
 			compressor.connect(analyser);
 			// analyser NOT connected to destination — analysis tap only
 
+			// Dedicated model tap: fixed settings, wired directly off source so neither
+			// the user's quality/smoothing settings nor the DJ's focus/spread/tilt/boost
+			// ever move the spectrum the stem model was fitted against.
+			const analyserModel = this.#analyserModel = context.createAnalyser();
+			analyserModel.fftSize = 1024;
+			analyserModel.smoothingTimeConstant = 0.6;
+			analyserModel.minDecibels = -90;
+			analyserModel.maxDecibels = -30;
+			source.connect(analyserModel);
+			this.#dataModelTemporary = new Uint8Array(analyserModel.frequencyBinCount);
+
 			const length = analyser.frequencyBinCount;
-			this.#audioset = Audioset.#construct(length);
+			this.#audioset = Audioset.#construct(length, analyserModel.frequencyBinCount);
 			this.#dataTemporary = new Uint8Array(length);
 		}
 
@@ -225,6 +239,10 @@ export class Audioset implements AudiosetView {
 			this.#audioset.#features.readFrom(out);
 		}
 
+		attachMaskSab(sabMask: SharedArrayBuffer): void {
+			this.#audioset.#masks = new StemMasks(sabMask);
+		}
+
 		refresh(): void {
 			const analyser = this.#analyser;
 			const audioset = this.#audioset;
@@ -252,6 +270,16 @@ export class Audioset implements AudiosetView {
 
 			audioset.#volume = sqrt(summaryVolume / length);
 			audioset.#amplitude = sqrt(summaryAmplitude / length);
+
+			const analyserModel = this.#analyserModel;
+			const dataModelTemporary = this.#dataModelTemporary;
+			const dataModel = audioset.#dataModel;
+			analyserModel.getByteFrequencyData(dataModelTemporary);
+			for (let index = 0; index < dataModel.length; index++) {
+				dataModel[index] = dataModelTemporary[index] / 255;
+			}
+
+			audioset.#masks.invalidate();
 		}
 	};
 
@@ -262,29 +290,39 @@ export class Audioset implements AudiosetView {
 	#length: number;
 	#dataFrequency: Float32Array;
 	#dataTemporal: Float32Array;
+	#dataModel: Float32Array;
 	#volume: number;
 	#amplitude: number;
 	#features: AudioFeatures = new AudioFeatures();
+	#masks: StemMasks;
 
-	constructor(length: number) {
+	constructor(length: number, bins: number) {
 		if (Audioset.#lock) throw new TypeError("Illegal constructor");
 		this.#length = length;
 		this.#dataFrequency = new Float32Array(length);
 		this.#dataTemporal = new Float32Array(length);
+		this.#dataModel = new Float32Array(bins);
 		this.#volume = 0;
 		this.#amplitude = 0;
+		// Uniform prior until attachMaskSab() points this at the real mask worker's buffer
+		this.#masks = new StemMasks(StemMasks.createBuffer());
 	}
 
-	static #construct(length: number): Audioset {
+	static #construct(length: number, bins: number): Audioset {
 		Audioset.#lock = false;
-		const self = new Audioset(length);
+		const self = new Audioset(length, bins);
 		Audioset.#lock = true;
 		return self;
 	}
 
 	get length(): number { return this.#length; }
 	get dataFrequency(): Float32Array { return this.#dataFrequency; }
+	get dataFrequencyDrums(): Float32Array { return this.#masks.drums(this.#length, this.#dataFrequency); }
+	get dataFrequencyBass(): Float32Array { return this.#masks.bass(this.#length, this.#dataFrequency); }
+	get dataFrequencyVocals(): Float32Array { return this.#masks.vocals(this.#length, this.#dataFrequency); }
+	get dataFrequencyOther(): Float32Array { return this.#masks.other(this.#length, this.#dataFrequency); }
 	get dataTemporal(): Float32Array { return this.#dataTemporal; }
+	get dataModel(): Float32Array { return this.#dataModel; }
 	get volume(): number { return this.#volume; }
 	get amplitude(): number { return this.#amplitude; }
 	get spectralFlux(): number { return this.#features.spectralFlux; }
