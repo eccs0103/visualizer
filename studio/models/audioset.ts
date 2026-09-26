@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { AudioFeatures, StemMasks } from "./audio-features.js";
+import { AudioFeatures, StemMasks, StemThreads } from "./audio-features.js";
 import { type AudiosetView } from "./visualization.js";
 
 const { trunc, sqrt, sqpw, abs, log2, round } = Math;
@@ -237,6 +237,7 @@ export class Audioset implements AudiosetView {
 
 		readFeatures(out: Float32Array): void {
 			this.#audioset.#features.readFrom(out);
+			this.#audioset.#stems.readFrom(out);
 		}
 
 		attachMaskSab(sabMask: SharedArrayBuffer): void {
@@ -295,6 +296,7 @@ export class Audioset implements AudiosetView {
 	#amplitude: number;
 	#features: AudioFeatures = new AudioFeatures();
 	#masks: StemMasks;
+	#stems: StemThreads = new StemThreads(() => this.#masks, () => this.#length, () => this.#dataFrequency);
 
 	constructor(length: number, bins: number) {
 		if (Audioset.#lock) throw new TypeError("Illegal constructor");
@@ -317,10 +319,7 @@ export class Audioset implements AudiosetView {
 
 	get length(): number { return this.#length; }
 	get dataFrequency(): Float32Array { return this.#dataFrequency; }
-	get dataFrequencyDrums(): Float32Array { return this.#masks.drums(this.#length, this.#dataFrequency); }
-	get dataFrequencyBass(): Float32Array { return this.#masks.bass(this.#length, this.#dataFrequency); }
-	get dataFrequencyVocals(): Float32Array { return this.#masks.vocals(this.#length, this.#dataFrequency); }
-	get dataFrequencyOther(): Float32Array { return this.#masks.other(this.#length, this.#dataFrequency); }
+	get stems(): StemThreads { return this.#stems; }
 	get dataTemporal(): Float32Array { return this.#dataTemporal; }
 	get dataModel(): Float32Array { return this.#dataModel; }
 	get volume(): number { return this.#volume; }

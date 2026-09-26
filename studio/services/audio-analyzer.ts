@@ -7,7 +7,7 @@ import { StemMasks } from "../models/audio-features.js";
 import { Calibration } from "../models/calibration.js";
 import { FeatureBridge } from "./feature-bridge.js";
 import { ClientBridge } from "./client-bridge.js";
-import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadCalibrationCommand, LoadMaskModelCommand, LoadWeightsCommand, ProgressCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
+import { ActivityCommand, AttachMasksCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadCalibrationCommand, LoadMaskModelCommand, LoadWeightsCommand, ProgressCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 import { type AudiosetManager } from "../models/audioset.js";
 
 const { baseURI } = document;
@@ -45,6 +45,7 @@ export class AudioAnalyzer extends EventTarget {
 		const { inSAB, outSAB } = this.#bridge;
 		const worker = this.#worker;
 		worker.postMessage(Command.export(new InitializeCommand(inSAB, outSAB)));
+		worker.postMessage(Command.export(new AttachMasksCommand(this.#sabMask)));
 		worker.addEventListener("message", this.#onMessage.bind(this));
 		if (this.#isDj) void this.#loadWeights();
 		void this.#loadCalibration();

@@ -2,7 +2,7 @@
 
 import "adaptive-extender/worker";
 import { Color } from "adaptive-extender/worker";
-import { AudioFeatures, SabLayout, StemMasks } from "../models/audio-features.js";
+import { AudioFeatures, SabLayout, StemMasks, StemThreads } from "../models/audio-features.js";
 import { type AudiosetView, type VisualizationEnvironment, type LyricsView, LyricsWindow } from "../models/visualization.js";
 import { RenderBridge } from "./render-bridge.js";
 
@@ -18,6 +18,7 @@ export class WorkerAudioset implements AudiosetView {
 	#features: AudioFeatures = new AudioFeatures();
 	#bufferFeatures: Float32Array;
 	#masks: StemMasks;
+	#stems: StemThreads;
 	#length: number = 0;
 
 	constructor(sabVideo: SharedArrayBuffer, sabAudio: SharedArrayBuffer, sabMask: SharedArrayBuffer) {
@@ -29,7 +30,8 @@ export class WorkerAudioset implements AudiosetView {
 		this.#viewFrequency = this.#frequency.subarray(0, 0);
 		this.#viewTemporal = this.#temporal.subarray(0, 0);
 		this.#bufferFeatures = new Float32Array(sabAudio);
-		this.#masks = new StemMasks(sabMask);
+		const masks = this.#masks = new StemMasks(sabMask);
+		this.#stems = new StemThreads(() => masks, () => this.#length, () => this.#viewFrequency);
 	}
 
 	get frame(): number { return Atomics.load(this.#control, 0); }
@@ -37,10 +39,6 @@ export class WorkerAudioset implements AudiosetView {
 	get volume(): number { return this.#metadata[0]; }
 	get amplitude(): number { return this.#metadata[1]; }
 	get dataFrequency(): Float32Array { return this.#viewFrequency; }
-	get dataFrequencyDrums(): Float32Array { return this.#masks.drums(this.#length, this.dataFrequency); }
-	get dataFrequencyBass(): Float32Array { return this.#masks.bass(this.#length, this.dataFrequency); }
-	get dataFrequencyVocals(): Float32Array { return this.#masks.vocals(this.#length, this.dataFrequency); }
-	get dataFrequencyOther(): Float32Array { return this.#masks.other(this.#length, this.dataFrequency); }
 	get dataTemporal(): Float32Array { return this.#viewTemporal; }
 	get spectralFlux(): number { return this.#features.spectralFlux; }
 	get subBass(): number { return this.#features.bandEnergy.subBass; }
@@ -61,6 +59,7 @@ export class WorkerAudioset implements AudiosetView {
 	get djBoost(): number { return this.#features.djBoost; }
 	get djTilt(): number { return this.#features.djTilt; }
 	get djPunch(): number { return this.#features.djPunch; }
+	get stems(): StemThreads { return this.#stems; }
 	isActive(): boolean { return this.#features.isActive(); }
 	isPercussive(): boolean { return this.#features.isPercussive(); }
 
@@ -76,6 +75,7 @@ export class WorkerAudioset implements AudiosetView {
 			this.#viewTemporal = this.#temporal.subarray(0, length);
 		}
 		this.#features.readFrom(this.#bufferFeatures);
+		this.#stems.readFrom(this.#bufferFeatures);
 		this.#masks.invalidate();
 	}
 }

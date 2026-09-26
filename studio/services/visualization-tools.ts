@@ -2,9 +2,9 @@
 
 import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
-import { type AudiosetView } from "../models/visualization.js";
+import { type AudiosetView, type StemsView } from "../models/visualization.js";
 
-const { split, PI, exp, sqrt, asin, max } = Math;
+const { split, PI, exp, sqrt, asin, max, min } = Math;
 
 //#region Shaper
 export class Shaper {
@@ -79,33 +79,80 @@ export class ColorDriver {
 	}
 }
 //#endregion
-//#region Stems
-/** The four stems in drawing order, bottom to top — the order of `Stems.spectra` and `Stems.palette`. */
-export enum Stem {
-	Other,
-	Vocals,
-	Bass,
-	Drums,
+//#region Threads
+/**
+ * The mix features that an effect should take from one separated thread instead of the whole mix,
+ * already brought onto the mix's own scale so a visualization's existing ranges and clamps keep working.
+ *
+ * A thread is only part of the mix, so each value is rescaled once: its 90th percentile over the
+ * MUSDB18HQ test set matches the mix feature's (the centroid by a linear map matching the 10th and
+ * 90th percentiles). Each was kept only where, measured against the true isolated stems, the thread
+ * tracks its instrument better than the mix does — the mix beat, drop and bass band won, so they
+ * are not offered here.
+ */
+export class Threads {
+	static #gainBassLevel: number = 1.248;
+	static #gainSubBass: number = 1.145;
+	static #gainHigh: number = 1.340;
+	static #gainHighMid: number = 2.021;
+	static #gainFlux: number = 2.128;
+	static #slopeCentroid: number = 1.5036;
+	static #offsetCentroid: number = -0.0364;
+
+	/** Bass level of the bass thread: the glow follows the bass line, not the kick. */
+	static bassLevel(stems: StemsView): number { return stems.bass.bassLevel * Threads.#gainBassLevel; }
+
+	/** Sub-bass band energy of the bass thread. */
+	static subBass(stems: StemsView): number { return stems.bass.subBass * Threads.#gainSubBass; }
+
+	/** Percussiveness of the drums thread. A ratio already, so no rescale. */
+	static percussiveness(stems: StemsView): number { return stems.drums.percussiveness; }
+
+	/** High band energy of the drums thread: cymbals and hats. */
+	static high(stems: StemsView): number { return stems.drums.high * Threads.#gainHigh; }
+
+	/** High-mid band energy of the drums thread. */
+	static highMid(stems: StemsView): number { return stems.drums.highMid * Threads.#gainHighMid; }
+
+	/** Spectral flux of the melody (vocals + other): how much the tune itself is changing. */
+	static flux(stems: StemsView): number { return (stems.vocals.spectralFlux + stems.other.spectralFlux) * Threads.#gainFlux; }
+
+	/** Energy-weighted spectral centroid of the melody (vocals + other): its brightness, without cymbals and hats pulling it up. */
+	static centroid(stems: StemsView): number {
+		const { vocals, other } = stems;
+		const energy = vocals.energy + other.energy;
+		if (energy <= 0) return 0;
+		const centroid = (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy;
+		return max(0, centroid * Threads.#slopeCentroid + Threads.#offsetCentroid);
+	}
 }
+//#endregion
+//#region Silhouette
+/**
+ * The spectrum a silhouette is drawn from, rebuilt from the four threads: every thread at full weight
+ * except drums, which are reduced so hi-hats and snares stop jagging the shape (the drums still move
+ * the picture through the camera). A gain restores the mix's typical level, so the shape keeps its
+ * usual size; the buffer is reused frame to frame.
+ */
+export class Silhouette {
+	#weightDrums: number;
+	#gain: number;
+	#spectrum: Float32Array = new Float32Array(0);
 
-export class Stems {
-	static #offsets: number[] = [270, 185, 0, 35]; // other, vocals, bass, drums — violet, cyan, red, amber from a red seed
-
-	/** This frame's isolated spectra (`whole × mask`), indexed by `Stem` — grabbed once, since the audioset getters are not free. */
-	static spectra(audioset: AudiosetView): Float32Array[] {
-		return [audioset.dataFrequencyOther, audioset.dataFrequencyVocals, audioset.dataFrequencyBass, audioset.dataFrequencyDrums];
+	constructor(weightDrums: number, gain: number) {
+		this.#weightDrums = weightDrums;
+		this.#gain = gain;
 	}
 
-	/** Colors indexed by `Stem` — fixed hue offsets around the seed, so the caller's rotation driver still animates all four together. */
-	static palette(seed: Color, hueBias: number, illumination: number): Color[] {
-		return Stems.#offsets.map(offset => new Color(seed).rotate(offset + hueBias).illuminate(illumination));
-	}
-
-	/** Mean of an isolated stem spectrum — how much of that stem is sounding right now, on the `dataFrequency` byte scale. */
-	static level(spectrum: Float32Array): number {
-		let sum = 0;
-		for (let index = 0; index < spectrum.length; index++) sum += spectrum[index];
-		return sum / max(1, spectrum.length);
+	shape(audioset: AudiosetView): Float32Array {
+		const whole = audioset.dataFrequency;
+		const drums = audioset.stems.drums.dataFrequency;
+		const { length } = whole;
+		let spectrum = this.#spectrum;
+		if (spectrum.length !== length) spectrum = this.#spectrum = new Float32Array(length);
+		const reduction = 1 - this.#weightDrums, gain = this.#gain;
+		for (let index = 0; index < length; index++) spectrum[index] = min(1, (whole[index] - drums[index] * reduction) * gain);
+		return spectrum;
 	}
 }
 //#endregion

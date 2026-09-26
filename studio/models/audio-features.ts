@@ -14,7 +14,7 @@ const { max, min } = Math;
  *              + Float32[bins]           dataModel — fixed-settings analysis tap,
  *                untouched by quality/DJ, read by stem-mask-worker only
  *
- * outSAB layout (Float32Array of outputSize = 21 floats):
+ * outSAB layout (Float32Array of outputSize = 81 floats):
  *   [0]     frameCounter
  *   [1]     spectralFlux
  *   [2–7]   bandEnergy[6]  (subBass, bass, lowMid, mid, highMid, high)
@@ -27,6 +27,8 @@ const { max, min } = Math;
  *   [14]    distortionLevel
  *   [15–19] djControl[5]   (bipolar tanh deltas: focus, spread, boost, tilt, punch)
  *   [20]    reward         (diagnostic)
+ *   [21–80] four thread blocks of 15 floats (drums, bass, vocals, other): the same analysis
+ *           as slots [0–14], run on that thread's spectrum (mix × mask) — see stemOffset()
  *
  * mask SAB layout (written by stem-mask-worker.ts through StemMasks.publish):
  *   Bytes  0–3 : Int32[1]                        version counter
@@ -39,7 +41,8 @@ const { max, min } = Math;
 export class SabLayout {
 	static #inputMaxLength: number = 16384;
 	static #bins: number = 512;
-	static #outputSize: number = 21;
+	static #outputSize: number = 81;
+	static #stemBlock: number = 15;
 	static #stems: number = 4;
 
 	static get inputMaxLength(): number { return SabLayout.#inputMaxLength; }
@@ -50,6 +53,13 @@ export class SabLayout {
 	static inputByteSize(): number {
 		return 20 + SabLayout.#inputMaxLength * 4 * 2 + SabLayout.#bins * 4;
 	}
+
+	/** First slot of a thread's analysis block in outSAB; the block has the same layout as slots [0–14]. */
+	static stemOffset(stem: number): number {
+		return 21 + stem * SabLayout.#stemBlock;
+	}
+
+	static get stemBlock(): number { return SabLayout.#stemBlock; }
 
 	static maskBytes(): number {
 		return 24 + SabLayout.#bins * SabLayout.#stems * 4 * 2;
@@ -220,6 +230,81 @@ export class StemMasks {
 			const mask = masks[bin * stems + stem] * (1 - weight) + masks[nextBin * stems + stem] * weight;
 			out[index] = whole[index] * mask;
 		}
+	}
+}
+//#endregion
+//#region Stem thread
+/**
+ * One of the four threads (drums, bass, vocals, other) as a plugin sees it: its isolated spectrum
+ * plus the same analysis the mix gets — computed by audio-analyzer-worker with FrameProcessor's
+ * exact formulas on the thread's spectrum and read from its block in outSAB.
+ */
+export class StemThread {
+	#spectrum: () => Float32Array;
+	#spectralFlux: number = 0;
+	#bandEnergy: BandEnergy = new BandEnergy();
+	#spectralCentroid: number = 0;
+	#percussiveness: number = 0;
+	#beatDetected: boolean = false;
+	#dropIntensity: number = 0;
+	#bassLevel: number = 0;
+
+	constructor(spectrum: () => Float32Array) {
+		this.#spectrum = spectrum;
+	}
+
+	get dataFrequency(): Float32Array { return this.#spectrum(); }
+	get spectralFlux(): number { return this.#spectralFlux; }
+	get subBass(): number { return this.#bandEnergy.subBass; }
+	get bass(): number { return this.#bandEnergy.bass; }
+	get lowMid(): number { return this.#bandEnergy.lowMid; }
+	get mid(): number { return this.#bandEnergy.mid; }
+	get highMid(): number { return this.#bandEnergy.highMid; }
+	get high(): number { return this.#bandEnergy.high; }
+	get spectralCentroid(): number { return this.#spectralCentroid; }
+	get percussiveness(): number { return this.#percussiveness; }
+	get beatDetected(): boolean { return this.#beatDetected; }
+	get dropIntensity(): number { return this.#dropIntensity; }
+	get bassLevel(): number { return this.#bassLevel; }
+
+	/** Total band energy — how much of this thread is sounding, on the same scale as the band getters. */
+	get energy(): number { return this.#bandEnergy.total(); }
+
+	readFrom(out: Float32Array, offset: number): void {
+		this.#spectralFlux = out[offset + 1];
+		this.#bandEnergy.readFrom(out, offset + 2);
+		this.#spectralCentroid = out[offset + 9];
+		this.#percussiveness = out[offset + 10];
+		this.#beatDetected = out[offset + 11] > 0.5;
+		this.#dropIntensity = out[offset + 12];
+		this.#bassLevel = out[offset + 13];
+	}
+}
+//#endregion
+//#region Stem threads
+export class StemThreads {
+	#drums: StemThread;
+	#bass: StemThread;
+	#vocals: StemThread;
+	#other: StemThread;
+
+	constructor(masks: () => StemMasks, length: () => number, whole: () => Float32Array) {
+		this.#drums = new StemThread(() => masks().drums(length(), whole()));
+		this.#bass = new StemThread(() => masks().bass(length(), whole()));
+		this.#vocals = new StemThread(() => masks().vocals(length(), whole()));
+		this.#other = new StemThread(() => masks().other(length(), whole()));
+	}
+
+	get drums(): StemThread { return this.#drums; }
+	get bass(): StemThread { return this.#bass; }
+	get vocals(): StemThread { return this.#vocals; }
+	get other(): StemThread { return this.#other; }
+
+	readFrom(out: Float32Array): void {
+		this.#drums.readFrom(out, SabLayout.stemOffset(0));
+		this.#bass.readFrom(out, SabLayout.stemOffset(1));
+		this.#vocals.readFrom(out, SabLayout.stemOffset(2));
+		this.#other.readFrom(out, SabLayout.stemOffset(3));
 	}
 }
 //#endregion

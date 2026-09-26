@@ -114,10 +114,6 @@ Earlier versions had one `update(host)` that painted the whole canvas, including
 | :----------------- | :------------- | :--------------------------------------------- |
 | `length`           | `number`       | Number of frequency bins.                      |
 | `dataFrequency`    | `Float32Array` | Normalised frequency-domain data `[0, 1]`.     |
-| `dataFrequencyDrums`  | `Float32Array` | Isolated drums spectrum, same bins and scale as `dataFrequency`. |
-| `dataFrequencyBass`   | `Float32Array` | Isolated bass spectrum, same bins and scale as `dataFrequency`. |
-| `dataFrequencyVocals` | `Float32Array` | Isolated vocals spectrum, same bins and scale as `dataFrequency`. |
-| `dataFrequencyOther`  | `Float32Array` | Isolated spectrum of everything else, same bins and scale as `dataFrequency`. |
 | `dataTemporal`     | `Float32Array` | Normalised time-domain data `[0, 1]`.          |
 | `volume`           | `number`       | Normalised RMS volume `[0, 1]`.                |
 | `amplitude`        | `number`       | Normalised peak amplitude `[0, 1]`.            |
@@ -140,10 +136,27 @@ Earlier versions had one `update(host)` that painted the whole canvas, including
 | `djBoost`          | `number`       | DJ-adjusted gain multiplier.                   |
 | `djTilt`           | `number`       | DJ-adjusted spectral tilt (dB).                |
 | `djPunch`          | `number`       | DJ-adjusted compressor punch `[0, 1]`.         |
+| `stems`            | `StemsView`    | The four separated threads, see below.         |
 | `isActive()`       | `boolean`      | `true` when the audio has meaningful signal.   |
 | `isPercussive()`   | `boolean`      | `true` when the audio is primarily percussive. |
 
-The four `dataFrequency<Stem>` arrays come from a small neural model, so they are estimates: each is `dataFrequency` multiplied by a soft per-bin mask, and the four sum back to the whole spectrum. Draw each on its own scale, the way you would draw `dataFrequency`. A stem that is absent is quiet but never exactly zero, so do not turn the four into shares of the total: that makes every stem inherit the beat of the whole mix.
+### `stems` properties
+
+A small neural model splits the music into four threads: `stems.drums`, `stems.bass`, `stems.vocals` and `stems.other`. Each is a `StemView` with its own isolated spectrum and the same analysis the mix gets, computed with the same formulas on that spectrum.
+
+| Property           | Type           | Description                                                          |
+| :----------------- | :------------- | :------------------------------------------------------------------- |
+| `dataFrequency`    | `Float32Array` | The thread's spectrum: same bins and scale as the mix's.             |
+| `energy`           | `number`       | Total band energy: how much of the thread is sounding.               |
+| `spectralFlux`     | `number`       | Rate of change in the thread's spectrum.                             |
+| `subBass` … `high` | `number`       | The six band energies, as for the mix.                               |
+| `spectralCentroid` | `number`       | Weighted mean frequency of the thread.                               |
+| `percussiveness`   | `number`       | Estimated percussive content of the thread `[0, 1]`.                 |
+| `beatDetected`     | `boolean`      | `true` on the thread's own onset frames.                             |
+| `dropIntensity`    | `number`       | Drop intensity of the thread.                                        |
+| `bassLevel`        | `number`       | Bass level of the thread.                                            |
+
+Use a thread where an effect belongs to one instrument, for example a glow that should follow the bass line and not the kick. The threads are estimates: the four spectra add back up to `dataFrequency`, but a thread is only part of the mix, so its values are smaller and an absent thread is quiet rather than exactly zero. Rescale a thread value before feeding it into ranges tuned for the mix, and do not turn the four into shares of the total. `Threads` in `services/visualization-tools.ts` offers the rescaled values the built-in visualizations use.
 
 The five `dj*` properties come from the self-teaching DJ, which is paused: unless the studio is opened with `?dj`, they return their neutral defaults (focus −60 dB, spread 30 dB, boost 1×, tilt 0 dB, punch 0). Keep reading them if you want your visualization to follow the DJ when it returns.
 

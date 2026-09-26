@@ -5,7 +5,7 @@ import { Color, Random, Vector2D } from "adaptive-extender/core";
 import { Blend } from "../../models/blend.js";
 import { type StageHost, type VisualizationHost } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
-import { ColorDriver, Shaper, Stem, Stems } from "../../services/visualization-tools.js";
+import { ColorDriver, Shaper, Silhouette, Threads } from "../../services/visualization-tools.js";
 
 const { min, sign, PI, abs, trunc, exp, meanGeometric } = Math;
 const random = Random.global;
@@ -13,10 +13,6 @@ const random = Random.global;
 //#region Spectrogram
 Registry.attach("Spectrogram", class extends Visualization {
 	#layerRidge = this.newCustomLayer("Ridge", this.#drawRidge.bind(this));
-	#layerOther = this.newCustomLayer("Other", host => this.#drawStem(host, Stem.Other), { opacity: 0, blend: Blend.lighter });
-	#layerVocals = this.newCustomLayer("Vocals", host => this.#drawStem(host, Stem.Vocals), { opacity: 0, blend: Blend.lighter });
-	#layerBass = this.newCustomLayer("Bass", host => this.#drawStem(host, Stem.Bass), { opacity: 0, blend: Blend.lighter });
-	#layerDrums = this.newCustomLayer("Drums", host => this.#drawStem(host, Stem.Drums), { opacity: 0, blend: Blend.lighter });
 	#layerBloom = this.newCustomLayer("Bloom", this.#drawBloom.bind(this), { blend: Blend.lighter });
 	#layerThread = this.newCustomLayer("Thread", this.#drawThread.bind(this), { blend: Blend.lighter });
 	#layerVignette = this.newCustomLayer("Vignette", this.#drawVignette.bind(this), { blend: Blend.multiply });
@@ -36,10 +32,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#driverRidge: ColorDriver = ColorDriver.rotation;
 	#deltaRotation: number = 360 / 6;
 	#colorShadow: Color = Color.newBlack;
-	#gainStem: number = 2; // a stem is only a share of the mix, so it needs some gain to clear the shaper's knee, which is tuned for the full mix
-	#palette: Color[] = [];
-	#horizontal: Float32Array = new Float32Array(0);
-	#heights: Float32Array[] = [new Float32Array(0), new Float32Array(0), new Float32Array(0), new Float32Array(0)];
+	#silhouette: Silhouette = new Silhouette(0.5, 1.24); // drums at half weight, the gain keeps the mix's typical ridge height
 
 	//#region Rebuild
 	rebuild(stage: StageHost): void {
@@ -49,12 +42,6 @@ Registry.attach("Spectrogram", class extends Visualization {
 		this.#side = min(width, height);
 		this.#lineWidth = this.#side >> 8;
 		this.#count = trunc(min(width, length));
-
-		const size = 2 * this.#count - 1;
-		if (this.#horizontal.length !== size) {
-			this.#horizontal = new Float32Array(size);
-			this.#heights = this.#heights.map(() => new Float32Array(size));
-		}
 	}
 	//#endregion
 	//#region Update
@@ -70,7 +57,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#runCameraUpdate(stage: StageHost): void {
 		const side = this.#side;
 		const { camera, audioset, environment } = stage;
-		const { dropIntensity, djPunch, beatDetected, percussiveness } = audioset;
+		const { dropIntensity, djPunch, beatDetected, stems } = audioset;
+		const percussiveness = Threads.percussiveness(stems);
 
 		this.#normPulseEnergy = (this.#normPulseEnergy - environment.delta * 0.004).clamp(0, Infinity);
 		if (beatDetected) this.#normPulseEnergy = 1;
@@ -86,19 +74,15 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const peak = this.#side * this.#normHeightFactor;
 		const colorRidgeSeed = this.#colorRidgeSeed;
 		const { width, audioset } = stage;
-		const { dataFrequency, volume, amplitude, spectralCentroid, djTilt, djSpread, djFocus, length } = audioset;
+		const { volume, amplitude, djTilt, djSpread, djFocus, length, stems } = audioset;
+		const dataFrequency = this.#silhouette.shape(audioset);
+		const spectralCentroid = Threads.centroid(stems);
 		const focusBin = djFocus.lerp(-100, -20, 0, length - 1);
 		const hueSpread = this.#hueSpread = djSpread.lerp(1, 59, 90, 150);
 		const hueBias = this.#hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -40, 40) + djTilt.lerp(-12, 12, -25, 25);
 		const normLightness = this.#normLightness = meanGeometric(volume.lerp(0, 1, 0.25, 0.75), spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, 0.3, 0.8));
 		const envelope = meanGeometric(volume.lerp(0, 1, 0.7, 1.3), amplitude.lerp(0, 1, 0.8, 1.2));
 		this.#colorRidgeMid = new Color(colorRidgeSeed).rotate(hueSpread * 0.5 + hueBias).illuminate(normLightness);
-		this.#palette = Stems.palette(colorRidgeSeed, hueBias, normLightness);
-
-		// Each stem's own ridge: the same shaping as the mix, applied to its own isolated spectrum.
-		const horizontal = this.#horizontal, heights = this.#heights;
-		const spectra = Stems.spectra(audioset);
-		let point = 0;
 
 		const path = this.#pathRidge = new Path2D();
 		const position = Vector2D.newNaN;
@@ -113,13 +97,6 @@ Registry.attach("Spectrogram", class extends Visualization {
 			position.x = width * (normProgress - 0.5);
 			position.y = direction * normScale * peak;
 			path.lineTo(position.x, position.y);
-
-			horizontal[point] = position.x;
-			for (let stem = 0; stem < heights.length; stem++) {
-				const magnitudeStem = (spectra[stem][dataIndex] * this.#gainStem * normEdge.lerp(0, 1, 1.0, 2.4)).lerp(0, 1.8);
-				heights[stem][point] = direction * shaper.apply(magnitudeStem) * envelope * focusWeight * peak;
-			}
-			point++;
 		}
 		path.closePath();
 	}
@@ -140,7 +117,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const colorRidgeSeed = this.#colorRidgeSeed;
 		const pathRidge = this.#pathRidge;
 		const { context, audioset } = host;
-		const { bassLevel, djBoost } = audioset;
+		const { djBoost, stems } = audioset;
+		const bassLevel = Threads.bassLevel(stems);
 		const { width } = context.canvas;
 
 		const gradientRidge = context.createLinearGradient(-width / 2, 0, width / 2, 0);
@@ -161,35 +139,12 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.fill(pathRidge);
 	}
 
-	#drawStem(host: VisualizationHost, stem: Stem): void {
-		const lineWidth = this.#lineWidth;
-		const horizontal = this.#horizontal, height = this.#heights[stem];
-		const { context, audioset } = host;
-		const { bassLevel, djBoost } = audioset;
-		const size = horizontal.length;
-
-		context.beginPath();
-		for (let point = 0; point < size; point++) {
-			if (point === 0) context.moveTo(horizontal[point], height[point]);
-			else context.lineTo(horizontal[point], height[point]);
-		}
-		context.lineTo(horizontal[size - 1], 0);
-		context.lineTo(horizontal[0], 0);
-		context.closePath();
-		context.fillStyle = this.#palette[stem].toString();
-		const blurRidge = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, lineWidth * 2, lineWidth * 10) * djBoost.lerp(0.25, 1.75, 0.8, 1.2) / 2);
-		if (blurRidge >= 1) {
-			context.filter = `blur(${blurRidge}px)`;
-			context.fill();
-			context.filter = "none";
-		}
-		context.fill();
-	}
-
 	#drawBloom(host: VisualizationHost): void {
 		const colorRidgeMid = this.#colorRidgeMid;
 		const { context, audioset } = host;
-		const { subBass, bass, bassLevel } = audioset;
+		const { bass, stems } = audioset;
+		const subBass = Threads.subBass(stems);
+		const bassLevel = Threads.bassLevel(stems);
 		const bloomEnergy = meanGeometric(subBass.clamp(0, 0.8).lerp(0, 0.8, 0, 1), bass.clamp(0, 0.8).lerp(0, 0.8, 0, 1));
 		const radius = this.#side * bloomEnergy.lerp(0, 1, 0.05, 0.22);
 
@@ -207,11 +162,14 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const lineWidth = this.#lineWidth;
 		const colorRidgeMid = this.#colorRidgeMid;
 		const { context, audioset } = host;
-		const { dataTemporal, dataFrequencyVocals, amplitude, high, highMid, length } = audioset;
+		const { dataTemporal, amplitude, length, stems } = audioset;
+		const spectralFlux = Threads.flux(stems);
+		const high = Threads.high(stems);
+		const highMid = Threads.highMid(stems);
 		const { width } = context.canvas;
 		const peak = this.#side * this.#normHeightFactor;
 		const sparkle = meanGeometric(high.clamp(0, 0.5).lerp(0, 0.5, 0, 1), highMid.clamp(0, 0.6).lerp(0, 0.6, 0, 1));
-		const shimmer = Stems.level(dataFrequencyVocals).clamp(0, 0.06).lerp(0, 0.06, 0.5, 1); // the thread is the voice: it brightens while someone sings
+		const shimmer = spectralFlux.clamp(0, 0.3).lerp(0, 0.3, 0.5, 1);
 
 		context.beginPath();
 		const position = Vector2D.newNaN;

@@ -7,7 +7,7 @@ import { Calibration, type CalibrationScheme } from "./calibration.js";
 import { SharedArrayBufferPortable } from "./render-commands.js";
 
 //#region Command
-export interface CommandDiscriminator extends InitializeCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, ResetCommandDiscriminator, FeedbackCommandDiscriminator, LearningCommandDiscriminator, ActivityCommandDiscriminator, ProgressCommandDiscriminator, LoadCalibrationCommandDiscriminator, LoadMaskModelCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeCommandDiscriminator, SaveWeightsCommandDiscriminator, LoadWeightsCommandDiscriminator, WeightsCommandDiscriminator, ResetCommandDiscriminator, FeedbackCommandDiscriminator, LearningCommandDiscriminator, ActivityCommandDiscriminator, ProgressCommandDiscriminator, LoadCalibrationCommandDiscriminator, LoadMaskModelCommandDiscriminator, AttachMasksCommandDiscriminator {
 }
 
 export interface CommandScheme {
@@ -25,6 +25,7 @@ export interface CommandScheme {
 @Descendant(Deferred(_ => ProgressCommand))
 @Descendant(Deferred(_ => LoadCalibrationCommand))
 @Descendant(Deferred(_ => LoadMaskModelCommand))
+@Descendant(Deferred(_ => AttachMasksCommand))
 export abstract class Command extends Model {
 	constructor() {
 		super();
@@ -309,6 +310,34 @@ export class LoadMaskModelCommand extends Command {
 		super();
 		this.urlModel = urlModel;
 		this.urlWasm = urlWasm;
+	}
+}
+//#endregion
+//#region Attach masks command
+export interface AttachMasksCommandDiscriminator {
+	"AttachMasksCommand": AttachMasksCommand;
+}
+
+export interface AttachMasksCommandScheme extends CommandScheme {
+	$type: keyof AttachMasksCommandDiscriminator;
+	sab_mask: SharedArrayBuffer;
+}
+
+/** Hands the analyzer worker the stem-mask buffer, so it can run the mix analysis on each of the four threads too. */
+export class AttachMasksCommand extends Command {
+	@Field(SharedArrayBufferPortable, { name: "sab_mask" })
+	sabMask: SharedArrayBuffer;
+
+	constructor();
+	constructor(sabMask: SharedArrayBuffer);
+	constructor(sabMask?: SharedArrayBuffer) {
+		if (sabMask === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.sabMask = sabMask;
 	}
 }
 //#endregion

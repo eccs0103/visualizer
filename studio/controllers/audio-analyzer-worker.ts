@@ -2,12 +2,12 @@
 
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
-import { SabLayout } from "../models/audio-features.js";
+import { SabLayout, StemMasks } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
 import { DjPilot } from "../services/dj-pilot.js";
 import { PolicyUpdater } from "../services/policy-updater.js";
-import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadCalibrationCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
+import { ActivityCommand, AttachMasksCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadCalibrationCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
 //#region Audio analyzer worker
 class AudioAnalyzerWorker extends Controller {
@@ -21,6 +21,9 @@ class AudioAnalyzerWorker extends Controller {
 	#processor: FrameProcessor = new FrameProcessor();
 	#policy: PolicyUpdater = new PolicyUpdater();
 	#pilot: DjPilot = new DjPilot();
+	#masks: StemMasks | null = null;
+	#threads: FrameProcessor[] = [new FrameProcessor(), new FrameProcessor(), new FrameProcessor(), new FrameProcessor()];
+	#blocks: Float32Array[] = [];
 	#silenced: boolean = false;
 
 	#poll(): void {
@@ -36,6 +39,7 @@ class AudioAnalyzerWorker extends Controller {
 		if (1 > length || length > SabLayout.inputMaxLength) return;
 
 		if (!this.#processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer)) return;
+		this.#analyzeThreads(frame, length, inputMetadata, inputFrequency, inputTemporal);
 
 		const pilot = this.#pilot;
 		if (pilot.active) {
@@ -46,6 +50,17 @@ class AudioAnalyzerWorker extends Controller {
 		if (this.#silenced) return;
 		pilot.silence(outputBuffer);
 		this.#silenced = true;
+	}
+
+	/** Runs the same analysis on each thread's spectrum (mix × mask) into its own block of outSAB — drums, bass, vocals, other. */
+	#analyzeThreads(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array): void {
+		const masks = this.#masks;
+		if (masks === null) return;
+		masks.invalidate();
+		const whole = frequency.subarray(0, length);
+		const spectra = [masks.drums(length, whole), masks.bass(length, whole), masks.vocals(length, whole), masks.other(length, whole)];
+		const threads = this.#threads, blocks = this.#blocks;
+		for (let stem = 0; stem < threads.length; stem++) threads[stem].process(frame, length, metadata, spectra[stem], temporal, blocks[stem]);
 	}
 
 	#onMessage(event: MessageEvent): void {
@@ -61,12 +76,19 @@ class AudioAnalyzerWorker extends Controller {
 			this.#inputMetadata = new Float32Array(inSAB, 8, 3);
 			this.#inputFrequency = new Float32Array(inSAB, 20, SabLayout.inputMaxLength);
 			this.#inputTemporal = new Float32Array(inSAB, 20 + SabLayout.inputMaxLength * 4, SabLayout.inputMaxLength);
-			this.#outputBuffer = new Float32Array(outSAB);
+			const outputBuffer = this.#outputBuffer = new Float32Array(outSAB);
+			this.#blocks = this.#threads.map((_, stem) => outputBuffer.subarray(SabLayout.stemOffset(stem), SabLayout.stemOffset(stem) + SabLayout.stemBlock));
+			return;
+		}
+
+		if (command instanceof AttachMasksCommand) {
+			this.#masks = new StemMasks(command.sabMask);
 			return;
 		}
 
 		if (command instanceof LoadCalibrationCommand) {
 			processor.loadCalibration(command.calibration);
+			for (const thread of this.#threads) thread.loadCalibration(command.calibration);
 			pilot.loadCalibration(command.calibration);
 			return;
 		}

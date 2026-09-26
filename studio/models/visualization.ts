@@ -10,10 +10,6 @@ export interface AudiosetView {
 	get volume(): number;
 	get amplitude(): number;
 	get dataFrequency(): Float32Array;
-	get dataFrequencyDrums(): Float32Array;
-	get dataFrequencyBass(): Float32Array;
-	get dataFrequencyVocals(): Float32Array;
-	get dataFrequencyOther(): Float32Array;
 	get dataTemporal(): Float32Array;
 	get spectralFlux(): number;
 	get subBass(): number;
@@ -34,8 +30,36 @@ export interface AudiosetView {
 	get djBoost(): number;
 	get djTilt(): number;
 	get djPunch(): number;
+	get stems(): StemsView;
 	isActive(): boolean;
 	isPercussive(): boolean;
+}
+//#endregion
+//#region Stem view
+/** One separated thread: its isolated spectrum (`dataFrequency × mask`) and the same analysis the mix gets, computed on that spectrum. */
+export interface StemView {
+	get dataFrequency(): Float32Array;
+	get energy(): number;
+	get spectralFlux(): number;
+	get subBass(): number;
+	get bass(): number;
+	get lowMid(): number;
+	get mid(): number;
+	get highMid(): number;
+	get high(): number;
+	get spectralCentroid(): number;
+	get percussiveness(): number;
+	get beatDetected(): boolean;
+	get dropIntensity(): number;
+	get bassLevel(): number;
+}
+
+/** The four threads the stem model splits the music into; their spectra add back up to `dataFrequency`. */
+export interface StemsView {
+	get drums(): StemView;
+	get bass(): StemView;
+	get vocals(): StemView;
+	get other(): StemView;
 }
 //#endregion
 //#region Visualization environment
