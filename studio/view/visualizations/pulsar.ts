@@ -13,10 +13,10 @@ const random = Random.global;
 //#region Pulsar
 Registry.attach("Pulsar", class extends Visualization {
 	#layerHalo = this.newCustomLayer("Halo", this.#drawHalo.bind(this));
-	#layerOther = this.newCustomLayer("Other", host => this.#drawStem(host, Stem.Other), { blend: Blend.lighter });
-	#layerVocals = this.newCustomLayer("Vocals", host => this.#drawStem(host, Stem.Vocals), { blend: Blend.lighter });
-	#layerBass = this.newCustomLayer("Bass", host => this.#drawStem(host, Stem.Bass), { blend: Blend.lighter });
-	#layerDrums = this.newCustomLayer("Drums", host => this.#drawStem(host, Stem.Drums), { blend: Blend.lighter });
+	#layerOther = this.newCustomLayer("Other", host => this.#drawStem(host, Stem.Other), { opacity: 0, blend: Blend.lighter });
+	#layerVocals = this.newCustomLayer("Vocals", host => this.#drawStem(host, Stem.Vocals), { opacity: 0, blend: Blend.lighter });
+	#layerBass = this.newCustomLayer("Bass", host => this.#drawStem(host, Stem.Bass), { opacity: 0, blend: Blend.lighter });
+	#layerDrums = this.newCustomLayer("Drums", host => this.#drawStem(host, Stem.Drums), { opacity: 0, blend: Blend.lighter });
 	#layerWave = this.newCustomLayer("Wave", this.#drawWave.bind(this));
 	#layerShadow = this.newCustomLayer("Shadow", this.#drawShadow.bind(this));
 	#countStops: number = 96;
@@ -31,7 +31,8 @@ Registry.attach("Pulsar", class extends Visualization {
 	#driverHalo: ColorDriver = ColorDriver.rotation;
 	#colorShadow: Color;
 	#gainStem: number = 2; // a stem is only a share of the mix, so it needs some gain to clear the shaper's knee, which is tuned for the full mix
-	#palette: string[] = [];
+	#palette: Color[] = [];
+	#levelVocals: number = 0;
 	#reaches: Float32Array[] = [new Float32Array(0), new Float32Array(0), new Float32Array(0), new Float32Array(0)];
 	#indices: Int32Array = new Int32Array(0);
 	#sine: Float32Array = new Float32Array(0);
@@ -101,6 +102,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		path.closePath();
 
 		this.#palette = Stems.palette(colorHaloOuter, hueBias, normIllumination);
+		this.#levelVocals = Stems.level(audioset.dataFrequencyVocals);
 		this.#runStemBuilding(stage);
 	}
 
@@ -187,6 +189,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.lineWidth = radius >> 7;
 		context.fillStyle = colorHaloInner.toString();
 		context.fill(pathHalo);
+		this.#drawVoice(context);
 		context.strokeStyle = this.#obtainGradientHalo(context);
 		const blurHalo = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 6, radius >> 3) * djBoost.lerp(0.25, 1.75, 0.8, 1.2) / 2);
 		if (blurHalo >= 1) {
@@ -195,6 +198,19 @@ Registry.attach("Pulsar", class extends Visualization {
 			context.filter = "none";
 		}
 		context.stroke(pathHalo);
+	}
+
+	/** The inner rim of the halo lights up in the vocals colour while someone sings — vocals are the one stem the mix alone cannot tell apart. */
+	#drawVoice(context: OffscreenCanvasRenderingContext2D): void {
+		const radius = this.#radius;
+		const alpha = this.#levelVocals.clamp(0, 0.06).lerp(0, 0.06, 0, 0.6);
+		if (alpha <= 0) return;
+		const colorVocals = this.#palette[Stem.Vocals];
+		const gradientVoice = context.createRadialGradient(0, 0, radius * 0.3, 0, 0, radius * 0.6);
+		gradientVoice.addColorStop(0, new Color(colorVocals).pass(0).toString());
+		gradientVoice.addColorStop(1, new Color(colorVocals).pass(alpha).toString());
+		context.fillStyle = gradientVoice;
+		context.fill(this.#pathHalo);
 	}
 
 	#drawStem(host: VisualizationHost, stem: Stem): void {
@@ -210,7 +226,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		}
 		for (let point = size - 1; point >= 0; point--) context.lineTo(floor * sine[point], floor * cosine[point]);
 		context.closePath();
-		context.fillStyle = this.#palette[stem];
+		context.fillStyle = this.#palette[stem].toString();
 		context.fill();
 	}
 

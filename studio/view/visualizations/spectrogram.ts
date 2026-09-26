@@ -13,10 +13,10 @@ const random = Random.global;
 //#region Spectrogram
 Registry.attach("Spectrogram", class extends Visualization {
 	#layerRidge = this.newCustomLayer("Ridge", this.#drawRidge.bind(this));
-	#layerOther = this.newCustomLayer("Other", host => this.#drawStem(host, Stem.Other), { blend: Blend.lighter });
-	#layerVocals = this.newCustomLayer("Vocals", host => this.#drawStem(host, Stem.Vocals), { blend: Blend.lighter });
-	#layerBass = this.newCustomLayer("Bass", host => this.#drawStem(host, Stem.Bass), { blend: Blend.lighter });
-	#layerDrums = this.newCustomLayer("Drums", host => this.#drawStem(host, Stem.Drums), { blend: Blend.lighter });
+	#layerOther = this.newCustomLayer("Other", host => this.#drawStem(host, Stem.Other), { opacity: 0, blend: Blend.lighter });
+	#layerVocals = this.newCustomLayer("Vocals", host => this.#drawStem(host, Stem.Vocals), { opacity: 0, blend: Blend.lighter });
+	#layerBass = this.newCustomLayer("Bass", host => this.#drawStem(host, Stem.Bass), { opacity: 0, blend: Blend.lighter });
+	#layerDrums = this.newCustomLayer("Drums", host => this.#drawStem(host, Stem.Drums), { opacity: 0, blend: Blend.lighter });
 	#layerBloom = this.newCustomLayer("Bloom", this.#drawBloom.bind(this), { blend: Blend.lighter });
 	#layerThread = this.newCustomLayer("Thread", this.#drawThread.bind(this), { blend: Blend.lighter });
 	#layerVignette = this.newCustomLayer("Vignette", this.#drawVignette.bind(this), { blend: Blend.multiply });
@@ -37,7 +37,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#deltaRotation: number = 360 / 6;
 	#colorShadow: Color = Color.newBlack;
 	#gainStem: number = 2; // a stem is only a share of the mix, so it needs some gain to clear the shaper's knee, which is tuned for the full mix
-	#palette: string[] = [];
+	#palette: Color[] = [];
 	#horizontal: Float32Array = new Float32Array(0);
 	#heights: Float32Array[] = [new Float32Array(0), new Float32Array(0), new Float32Array(0), new Float32Array(0)];
 
@@ -176,7 +176,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 		context.lineTo(horizontal[size - 1], 0);
 		context.lineTo(horizontal[0], 0);
 		context.closePath();
-		context.fillStyle = this.#palette[stem];
+		context.fillStyle = this.#palette[stem].toString();
 		const blurRidge = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, lineWidth * 2, lineWidth * 10) * djBoost.lerp(0.25, 1.75, 0.8, 1.2) / 2);
 		if (blurRidge >= 1) {
 			context.filter = `blur(${blurRidge}px)`;
@@ -207,11 +207,11 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const lineWidth = this.#lineWidth;
 		const colorRidgeMid = this.#colorRidgeMid;
 		const { context, audioset } = host;
-		const { dataTemporal, amplitude, spectralFlux, high, highMid, length } = audioset;
+		const { dataTemporal, dataFrequencyVocals, amplitude, high, highMid, length } = audioset;
 		const { width } = context.canvas;
 		const peak = this.#side * this.#normHeightFactor;
 		const sparkle = meanGeometric(high.clamp(0, 0.5).lerp(0, 0.5, 0, 1), highMid.clamp(0, 0.6).lerp(0, 0.6, 0, 1));
-		const shimmer = spectralFlux.clamp(0, 0.3).lerp(0, 0.3, 0.5, 1);
+		const shimmer = Stems.level(dataFrequencyVocals).clamp(0, 0.06).lerp(0, 0.06, 0.5, 1); // the thread is the voice: it brightens while someone sings
 
 		context.beginPath();
 		const position = Vector2D.newNaN;

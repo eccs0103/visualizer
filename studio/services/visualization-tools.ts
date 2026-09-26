@@ -4,7 +4,7 @@ import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
 import { type AudiosetView } from "../models/visualization.js";
 
-const { split, PI, exp, sqrt, asin } = Math;
+const { split, PI, exp, sqrt, asin, max } = Math;
 
 //#region Shaper
 export class Shaper {
@@ -96,9 +96,16 @@ export class Stems {
 		return [audioset.dataFrequencyOther, audioset.dataFrequencyVocals, audioset.dataFrequencyBass, audioset.dataFrequencyDrums];
 	}
 
-	/** CSS colors indexed by `Stem` — fixed hue offsets around the seed, so the caller's rotation driver still animates all four together. */
-	static palette(seed: Color, hueBias: number, illumination: number): string[] {
-		return Stems.#offsets.map(offset => new Color(seed).rotate(offset + hueBias).illuminate(illumination).toString());
+	/** Colors indexed by `Stem` — fixed hue offsets around the seed, so the caller's rotation driver still animates all four together. */
+	static palette(seed: Color, hueBias: number, illumination: number): Color[] {
+		return Stems.#offsets.map(offset => new Color(seed).rotate(offset + hueBias).illuminate(illumination));
+	}
+
+	/** Mean of an isolated stem spectrum — how much of that stem is sounding right now, on the `dataFrequency` byte scale. */
+	static level(spectrum: Float32Array): number {
+		let sum = 0;
+		for (let index = 0; index < spectrum.length; index++) sum += spectrum[index];
+		return sum / max(1, spectrum.length);
 	}
 }
 //#endregion
