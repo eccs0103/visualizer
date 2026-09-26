@@ -5,6 +5,7 @@ import { Controller } from "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
 import { NNAgent } from "../models/nn-agent.js";
 import { FrameProcessor } from "../services/frame-processor.js";
+import { DjPilot } from "../services/dj-pilot.js";
 import { PolicyUpdater } from "../services/policy-updater.js";
 import { ActivityCommand, Command, FeedbackCommand, InitializeCommand, LearningCommand, LoadCalibrationCommand, LoadWeightsCommand, ResetCommand, SaveWeightsCommand, WeightsCommand } from "../models/audio-analyzer-commands.js";
 
@@ -19,6 +20,8 @@ class AudioAnalyzerWorker extends Controller {
 	#agent: NNAgent = new NNAgent();
 	#processor: FrameProcessor = new FrameProcessor();
 	#policy: PolicyUpdater = new PolicyUpdater();
+	#pilot: DjPilot = new DjPilot();
+	#silenced: boolean = false;
 
 	#poll(): void {
 		const inputControl = this.#inputControl;
@@ -32,15 +35,23 @@ class AudioAnalyzerWorker extends Controller {
 		const length = Atomics.load(inputControl, 1);
 		if (1 > length || length > SabLayout.inputMaxLength) return;
 
-		const agent = this.#agent;
-		const processor = this.#processor;
-		const policy = this.#policy;
-		processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer, agent, policy);
+		if (!this.#processor.process(frame, length, inputMetadata, inputFrequency, inputTemporal, outputBuffer)) return;
+
+		const pilot = this.#pilot;
+		if (pilot.active) {
+			pilot.step(outputBuffer, this.#agent, this.#policy);
+			this.#silenced = false;
+			return;
+		}
+		if (this.#silenced) return;
+		pilot.silence(outputBuffer);
+		this.#silenced = true;
 	}
 
 	#onMessage(event: MessageEvent): void {
 		const command = Command.import(event.data, "command");
 		const processor = this.#processor;
+		const pilot = this.#pilot;
 		const agent = this.#agent;
 		const policy = this.#policy;
 
@@ -56,11 +67,12 @@ class AudioAnalyzerWorker extends Controller {
 
 		if (command instanceof LoadCalibrationCommand) {
 			processor.loadCalibration(command.calibration);
+			pilot.loadCalibration(command.calibration);
 			return;
 		}
 
 		if (command instanceof FeedbackCommand) {
-			processor.injectFeedback(command.sign);
+			pilot.injectFeedback(command.sign);
 			return;
 		}
 
@@ -70,7 +82,7 @@ class AudioAnalyzerWorker extends Controller {
 		}
 
 		if (command instanceof ActivityCommand) {
-			processor.active = command.enabled;
+			pilot.active = command.enabled;
 			policy.flush();
 			return;
 		}

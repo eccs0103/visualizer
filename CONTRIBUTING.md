@@ -145,6 +145,8 @@ Earlier versions had one `update(host)` that painted the whole canvas, including
 
 The four `dataFrequency<Stem>` arrays come from a small neural model, so they are estimates: each is `dataFrequency` multiplied by a soft per-bin mask, and the four sum back to the whole spectrum. Draw each on its own scale, the way you would draw `dataFrequency`. A stem that is absent is quiet but never exactly zero, so do not turn the four into shares of the total: that makes every stem inherit the beat of the whole mix.
 
+The five `dj*` properties come from the self-teaching DJ, which is paused: unless the studio is opened with `?dj`, they return their neutral defaults (focus −60 dB, spread 30 dB, boost 1×, tilt 0 dB, punch 0). Keep reading them if you want your visualization to follow the DJ when it returns.
+
 ### `environment` properties
 
 | Property          | Type                 | Description                                                                               |
@@ -169,6 +171,8 @@ The four `dataFrequency<Stem>` arrays come from a small neural model, so they ar
 ---
 
 ## Submitting NN Weights
+
+> The DJ is paused while it waits for a real training target. It still runs when the studio is opened with `?dj&developer`, which also shows its dashboard.
 
 The auto-correction system uses a neural network that learns in real time to adjust the analyser's focus, spread, boost, tilt, and punch for the audio it hears. If you have trained a set of weights that performs noticeably better, you can submit them to become the new default.
 

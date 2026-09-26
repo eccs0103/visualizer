@@ -16,6 +16,7 @@
 		"studio/models/render-commands.ts",
 		"studio/models/visualization.ts",
 		"studio/services/clip-accumulator-worker.ts",
+		"studio/services/dj-pilot.ts",
 		"studio/services/frame-processor.ts",
 		"studio/services/layers.ts",
 		"studio/services/policy-updater.ts",

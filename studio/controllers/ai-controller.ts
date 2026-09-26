@@ -8,7 +8,7 @@ import { type Settings } from "../models/settings.js";
 //#region AI controller
 export class AIController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement]> {
 	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
-		if (!visualizer.isDeveloper) return;
+		if (!visualizer.isDeveloper || !visualizer.isDj) return;
 
 		const { analyzer } = visualizer;
 		const settings = cell.content;

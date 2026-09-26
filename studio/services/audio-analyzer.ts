@@ -19,10 +19,12 @@ export interface AudioAnalyzerEventMap {
 
 export interface AudioAnalyzerOptions {
 	isDeveloper: boolean;
+	isDj: boolean;
 }
 
 export class AudioAnalyzer extends EventTarget {
 	#isDeveloper: boolean;
+	#isDj: boolean;
 	#cell: BufferedCell<typeof NNWeights> = localStorage.openBufferedCell("Visualizer\\Studio\\NN weights\\1.1", NNWeights, new NNWeights());
 	#bridge: FeatureBridge = new FeatureBridge();
 	#sabMask: SharedArrayBuffer = StemMasks.createBuffer();
@@ -38,12 +40,13 @@ export class AudioAnalyzer extends EventTarget {
 
 		this.#rate = rate;
 		this.#isDeveloper = options.isDeveloper === true;
+		this.#isDj = options.isDj === true;
 
 		const { inSAB, outSAB } = this.#bridge;
 		const worker = this.#worker;
 		worker.postMessage(Command.export(new InitializeCommand(inSAB, outSAB)));
 		worker.addEventListener("message", this.#onMessage.bind(this));
-		void this.#loadWeights();
+		if (this.#isDj) void this.#loadWeights();
 		void this.#loadCalibration();
 
 		this.#workerMask.postMessage(Command.export(new InitializeCommand(inSAB, this.#sabMask)));
@@ -63,6 +66,7 @@ export class AudioAnalyzer extends EventTarget {
 	}
 
 	get isDeveloper(): boolean { return this.#isDeveloper; }
+	get isDj(): boolean { return this.#isDj; }
 	get outSAB(): SharedArrayBuffer { return this.#bridge.outSAB; }
 	get sabMask(): SharedArrayBuffer { return this.#sabMask; }
 
@@ -72,6 +76,7 @@ export class AudioAnalyzer extends EventTarget {
 	}
 
 	set active(value: boolean) {
+		if (!this.#isDj) return;
 		this.#worker.postMessage(Command.export(new ActivityCommand(value)));
 	}
 

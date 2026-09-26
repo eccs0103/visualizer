@@ -22,6 +22,7 @@ export interface VisualizerEventMap {
 
 export interface VisualizerOptions {
 	isDeveloper: boolean;
+	isDj: boolean;
 }
 
 export class Visualizer extends EventTarget {
@@ -69,8 +70,9 @@ export class Visualizer extends EventTarget {
 
 		this.#visualization = Registry.default;
 
-		let { isDeveloper } = options;
+		let { isDeveloper, isDj } = options;
 		isDeveloper ??= false;
+		isDj ??= false;
 
 		const engine = this.#engine;
 		engine.launched = !document.hidden;
@@ -80,7 +82,7 @@ export class Visualizer extends EventTarget {
 		this.#fixCanvasSize();
 
 		const manager = this.#manager = new Audioset.Manager(media);
-		this.#analyzer = new AudioAnalyzer(manager.rate, { isDeveloper });
+		this.#analyzer = new AudioAnalyzer(manager.rate, { isDeveloper, isDj });
 		manager.attachMaskSab(this.#analyzer.sabMask);
 		engine.addEventListener("trigger", event => manager.refresh());
 
@@ -135,6 +137,7 @@ export class Visualizer extends EventTarget {
 
 	get autoCorrect(): boolean { return this.#manager.autoCorrect; }
 	set autoCorrect(value: boolean) {
+		value &&= this.#analyzer.isDj; // the DJ is paused unless the studio was opened with ?dj
 		this.#manager.autoCorrect = value;
 		this.#analyzer.active = value;
 	}
@@ -173,6 +176,7 @@ export class Visualizer extends EventTarget {
 
 	get analyzer(): AudioAnalyzer { return this.#analyzer; }
 	get isDeveloper(): boolean { return this.#analyzer.isDeveloper; }
+	get isDj(): boolean { return this.#analyzer.isDj; }
 	get audioset(): Audioset { return this.#manager.audioset; }
 
 	#fixCanvasSize(): void {

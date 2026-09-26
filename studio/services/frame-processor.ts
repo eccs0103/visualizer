@@ -3,10 +3,8 @@
 import "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
 import { type Calibration } from "../models/calibration.js";
-import { NNAgent } from "../models/nn-agent.js";
-import { type PolicyUpdater } from "./policy-updater.js";
 
-const { abs, max, round, min, sqrt, trunc } = Math;
+const { max, round, min, sqrt } = Math;
 
 //#region Flux stats
 class FluxStats {
@@ -27,19 +25,14 @@ class FluxStats {
 }
 //#endregion
 //#region Frame processor
+/** The audio analysis every plugin reads: writes output slots [0–14]. The DJ (slots [15–20]) lives in `DjPilot`. */
 export class FrameProcessor {
 	static #capacity: number = 128;
-	static #featCount: number = 10;
-	static #histSize: number = 32;
-	static #holdStep: number = 64;
-	static #maxGain: number = 15;
-	static #scaleHeuristic: number = 0.2;
 
 	#prevFrequency: Float32Array = new Float32Array(SabLayout.inputMaxLength);
 	#fluxHistory: Float32Array = new Float32Array(FrameProcessor.#capacity);
 	#fluxCursor: number = 0;
 	#lastFrame: number = -1;
-	#frameCount: number = 0;
 	#beatGap: number = 8;
 
 	#bins: [number, number][] | null = null;
@@ -52,40 +45,10 @@ export class FrameProcessor {
 	#minGap: number = 8;
 	#window: number = 43;
 
-	// Per-feature normalization — identity (mean 0, std 1) until calibration loads,
-	// then the fixed corpus stats replace the old EMA-with-warmup normalizer:
-	// no more cold start, no more raw garbage for the first 200 frames of every song.
-	#means: Float32Array = new Float32Array(FrameProcessor.#featCount);
-	#deviations: Float32Array = new Float32Array(FrameProcessor.#featCount).fill(1);
-
-	#rawFeats: Float32Array = new Float32Array(FrameProcessor.#featCount);
-	#normBuf: Float32Array = new Float32Array(FrameProcessor.#featCount);
-	#featHistory: Float32Array = new Float32Array(FrameProcessor.#histSize * FrameProcessor.#featCount);
-	#lastControlOutput: Float32Array = new Float32Array(NNAgent.sizeControl);
-	#lastValueOutput: Float32Array = new Float32Array(1);
-	#sign: number = 0;
-	#hold: number = 0;
-	#engaged: boolean = false;
-	#active: boolean = true;
-
-	set active(value: boolean) { this.#active = value; }
-
-	injectFeedback(sign: number): void {
-		if (sign !== this.#sign) {
-			this.#sign = sign;
-			this.#hold = 0;
-		}
-		if (sign !== 0) this.#engaged = true;
-	}
-
 	loadCalibration(calibration: Calibration): void {
 		this.#multiplier = calibration.multiplier;
 		this.#minGap = calibration.minGap;
 		this.#window = min(calibration.window, FrameProcessor.#capacity);
-
-		if (calibration.means.length !== FrameProcessor.#featCount || calibration.deviations.length !== FrameProcessor.#featCount) return;
-		this.#means.set(calibration.means);
-		for (let index = 0; index < FrameProcessor.#featCount; index++) this.#deviations[index] = max(calibration.deviations[index], 1e-6);
 	}
 
 	#computeBins(length: number, sampleRate: number): [number, number][] {
@@ -172,72 +135,10 @@ export class FrameProcessor {
 		return detected;
 	}
 
-	#fillInput(flux: number, bandEnergies: Float32Array, zeroCrossingRate: number, centroid: number, percussiveness: number): void {
-		const raw = this.#rawFeats;
-		raw[0] = flux;
-		for (let bandIndex = 0; bandIndex < 6; bandIndex++) raw[1 + bandIndex] = bandEnergies[bandIndex];
-		raw[7] = zeroCrossingRate;
-		raw[8] = centroid;
-		raw[9] = percussiveness;
-
-		const mean = this.#means, standardDeviation = this.#deviations;
-		const norm = this.#normBuf;
-		for (let index = 0; index < FrameProcessor.#featCount; index++) {
-			norm[index] = (raw[index] - mean[index]) / standardDeviation[index];
-		}
-	}
-
-	#pushHistory(): void {
-		const hist = this.#featHistory, count = FrameProcessor.#featCount;
-		hist.copyWithin(0, count);
-		hist.set(this.#normBuf, (FrameProcessor.#histSize - 1) * count);
-	}
-
-	#computeFeedbackGain(sign: number): number {
-		if (sign === 0) return 0;
-		const hold = this.#hold;
-		this.#hold = hold + 1;
-		const step = trunc(hold / FrameProcessor.#holdStep) + 1;
-		const gain = step * (step + 1) / 2;
-		return gain.clamp(0, FrameProcessor.#maxGain);
-	}
-
-	#computeBeatReward(beatDetected: boolean, engagement: number): number {
-		if (!beatDetected) return 0;
-		if (engagement > 0.3) return 1;
-		return -0.5;
-	}
-
-	#computeRlReward(sign: number, controlOutput: Float32Array, bassLevel: number, dropIntensity: number, percussiveness: number, beatDetected: boolean): number {
-		// While a thumb is held, the human signal is the sole reward — fully authoritative
-		if (sign !== 0) return sign.clamp(-1, 1);
-
-		// Composite audio energy: how energetic is this frame
-		const audioEnergy = min(1, bassLevel * 0.5 + dropIntensity * 0.3 + percussiveness * 0.2);
-
-		// DJ engagement: average absolute control delta — how much is the AI doing
-		let engagement = 0;
-		for (let param = 0; param < NNAgent.sizeControl; param++) engagement += abs(controlOutput[param]);
-		engagement /= NNAgent.sizeControl;
-
-		// rSync: engagement should match audio energy (quiet = low engagement, loud = high)
-		const rSync = 1 - 2 * abs(engagement - audioEnergy);
-
-		// rBeat: engagement should spike on beats
-		const rBeat = this.#computeBeatReward(beatDetected, engagement);
-
-		const rBase = 0.8 * rSync + 0.2 * rBeat;
-
-		// After the user has given feedback at least once, soften the heuristic so taught
-		// behavior is not slowly overwritten when no thumb is held
-		if (this.#engaged) return rBase * FrameProcessor.#scaleHeuristic;
-		return rBase;
-	}
-
-	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array, model: NNAgent, policy: PolicyUpdater): void {
-		if (frame === this.#lastFrame) return;
+	/** Analyses one frame into `output`; returns false when the frame was already processed. */
+	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array): boolean {
+		if (frame === this.#lastFrame) return false;
 		this.#lastFrame = frame;
-		this.#frameCount++;
 
 		const sampleRate = metadata[0] || 44100;
 
@@ -259,19 +160,6 @@ export class FrameProcessor {
 		const percussiveness = min(1, flux / (fluxStats.mean + 0.001));
 		const beatDetected = this.#detectBeat(flux, fluxStats);
 
-		this.#fillInput(flux, bandEnergies, zeroCrossingRate, centroid, percussiveness);
-		this.#pushHistory();
-
-		const active = this.#active;
-		const featHistory = this.#featHistory;
-		const lastControlOutput = this.#lastControlOutput;
-		const lastValueOutput = this.#lastValueOutput;
-		if (active) model.forwardControl(featHistory, lastControlOutput, lastValueOutput);
-		else {
-			lastControlOutput.fill(0);
-			lastValueOutput.fill(0);
-		}
-
 		const dropIntensity = min(1, percussiveness * 3) * bandEnergies[0];
 		const bassLevel = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
 		const distortion = min(1, percussiveness * zeroCrossingRate * 5);
@@ -285,21 +173,8 @@ export class FrameProcessor {
 		output[12] = dropIntensity;
 		output[13] = bassLevel;
 		output[14] = distortion;
-		for (let param = 0; param < NNAgent.sizeControl; param++) output[15 + param] = lastControlOutput[param];
 		output[0] = frame;
-
-		if (!active) {
-			output[20] = 0;
-			return;
-		}
-
-		const sign = this.#sign;
-		const gain = this.#computeFeedbackGain(sign);
-
-		const reward = this.#computeRlReward(sign, lastControlOutput, bassLevel, dropIntensity, percussiveness, beatDetected);
-		output[20] = reward;
-
-		policy.consider(featHistory, lastControlOutput, lastValueOutput[0], reward, model, this.#frameCount, sign, gain);
+		return true;
 	}
 }
 //#endregion

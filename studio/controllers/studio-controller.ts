@@ -41,6 +41,7 @@ class StudioController extends Controller {
 		const url = new URL(location.href);
 		const search = new URLSearchParams(url.search);
 		const isDeveloper = search.has("developer");
+		const isDj = search.has("dj");
 		if (!isDeveloper) {
 			search.append("developer", "on");
 			url.search = search.toString();
@@ -49,7 +50,7 @@ class StudioController extends Controller {
 
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
-		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper });
+		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper, isDj });
 		const guard = new WakeGuard();
 		const player = new PlaylistPlayer(audioPlayer, store, legacy, cell);
 
