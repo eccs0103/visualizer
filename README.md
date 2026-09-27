@@ -12,20 +12,20 @@ Open the configurator with <kbd>Tab</kbd> and the playlist with <kbd>Shift</kbd>
 
 In the configurator's **Layers** section, every visualization lists the layers it is drawn from. Drag a layer to reorder it, lower its opacity to fade it out, or pick a blend mode to change how it mixes with the layers below. Your arrangement is remembered per visualization. The **Lyrics** layer on top and the **Background** layer at the bottom are added by the engine and stay in place; each visualization keeps its own settings for them, and its background can show an image you upload, with an optional effect (shake, beat pulse or parallax).
 
-The system supports custom visualizations, which can be implemented by extending the `Visualization` class and declaring the layers it is drawn from with `this.newCustomLayer()`. A visualization keeps the shared, per-frame state; each layer only paints its own part of the picture, and the engine takes care of clearing, background, lyrics, compositing, and isolating a failing layer from the rest.
+The system supports custom visualizations, which can be implemented by extending the `Visualization` class and declaring the layers it is drawn from with `this.newLayer()`. A visualization keeps the shared, per-frame state; each layer only paints its own part of the picture, and the engine takes care of clearing, background, lyrics, compositing, and isolating a failing layer from the rest.
 
-All visualization code is located in the [`studio/view/visualizations.ts`](./studio/view/visualizations.ts) file. This serves both as a reference for studying the structure of built-in visualizations and as a place to define your own.
+Each visualization is one file in [`studio/view/visualizations/`](./studio/view/visualizations/), imported from [`studio/view/visualizations.ts`](./studio/view/visualizations.ts). The built-in ones serve as the reference for writing your own; [CONTRIBUTING.md](./CONTRIBUTING.md) documents the whole API.
 
 Below is an example of how to create and attach a custom visualization:
 
 ```typescript
 import "adaptive-extender/core";
-import { type StageHost, type VisualizationHost } from "../models/visualization.js";
-import { Registry, Visualization } from "../services/visualization-registry.js";
+import { type StageHost, type VisualizationHost } from "../../models/visualization.js";
+import { Registry, Visualization } from "../../services/visualization-registry.js";
 
 Registry.attach("My custom title", class extends Visualization {
 	// Layers are declared bottom to top; the engine adds the background and the lyrics itself.
-	#layerCircle = this.newCustomLayer("Circle", this.#drawCircle.bind(this));
+	#layerCircle = this.newLayer("Circle", this.#drawCircle.bind(this));
 
 	// Called when the canvas is resized or the active visualization changes.
 	rebuild(stage: StageHost): void {

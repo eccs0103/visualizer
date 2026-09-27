@@ -9,7 +9,6 @@ import { PlaylistPlayer } from "../services/playlist-player.js";
 import { AudioController } from "./audio-controller.js";
 import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
 import { LayersController } from "./layers-controller.js";
-import { AIController } from "./ai-controller.js";
 import { PanelController } from "./panel-controller.js";
 import { ClipController } from "./clip-controller.js";
 import { PlaylistController } from "./playlist-controller.js";
@@ -38,31 +37,18 @@ class StudioController extends Controller {
 		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Studio\\Settings", Settings, new Settings());
 		const store: Store<string> = indexedDB.openStore("Visualizer", "Audiolist");
 		const legacy: Store<number> = indexedDB.openStore<number>("Visualizer", "Audiolist");
-		const url = new URL(location.href);
-		const search = new URLSearchParams(url.search);
-		const isDeveloper = search.has("developer");
-		const isDj = search.has("dj");
-		if (!isDeveloper) {
-			search.append("developer", "on");
-			url.search = search.toString();
-			console.log(`Are you a developer? Try ${url} for developer settings!`);
-		}
 
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
-		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper, isDj });
+		const visualizer = new Visualizer(canvasDisplay, audioPlayer);
 		const guard = new WakeGuard();
 		const player = new PlaylistPlayer(audioPlayer, store, legacy, cell);
 
 		const settings = cell.content;
 		settings.reconcile();
 		visualizer.rate = settings.rate;
-		visualizer.autoCorrect = settings.autoCorrect;
 		visualizer.visualization = settings.visualization;
-		visualizer.quality = settings.configuration.quality;
-		visualizer.smoothing = settings.configuration.smoothing;
-		visualizer.focus = settings.configuration.focus;
-		visualizer.spread = settings.configuration.spread;
+		visualizer.audioset.apply(settings.configuration);
 
 		const divInterface = body.getElement(HTMLDivElement, "div#interface");
 		const buttonOpenPlaylist = divInterface.getElement(HTMLButtonElement, "button#open-playlist");
@@ -88,7 +74,6 @@ class StudioController extends Controller {
 		await LyricsController.launch(cell, player, audioPlayer, visualizer, inputLyricsToggle, inputShake, inputLyricsLookupToggle);
 		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
 		await LayersController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
-		await AIController.launch(cell, visualizer, dialogConfigurator);
 		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
 		await PlaylistController.launch(player, dialogPlaylist);
 

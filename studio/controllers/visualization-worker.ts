@@ -3,7 +3,7 @@
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 import { Registry } from "../services/visualization-registry.js";
-import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/render-commands.js";
+import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { WorkerAudioset, WorkerEnvironment } from "../services/worker-visualization.js";
 import { Stage } from "../services/stage.js";
 import "../view/visualizations.js";
@@ -48,15 +48,15 @@ class VisualizationWorker extends Controller {
 	}
 
 	#onMessage(event: MessageEvent): void {
-		const command = RenderCommand.import(event.data, "command");
+		const command = Command.import(event.data, "command");
 		const stages = this.#stages;
 
 		if (command instanceof InitializeRenderCommand) {
-			const { sabVideo, sabAudio, sabMask, canvas } = command;
+			const { sabSignal, sabFeatures, sabMask, canvas } = command;
 
 			this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
-			const audioset = this.#audioset = new WorkerAudioset(sabVideo, sabAudio, sabMask);
-			const environment = this.#environment = new WorkerEnvironment(audioset);
+			const audioset = this.#audioset = new WorkerAudioset(sabSignal, sabFeatures, sabMask);
+			const environment = this.#environment = new WorkerEnvironment();
 			let selection: string | null = null;
 			for (const [name, descriptor] of Registry.entries()) {
 				stages.set(name, new Stage(name, Registry.createBundle(descriptor), audioset, environment));
@@ -81,7 +81,8 @@ class VisualizationWorker extends Controller {
 		}
 
 		if (command instanceof RebuildRenderCommand) {
-			const { width, height, visualization } = command;
+			const { width, height, visualization, hue, saturation, lightness } = command;
+			this.#environment.updateColor(hue, saturation, lightness);
 			this.#select(visualization);
 			this.#width = width;
 			this.#height = height;

@@ -2,12 +2,10 @@
 
 import "adaptive-extender/web";
 import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
-import { Audioset, type AudiosetManager } from "../models/audioset.js";
+import { Audioset } from "../models/audioset.js";
 import { AudioAnalyzer } from "./audio-analyzer.js";
-import { type VisualizationEnvironment, type LyricsView } from "../models/visualization.js";
 import { Registry } from "./visualization-registry.js";
-import { RenderBridge } from "./render-bridge.js";
-import { RenderCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/render-commands.js";
+import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { type BackgroundSettings } from "../models/background-settings.js";
 
@@ -20,59 +18,22 @@ export interface VisualizerEventMap {
 	"rebuild": Event;
 }
 
-export interface VisualizerOptions {
-	isDeveloper: boolean;
-	isDj: boolean;
-}
-
 export class Visualizer extends EventTarget {
-	//#region Environment
-	static #Environment = class Environment implements VisualizationEnvironment {
-		#engine: WebEngine;
-		#mapBackground: Map<string, Color> = new Map();
-
-		constructor(engine: WebEngine) {
-			this.#engine = engine;
-		}
-
-		get isLaunched(): boolean { return this.#engine.launched; }
-		get delta(): number { return this.#engine.delta; }
-		get fps(): number { return this.#engine.fps; }
-
-		get colorBackground(): Color {
-			const mapBackground = this.#mapBackground;
-			const value = window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main");
-			return mapBackground.getOrInsertComputed(value, Color.parse);
-		}
-
-		get lyrics(): LyricsView | null { return null; }
-	};
-	//#endregion
-
-	static #tick = RenderCommand.export(new TickCommand());
+	static #tick = Command.export(new TickCommand());
 	static #minRate: number = 30;
 	static #maxRate: number = 1200;
-	#bridge: RenderBridge = new RenderBridge();
 	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
 	#engine: WebEngine = new FastEngine();
-	#environment: VisualizationEnvironment = new Visualizer.#Environment(this.#engine);
-	#colorBackground: Color;
 	#visualization: string;
 	#shake: number = 0.2;
 	#canvas: HTMLCanvasElement;
-	#manager: AudiosetManager;
+	#audioset: Audioset;
 	#analyzer: AudioAnalyzer;
 
-	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement);
-	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement, options: Partial<VisualizerOptions>);
-	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement, options: Partial<VisualizerOptions> = {}) {
+	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement) {
 		super();
 
 		this.#visualization = Registry.default;
-
-		let { isDeveloper, isDj } = options;
-		isDeveloper ??= false;
-		isDj ??= false;
 
 		const engine = this.#engine;
 		engine.launched = !document.hidden;
@@ -81,13 +42,11 @@ export class Visualizer extends EventTarget {
 		this.#canvas = canvas;
 		this.#fixCanvasSize();
 
-		const manager = this.#manager = new Audioset.Manager(media);
-		this.#analyzer = new AudioAnalyzer(manager.rate, { isDeveloper, isDj });
-		manager.attachMaskSab(this.#analyzer.sabMask);
-		engine.addEventListener("trigger", event => manager.refresh());
+		const audioset = this.#audioset = new Audioset(media);
+		const analyzer = this.#analyzer = new AudioAnalyzer(audioset);
 
 		const offscreen = canvas.transferControlToOffscreen();
-		this.#worker.postMessage(RenderCommand.export(new InitializeRenderCommand(this.#bridge.sab, this.#analyzer.outSAB, this.#analyzer.sabMask, offscreen)), [offscreen]);
+		this.#worker.postMessage(Command.export(new InitializeRenderCommand(audioset.signal.sab, analyzer.sabFeatures, analyzer.sabMask, offscreen)), [offscreen]);
 
 		this.#rebuild();
 		window.addEventListener("resize", event => this.#rebuild());
@@ -113,17 +72,6 @@ export class Visualizer extends EventTarget {
 
 	static get minRate(): number { return this.#minRate; }
 	static get maxRate(): number { return this.#maxRate; }
-	static get minQuality(): number { return Audioset.Manager.minQuality; }
-	static get maxQuality(): number { return Audioset.Manager.maxQuality; }
-	static get minSmoothing(): number { return Audioset.Manager.minSmoothing; }
-	static get maxSmoothing(): number { return Audioset.Manager.maxSmoothing; }
-	static get minSpread(): number { return Audioset.Manager.minSpread; }
-	static get minBoost(): number { return Audioset.Manager.minBoost; }
-	static get maxBoost(): number { return Audioset.Manager.maxBoost; }
-	static get minTilt(): number { return Audioset.Manager.minTilt; }
-	static get maxTilt(): number { return Audioset.Manager.maxTilt; }
-	static get minPunch(): number { return Audioset.Manager.minPunch; }
-	static get maxPunch(): number { return Audioset.Manager.maxPunch; }
 
 	get rate(): number {
 		return round(this.#engine.limit);
@@ -135,26 +83,7 @@ export class Visualizer extends EventTarget {
 		this.#engine.limit = value;
 	}
 
-	get autoCorrect(): boolean { return this.#manager.autoCorrect; }
-	set autoCorrect(value: boolean) {
-		value &&= this.#analyzer.isDj; // the DJ is paused unless the studio was opened with ?dj
-		this.#manager.autoCorrect = value;
-		this.#analyzer.active = value;
-	}
-	get quality(): number { return this.#manager.quality; }
-	set quality(value: number) { this.#manager.quality = value; }
-	get smoothing(): number { return this.#manager.smoothing; }
-	set smoothing(value: number) { this.#manager.smoothing = value; }
-	get focus(): number { return this.#manager.focus; }
-	set focus(value: number) { this.#manager.focus = value; }
-	get spread(): number { return this.#manager.spread; }
-	set spread(value: number) { this.#manager.spread = value; }
-	get boost(): number { return this.#manager.boost; }
-	set boost(value: number) { this.#manager.boost = value; }
-	get tilt(): number { return this.#manager.tilt; }
-	set tilt(value: number) { this.#manager.tilt = value; }
-	get punch(): number { return this.#manager.punch; }
-	set punch(value: number) { this.#manager.punch = value; }
+	get audioset(): Audioset { return this.#audioset; }
 
 	get visualization(): string {
 		return this.#visualization;
@@ -171,13 +100,8 @@ export class Visualizer extends EventTarget {
 	set shake(value: number) {
 		value = value.clamp(0, 1);
 		this.#shake = value;
-		this.#worker.postMessage(RenderCommand.export(new ShakeRenderCommand(value)));
+		this.#worker.postMessage(Command.export(new ShakeRenderCommand(value)));
 	}
-
-	get analyzer(): AudioAnalyzer { return this.#analyzer; }
-	get isDeveloper(): boolean { return this.#analyzer.isDeveloper; }
-	get isDj(): boolean { return this.#analyzer.isDj; }
-	get audioset(): Audioset { return this.#manager.audioset; }
 
 	#fixCanvasSize(): void {
 		const canvas = this.#canvas;
@@ -186,53 +110,33 @@ export class Visualizer extends EventTarget {
 		canvas.height = height;
 	}
 
-	#publish(): void {
-		const { length, volume, amplitude, dataFrequency, dataTemporal } = this.#manager.audioset;
-		const color = this.#colorBackground;
-		this.#bridge.writeAudioset(length, volume, amplitude, dataFrequency, dataTemporal, color.hue, color.saturation, color.lightness);
-	}
-
 	#rebuild(): void {
-		this.#colorBackground = this.#environment.colorBackground;
+		const color = Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
 		const { width, height } = this.#canvas.getBoundingClientRect();
 		if (width === 0 || height === 0) return;
-		this.#publish();
-		this.#worker.postMessage(RenderCommand.export(new RebuildRenderCommand(width, height, this.#visualization)));
+		this.#worker.postMessage(Command.export(new RebuildRenderCommand(width, height, this.#visualization, color.hue, color.saturation, color.lightness)));
 		this.dispatchEvent(new Event("rebuild"));
 	}
 
-	#correct(): void {
-		const manager = this.#manager;
-		const { djFocus, djSpread, djBoost, djTilt, djPunch } = manager.audioset;
-		const rate = 0.04;
-		manager.focus += (djFocus - manager.focus) * rate;
-		manager.spread += (djSpread - manager.spread) * rate;
-		manager.boost += (djBoost - manager.boost) * rate;
-		manager.tilt += (djTilt - manager.tilt) * rate;
-		manager.punch += (djPunch - manager.punch) * rate;
-	}
-
 	#update(): void {
-		const manager = this.#manager;
-		this.#analyzer.analyze(manager);
-		if (manager.autoCorrect) this.#correct();
-		this.#publish();
+		this.#audioset.capture();
+		this.#analyzer.tick();
 		this.#worker.postMessage(Visualizer.#tick);
 		this.dispatchEvent(new Event("update"));
 	}
 
 	arrange(visualization: string, layers: readonly LayerSettings[], background: BackgroundSettings, lyrics: LayerSettings): void {
 		if (!Registry.has(visualization)) throw new Error(`Visualization with name '${visualization}' is not attached`);
-		this.#worker.postMessage(RenderCommand.export(new LayersRenderCommand(visualization, Array.from(layers), background, lyrics)));
+		this.#worker.postMessage(Command.export(new LayersRenderCommand(visualization, Array.from(layers), background, lyrics)));
 	}
 
 	setBackground(visualization: string, image: Blob | null): void {
 		if (!Registry.has(visualization)) throw new Error(`Visualization with name '${visualization}' is not attached`);
-		this.#worker.postMessage(RenderCommand.export(new ImageRenderCommand(visualization, image)));
+		this.#worker.postMessage(Command.export(new ImageRenderCommand(visualization, image)));
 	}
 
 	updateLyrics(previous: string | null, current: string | null, next: string | null): void {
-		this.#worker.postMessage(RenderCommand.export(new LyricsRenderCommand(previous, current, next)));
+		this.#worker.postMessage(Command.export(new LyricsRenderCommand(previous, current, next)));
 	}
 }
 //#endregion

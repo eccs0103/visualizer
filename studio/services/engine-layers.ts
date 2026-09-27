@@ -187,8 +187,8 @@ export class LyricsLayer extends PaintedLayer {
 	}
 
 	paint(host: VisualizationHost, stage: StageHost): void {
-		const { context, environment } = host;
-		const { lyrics } = environment;
+		const { context } = host;
+		const { lyrics } = stage.environment;
 		if (lyrics === null) return;
 		const { previous, current, next, shake } = lyrics;
 		const { width, height, camera } = stage;

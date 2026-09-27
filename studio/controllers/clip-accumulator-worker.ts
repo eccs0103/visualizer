@@ -2,14 +2,14 @@
 
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
-import { ChunkCommand, ClipCommand, DoneCommand, FinishCommand } from "../models/clip-commands.js";
+import { Command, ChunkCommand, DoneCommand, FinishCommand } from "../models/commands.js";
 
 //#region Clip accumulator worker
 class ClipAccumulatorWorker extends Controller {
 	#chunks: Blob[] = [];
 
 	#onMessage(event: MessageEvent): void {
-		const command = ClipCommand.import(event.data, "command");
+		const command = Command.import(event.data, "command");
 		const chunks = this.#chunks;
 
 		if (command instanceof ChunkCommand) {
@@ -20,7 +20,7 @@ class ClipAccumulatorWorker extends Controller {
 		if (command instanceof FinishCommand) {
 			const blob = new Blob(chunks, { type: command.mimeType });
 			chunks.splice(0, chunks.length);
-			self.postMessage(ClipCommand.export(new DoneCommand(blob)));
+			self.postMessage(Command.export(new DoneCommand(blob)));
 			return;
 		}
 	}

@@ -5,100 +5,58 @@ import "adaptive-extender/core";
 const { max, min } = Math;
 
 //#region SAB layout
-/**
- * inSAB layout:
- *   Bytes  0–7 : Int32[2]   → [frameCounter, length]
- *   Bytes  8–19: Float32[3] → [sampleRate, volume, amplitude]
- *   Bytes 20.. : Float32[inputMaxLength] dataFrequency
- *              + Float32[inputMaxLength] dataTemporal
- *              + Float32[bins]           dataModel — fixed-settings analysis tap,
- *                untouched by quality/DJ, read by stem-mask-worker only
- *
- * outSAB layout (Float32Array of outputSize = 81 floats):
- *   [0]     frameCounter
- *   [1]     spectralFlux
- *   [2–7]   bandEnergy[6]  (subBass, bass, lowMid, mid, highMid, high)
- *   [8]     zeroCrossingRate
- *   [9]     spectralCentroid
- *   [10]    percussiveness
- *   [11]    beatDetected   (0 | 1)
- *   [12]    dropIntensity
- *   [13]    bassLevel
- *   [14]    distortionLevel
- *   [15–19] djControl[5]   (bipolar tanh deltas: focus, spread, boost, tilt, punch)
- *   [20]    reward         (diagnostic)
- *   [21–80] four thread blocks of 15 floats (drums, bass, vocals, other): the same analysis
- *           as slots [0–14], run on that thread's spectrum (mix × mask) — see stemOffset()
- *
- * mask SAB layout (written by stem-mask-worker.ts through StemMasks.publish):
- *   Bytes  0–3 : Int32[1]                        version counter
- *   Bytes  8–23: Float64[2]                      [stamp, interval] — epoch ms of the latest
- *                                                publication and the gap since the one before
- *   Bytes 24.. : Float32[bins * stems] previous masks, then Float32[bins * stems] current masks,
- *                each bin-major/stem-minor (mask[bin*stems+stem], stem order
- *                drums/bass/vocals/other, sums to ~1 per bin)
- */
 export class SabLayout {
-	static #inputMaxLength: number = 16384;
+	static #maxLength: number = 16384;
 	static #bins: number = 512;
-	static #outputSize: number = 81;
-	static #stemBlock: number = 15;
 	static #stems: number = 4;
+	static #block: number = 12;
 
-	static get inputMaxLength(): number { return SabLayout.#inputMaxLength; }
+	static get maxLength(): number { return SabLayout.#maxLength; }
 	static get bins(): number { return SabLayout.#bins; }
-	static get outputSize(): number { return SabLayout.#outputSize; }
 	static get stems(): number { return SabLayout.#stems; }
-
-	static inputByteSize(): number {
-		return 20 + SabLayout.#inputMaxLength * 4 * 2 + SabLayout.#bins * 4;
-	}
-
-	/** First slot of a thread's analysis block in outSAB; the block has the same layout as slots [0–14]. */
-	static stemOffset(stem: number): number {
-		return 21 + stem * SabLayout.#stemBlock;
-	}
-
-	static get stemBlock(): number { return SabLayout.#stemBlock; }
-
-	static maskBytes(): number {
-		return 24 + SabLayout.#bins * SabLayout.#stems * 4 * 2;
-	}
+	static get block(): number { return SabLayout.#block; }
 }
 //#endregion
-//#region Band energy
-export class BandEnergy {
-	#subBass: number = 0;
-	#bass: number = 0;
-	#lowMid: number = 0;
-	#mid: number = 0;
-	#highMid: number = 0;
-	#high: number = 0;
+//#region Signal
+export class Signal {
+	#sab: SharedArrayBuffer;
+	#control: Int32Array;
+	#time: Float64Array;
+	#volume: Float32Array;
+	#frequency: Float32Array;
+	#temporal: Float32Array;
+	#model: Float32Array;
 
-	get subBass(): number { return this.#subBass; }
-	get bass(): number { return this.#bass; }
-	get lowMid(): number { return this.#lowMid; }
-	get mid(): number { return this.#mid; }
-	get highMid(): number { return this.#highMid; }
-	get high(): number { return this.#high; }
-
-	total(): number {
-		return this.#subBass + this.#bass + this.#lowMid + this.#mid + this.#highMid + this.#high;
+	constructor(sab: SharedArrayBuffer) {
+		const maxLength = SabLayout.maxLength;
+		this.#sab = sab;
+		this.#control = new Int32Array(sab, 0, 2);
+		this.#time = new Float64Array(sab, 8, 1);
+		this.#volume = new Float32Array(sab, 16, 1);
+		this.#frequency = new Float32Array(sab, 24, maxLength);
+		this.#temporal = new Float32Array(sab, 24 + maxLength * 4, maxLength);
+		this.#model = new Float32Array(sab, 24 + maxLength * 8, SabLayout.bins);
 	}
 
-	bassWeight(): number {
-		const total = this.total();
-		if (total === 0) return 0;
-		return (this.#subBass + this.#bass) / total;
+	static create(): Signal {
+		return new Signal(new SharedArrayBuffer(24 + SabLayout.maxLength * 4 * 2 + SabLayout.bins * 4));
 	}
 
-	readFrom(out: Float32Array, offset: number): void {
-		this.#subBass = out[offset];
-		this.#bass = out[offset + 1];
-		this.#lowMid = out[offset + 2];
-		this.#mid = out[offset + 3];
-		this.#highMid = out[offset + 4];
-		this.#high = out[offset + 5];
+	get sab(): SharedArrayBuffer { return this.#sab; }
+	get frame(): number { return Atomics.load(this.#control, 0); }
+	get length(): number { return Atomics.load(this.#control, 1); }
+	get time(): number { return this.#time[0]; }
+	get volume(): number { return this.#volume[0]; }
+	get frequency(): Float32Array { return this.#frequency; }
+	get temporal(): Float32Array { return this.#temporal; }
+	get model(): Float32Array { return this.#model; }
+
+	publish(length: number, volume: number, time: number): void {
+		const control = this.#control;
+		this.#volume[0] = volume;
+		this.#time[0] = time;
+		Atomics.store(control, 1, length);
+		Atomics.add(control, 0, 1);
 	}
 }
 //#endregion
@@ -152,7 +110,7 @@ export class StemMasks {
 
 	/** A fresh mask buffer at the uniform 1/stems prior — an honest "no separation yet", not zeros. */
 	static createBuffer(): SharedArrayBuffer {
-		const sab = new SharedArrayBuffer(SabLayout.maskBytes());
+		const sab = new SharedArrayBuffer(24 + SabLayout.bins * SabLayout.stems * 4 * 2);
 		new Float32Array(sab, 24).fill(1 / SabLayout.stems);
 		return sab;
 	}
@@ -160,9 +118,13 @@ export class StemMasks {
 	/** Mask worker only: `masks` becomes the current masks, the old current ones become the previous, and `now` (epoch ms) starts the blend between them. */
 	publish(masks: Float32Array, now: number): void {
 		const timing = this.#timing;
-		this.#previous.set(this.#current);
-		this.#current.set(masks);
-		timing[1] = timing[0] === 0 ? 0 : min(now - timing[0], StemMasks.#ceiling);
+		const current = this.#current;
+		this.#previous.set(current);
+		current.set(masks);
+		const stamp = timing[0];
+		let interval = 0;
+		if (stamp !== 0) interval = min(now - stamp, StemMasks.#ceiling);
+		timing[1] = interval;
 		timing[0] = now;
 		Atomics.add(this.#control, 0, 1);
 	}
@@ -205,15 +167,17 @@ export class StemMasks {
 	other(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#other, length, whole); }
 
 	#spectrum(stem: number, length: number, whole: Float32Array): Float32Array {
+		const fresh = this.#fresh;
+		const cache = this.#cache;
 		if (this.#length !== length) {
 			this.#length = length;
-			this.#fresh.fill(false);
+			fresh.fill(false);
 		}
-		if (this.#fresh[stem]) return this.#cache[stem];
-		let target = this.#cache[stem];
-		if (target.length !== length) target = this.#cache[stem] = new Float32Array(length);
+		if (fresh[stem]) return cache[stem];
+		let target = cache[stem];
+		if (target.length !== length) target = cache[stem] = new Float32Array(length);
 		this.#interpolate(stem, length, whole, target);
-		this.#fresh[stem] = true;
+		fresh[stem] = true;
 		return target;
 	}
 
@@ -233,134 +197,68 @@ export class StemMasks {
 	}
 }
 //#endregion
-//#region Stem thread
-/**
- * One of the four threads (drums, bass, vocals, other) as a plugin sees it: its isolated spectrum
- * plus the same analysis the mix gets — computed by audio-analyzer-worker with FrameProcessor's
- * exact formulas on the thread's spectrum and read from its block in outSAB.
- */
-export class StemThread {
-	#spectrum: () => Float32Array;
-	#spectralFlux: number = 0;
-	#bandEnergy: BandEnergy = new BandEnergy();
-	#spectralCentroid: number = 0;
-	#percussiveness: number = 0;
-	#beatDetected: boolean = false;
-	#dropIntensity: number = 0;
-	#bassLevel: number = 0;
+//#region Spectrum
+export class Spectrum {
+	#source: () => Float32Array;
+	#values: Float32Array = new Float32Array(SabLayout.block);
 
-	constructor(spectrum: () => Float32Array) {
-		this.#spectrum = spectrum;
+	constructor(source: () => Float32Array) {
+		this.#source = source;
 	}
 
-	get dataFrequency(): Float32Array { return this.#spectrum(); }
-	get spectralFlux(): number { return this.#spectralFlux; }
-	get subBass(): number { return this.#bandEnergy.subBass; }
-	get bass(): number { return this.#bandEnergy.bass; }
-	get lowMid(): number { return this.#bandEnergy.lowMid; }
-	get mid(): number { return this.#bandEnergy.mid; }
-	get highMid(): number { return this.#bandEnergy.highMid; }
-	get high(): number { return this.#bandEnergy.high; }
-	get spectralCentroid(): number { return this.#spectralCentroid; }
-	get percussiveness(): number { return this.#percussiveness; }
-	get beatDetected(): boolean { return this.#beatDetected; }
-	get dropIntensity(): number { return this.#dropIntensity; }
-	get bassLevel(): number { return this.#bassLevel; }
+	static createBuffer(): SharedArrayBuffer {
+		return new SharedArrayBuffer(SabLayout.block * (1 + SabLayout.stems) * 4);
+	}
 
-	/** Total band energy — how much of this thread is sounding, on the same scale as the band getters. */
-	get energy(): number { return this.#bandEnergy.total(); }
+	get dataFrequency(): Float32Array { return this.#source(); }
+	get spectralFlux(): number { return this.#values[0]; }
+	get subBass(): number { return this.#values[1]; }
+	get bass(): number { return this.#values[2]; }
+	get lowMid(): number { return this.#values[3]; }
+	get mid(): number { return this.#values[4]; }
+	get highMid(): number { return this.#values[5]; }
+	get high(): number { return this.#values[6]; }
+	get spectralCentroid(): number { return this.#values[7]; }
+	get percussiveness(): number { return this.#values[8]; }
+	get beatDetected(): boolean { return this.#values[9] > 0.5; }
+	get dropIntensity(): number { return this.#values[10]; }
+	get bassLevel(): number { return this.#values[11]; }
 
-	readFrom(out: Float32Array, offset: number): void {
-		this.#spectralFlux = out[offset + 1];
-		this.#bandEnergy.readFrom(out, offset + 2);
-		this.#spectralCentroid = out[offset + 9];
-		this.#percussiveness = out[offset + 10];
-		this.#beatDetected = out[offset + 11] > 0.5;
-		this.#dropIntensity = out[offset + 12];
-		this.#bassLevel = out[offset + 13];
+	get energy(): number {
+		const values = this.#values;
+		return values[1] + values[2] + values[3] + values[4] + values[5] + values[6];
+	}
+
+	readFrom(features: Float32Array, index: number): void {
+		const block = SabLayout.block;
+		this.#values.set(features.subarray(index * block, (index + 1) * block));
 	}
 }
 //#endregion
-//#region Stem threads
-export class StemThreads {
-	#drums: StemThread;
-	#bass: StemThread;
-	#vocals: StemThread;
-	#other: StemThread;
+//#region Stems
+export class Stems {
+	#drums: Spectrum;
+	#bass: Spectrum;
+	#vocals: Spectrum;
+	#other: Spectrum;
 
-	constructor(masks: () => StemMasks, length: () => number, whole: () => Float32Array) {
-		this.#drums = new StemThread(() => masks().drums(length(), whole()));
-		this.#bass = new StemThread(() => masks().bass(length(), whole()));
-		this.#vocals = new StemThread(() => masks().vocals(length(), whole()));
-		this.#other = new StemThread(() => masks().other(length(), whole()));
+	constructor(masks: StemMasks, length: () => number, whole: () => Float32Array) {
+		this.#drums = new Spectrum(() => masks.drums(length(), whole()));
+		this.#bass = new Spectrum(() => masks.bass(length(), whole()));
+		this.#vocals = new Spectrum(() => masks.vocals(length(), whole()));
+		this.#other = new Spectrum(() => masks.other(length(), whole()));
 	}
 
-	get drums(): StemThread { return this.#drums; }
-	get bass(): StemThread { return this.#bass; }
-	get vocals(): StemThread { return this.#vocals; }
-	get other(): StemThread { return this.#other; }
+	get drums(): Spectrum { return this.#drums; }
+	get bass(): Spectrum { return this.#bass; }
+	get vocals(): Spectrum { return this.#vocals; }
+	get other(): Spectrum { return this.#other; }
 
-	readFrom(out: Float32Array): void {
-		this.#drums.readFrom(out, SabLayout.stemOffset(0));
-		this.#bass.readFrom(out, SabLayout.stemOffset(1));
-		this.#vocals.readFrom(out, SabLayout.stemOffset(2));
-		this.#other.readFrom(out, SabLayout.stemOffset(3));
-	}
-}
-//#endregion
-//#region Audio features
-export class AudioFeatures {
-	#spectralFlux: number = 0;
-	#bandEnergy: BandEnergy = new BandEnergy();
-	#zeroCrossingRate: number = 0;
-	#spectralCentroid: number = 0;
-	#percussiveness: number = 0;
-	#beatDetected: boolean = false;
-	#dropIntensity: number = 0;
-	#bassLevel: number = 0;
-	#distortionLevel: number = 0;
-	#djControl: Float32Array = new Float32Array(5);
-	#reward: number = 0;
-
-	get spectralFlux(): number { return this.#spectralFlux; }
-	get bandEnergy(): BandEnergy { return this.#bandEnergy; }
-	get zeroCrossingRate(): number { return this.#zeroCrossingRate; }
-	get spectralCentroid(): number { return this.#spectralCentroid; }
-	get percussiveness(): number { return this.#percussiveness; }
-	get beatDetected(): boolean { return this.#beatDetected; }
-	get dropIntensity(): number { return this.#dropIntensity; }
-	get bassLevel(): number { return this.#bassLevel; }
-	get distortionLevel(): number { return this.#distortionLevel; }
-
-	// DJ control outputs — bipolar delta d ∈ [-1, 1] mapped to parameter space.
-	// A freshly-initialized network outputs d ≈ 0 (tanh(0) = 0), keeping every param at its default.
-	get djFocus(): number { return this.#djControl[0].lerp(-1, 1, -100, -20); }  // default –60 dB, range [–100, –20]
-	get djSpread(): number { return this.#djControl[1].lerp(-1, 1, 1, 59); }     // default 30 dB, range [1, 59]
-	get djBoost(): number { return this.#djControl[2].lerp(-1, 1, 0.25, 1.75); } // default 1.0×, range [0.25, 1.75]
-	get djTilt(): number { return this.#djControl[3].lerp(-1, 1, -12, 12); }     // default 0 dB, range [–12, +12]
-	get djPunch(): number { return max(0, this.#djControl[4]); }                  // default 0 (transparent), range [0, 1]
-	get reward(): number { return this.#reward; }
-
-	isActive(): boolean {
-		return this.#bassLevel > 0.05 || this.#percussiveness > 0.1 || this.#spectralFlux > 0.02;
-	}
-
-	isPercussive(): boolean {
-		return this.#percussiveness > 0.5;
-	}
-
-	readFrom(out: Float32Array): void {
-		this.#spectralFlux = out[1];
-		this.#bandEnergy.readFrom(out, 2);
-		this.#zeroCrossingRate = out[8];
-		this.#spectralCentroid = out[9];
-		this.#percussiveness = out[10];
-		this.#beatDetected = out[11] > 0.5;
-		this.#dropIntensity = out[12];
-		this.#bassLevel = out[13];
-		this.#distortionLevel = out[14];
-		for (let index = 0; index < 5; index++) this.#djControl[index] = out[15 + index];
-		this.#reward = out[20];
+	readFrom(features: Float32Array): void {
+		this.#drums.readFrom(features, 1);
+		this.#bass.readFrom(features, 2);
+		this.#vocals.readFrom(features, 3);
+		this.#other.readFrom(features, 4);
 	}
 }
 //#endregion

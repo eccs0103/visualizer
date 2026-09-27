@@ -4,40 +4,8 @@ import "adaptive-extender/core";
 import { type Color } from "adaptive-extender/core";
 import { type Layer, type LayerOptions, type LayerPainter } from "../services/layers.js";
 
-//#region Audioset view
-export interface AudiosetView {
-	get length(): number;
-	get volume(): number;
-	get amplitude(): number;
-	get dataFrequency(): Float32Array;
-	get dataTemporal(): Float32Array;
-	get spectralFlux(): number;
-	get subBass(): number;
-	get bass(): number;
-	get lowMid(): number;
-	get mid(): number;
-	get highMid(): number;
-	get high(): number;
-	get zeroCrossingRate(): number;
-	get spectralCentroid(): number;
-	get percussiveness(): number;
-	get beatDetected(): boolean;
-	get dropIntensity(): number;
-	get bassLevel(): number;
-	get distortionLevel(): number;
-	get djFocus(): number;
-	get djSpread(): number;
-	get djBoost(): number;
-	get djTilt(): number;
-	get djPunch(): number;
-	get stems(): StemsView;
-	isActive(): boolean;
-	isPercussive(): boolean;
-}
-//#endregion
-//#region Stem view
-/** One separated thread: its isolated spectrum (`dataFrequency × mask`) and the same analysis the mix gets, computed on that spectrum. */
-export interface StemView {
+//#region Spectrum view
+export interface SpectrumView {
 	get dataFrequency(): Float32Array;
 	get energy(): number;
 	get spectralFlux(): number;
@@ -54,19 +22,24 @@ export interface StemView {
 	get bassLevel(): number;
 }
 
-/** The four threads the stem model splits the music into; their spectra add back up to `dataFrequency`. */
 export interface StemsView {
-	get drums(): StemView;
-	get bass(): StemView;
-	get vocals(): StemView;
-	get other(): StemView;
+	get drums(): SpectrumView;
+	get bass(): SpectrumView;
+	get vocals(): SpectrumView;
+	get other(): SpectrumView;
+}
+//#endregion
+//#region Audioset view
+export interface AudiosetView extends SpectrumView {
+	get length(): number;
+	get dataTemporal(): Float32Array;
+	get volume(): number;
+	get stems(): StemsView;
 }
 //#endregion
 //#region Visualization environment
 export interface VisualizationEnvironment {
-	get isLaunched(): boolean;
 	get delta(): number;
-	get fps(): number;
 	get colorBackground(): Color;
 	get lyrics(): LyricsView | null;
 }
@@ -97,7 +70,6 @@ export class LyricsWindow implements LyricsView {
 export interface VisualizationHost {
 	get context(): OffscreenCanvasRenderingContext2D;
 	get audioset(): AudiosetView;
-	get environment(): VisualizationEnvironment;
 }
 //#endregion
 //#region Stage host
@@ -112,7 +84,7 @@ export interface StageHost {
 //#region Visualization
 export interface VisualizationBundle {
 	get layers(): readonly Layer[];
-	newCustomLayer(name: string, painter: LayerPainter, options?: Partial<LayerOptions>): Layer;
+	newLayer(name: string, painter: LayerPainter, options?: Partial<LayerOptions>): Layer;
 	rebuild(stage: StageHost): void;
 	update(stage: StageHost): void;
 }

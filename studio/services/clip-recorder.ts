@@ -2,7 +2,7 @@
 
 import "adaptive-extender/web";
 import { Timespan } from "adaptive-extender/web";
-import { ChunkCommand, ClipCommand, DoneCommand, FinishCommand } from "../models/clip-commands.js";
+import { Command, ChunkCommand, DoneCommand, FinishCommand } from "../models/commands.js";
 
 const { baseURI } = document;
 
@@ -24,7 +24,8 @@ export class ClipFile {
 
 	static #makeName(type: string): string {
 		const date = new Date().toISOString().replaceAll(":", "-");
-		const extension = type.includes("webm") ? "webm" : "bin";
+		let extension = "bin";
+		if (type.includes("webm")) extension = "webm";
 		return `visualizer-${date}.${extension}`;
 	}
 
@@ -56,7 +57,7 @@ class ClipSession {
 		"video/webm"
 	]);
 
-	#worker: Worker = new Worker(new URL("./services/clip-accumulator-worker.js", baseURI), { type: "module" });
+	#worker: Worker = new Worker(new URL("./controllers/clip-accumulator-worker.js", baseURI), { type: "module" });
 	#recorder: MediaRecorder;
 	#streamVideo: MediaStream;
 	#streamAudio: MediaStream;
@@ -111,7 +112,7 @@ class ClipSession {
 		recorder.addEventListener("dataavailable", (event) => {
 			const { data } = event;
 			if (data.size < 1) return;
-			worker.postMessage(ClipCommand.export(new ChunkCommand(data)));
+			worker.postMessage(Command.export(new ChunkCommand(data)));
 		});
 		recorder.start();
 	}
@@ -129,7 +130,7 @@ class ClipSession {
 		return Promise.withSignal<ClipFile>((signal, resolve, reject) => {
 			worker.addEventListener("message", (event: MessageEvent) => {
 				try {
-					const command = ClipCommand.import(event.data, "command");
+					const command = Command.import(event.data, "command");
 					if (!(command instanceof DoneCommand)) return;
 					resolve(ClipFile.from(command.blob));
 				} catch (reason) {
@@ -137,7 +138,7 @@ class ClipSession {
 				}
 			}, { signal });
 			worker.addEventListener("error", event => reject(new Error(event.message)), { signal });
-			recorder.addEventListener("stop", event => worker.postMessage(ClipCommand.export(new FinishCommand(recorder.mimeType))), { signal });
+			recorder.addEventListener("stop", event => worker.postMessage(Command.export(new FinishCommand(recorder.mimeType))), { signal });
 			recorder.addEventListener("error", event => reject(event.error ?? event.message), { signal });
 			recorder.stop();
 		});

@@ -10,7 +10,6 @@ const { split, PI, exp, sqrt, asin, min, max, trunc } = Math;
 export class Shaper {
 	static #arcsinSaturate: Shaper = new Shaper(x => asin(sqrt(x)) * 2 / PI);
 	static #smoothstep: Shaper = new Shaper(x => x * x * (3 - 2 * x));
-	static #identity: Shaper = new Shaper(x => x);
 
 	#callback: (x: number) => number;
 
@@ -20,14 +19,9 @@ export class Shaper {
 
 	static get arcsinSaturate(): Shaper { return this.#arcsinSaturate; }
 	static get smoothstep(): Shaper { return this.#smoothstep; }
-	static get identity(): Shaper { return this.#identity; }
 
 	static sigmoid(steepness: number = 12, center: number = 0.5): Shaper {
 		return new Shaper(x => 1 / (1 + exp(-(steepness * (x - center)))));
-	}
-
-	static power(n: number): Shaper {
-		return new Shaper(x => x ** n);
 	}
 
 	apply(value: number): number {
@@ -38,43 +32,16 @@ export class Shaper {
 		const callback = this.#callback;
 		return new Shaper(x => next.apply(callback(x)));
 	}
-
-	blend(other: Shaper, alpha: number = 0.5): Shaper {
-		const callback = this.#callback;
-		return new Shaper(x => callback(x) * (1 - alpha) + other.apply(x) * alpha);
-	}
-
-	mirror(): Shaper {
-		const callback = this.#callback;
-		return new Shaper(x => callback(1 - x));
-	}
-
-	invert(): Shaper {
-		const callback = this.#callback;
-		return new Shaper(x => 1 - callback(x));
-	}
-
-	remap(value: number, min2: number, max2: number): number {
-		return this.#callback(value).lerp(0, 1, min2, max2);
-	}
 }
 //#endregion
 //#region Color driver
 export class ColorDriver {
-	static #rotation: ColorDriver = new ColorDriver((color, steps) => color.rotate(steps));
 	#offset: number = 0;
-	#callback: (color: Color, steps: number) => void;
 
-	constructor(callback: (color: Color, steps: number) => void) {
-		this.#callback = callback;
-	}
-
-	static get rotation(): ColorDriver { return this.#rotation; }
-
-	tick(color: Color, ratePerMs: number, delta: number, factor: number = 1): void {
+	tick(color: Color, rate: number, delta: number, factor: number = 1): void {
 		if (!Number.isFinite(delta)) return;
-		const [integer, fractional] = split(this.#offset + ratePerMs * delta * factor);
-		this.#callback(color, integer);
+		const [integer, fractional] = split(this.#offset + rate * delta * factor);
+		color.rotate(integer);
 		this.#offset = fractional;
 	}
 }
@@ -118,10 +85,12 @@ class RunningRange {
 		this.#untilSample -= delta;
 		this.#untilRefresh -= delta;
 		if (this.#untilSample <= 0) {
+			const capacity = RunningRange.#capacity;
+			const cursor = this.#cursor;
 			this.#untilSample += RunningRange.#interval;
-			this.#window[this.#cursor] = value;
-			this.#cursor = (this.#cursor + 1) % RunningRange.#capacity;
-			this.#count = min(this.#count + 1, RunningRange.#capacity);
+			this.#window[cursor] = value;
+			this.#cursor = (cursor + 1) % capacity;
+			this.#count = min(this.#count + 1, capacity);
 		}
 		if (this.#untilRefresh > 0) return;
 		this.#untilRefresh += RunningRange.#refresh;
@@ -149,7 +118,8 @@ class RunningRange {
 
 	/** `value` mapped from this range onto 0–`top`, clamped. */
 	fit(value: number, top: number): number {
-		const low = this.#low, high = max(this.#high, this.#low + 1e-9);
+		const low = this.#low;
+		const high = max(this.#high, low + 1e-9);
 		return value.clamp(low, high).lerp(low, high, 0, top);
 	}
 }
@@ -185,7 +155,7 @@ export class Drivers {
 		new RunningRange([0.0355, 0.1996]), // volume
 	];
 	#sources: Float64Array = new Float64Array(9);
-	#values: Float64Array = new Float64Array(10);
+	#values: Float64Array = new Float64Array(9);
 	#silent: number = 0;
 
 	#watchSilence(volume: number, delta: number): void {
@@ -193,9 +163,10 @@ export class Drivers {
 			this.#silent = 0;
 			return;
 		}
+		const gap = Drivers.#gap;
 		const before = this.#silent;
-		this.#silent += delta;
-		if (before >= Drivers.#gap || this.#silent < Drivers.#gap) return;
+		const silent = this.#silent = before + delta;
+		if (before >= gap || silent < gap) return;
 		for (const range of this.#ranges) range.reset();
 	}
 
@@ -208,7 +179,9 @@ export class Drivers {
 		sources[1] = drums.percussiveness;
 		sources[2] = bass.bassLevel;
 		sources[3] = bass.subBass;
-		sources[4] = energy > 0 ? (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy : 0;
+		let centroid = 0;
+		if (energy > 0) centroid = (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy;
+		sources[4] = centroid;
 		sources[5] = drums.high;
 		sources[6] = drums.highMid;
 		sources[7] = vocals.spectralFlux + other.spectralFlux;
@@ -225,7 +198,6 @@ export class Drivers {
 			ranges[index].push(sources[index], delta);
 			values[index] = ranges[index].fit(sources[index], tops[index]);
 		}
-		values[9] = ranges[8].fit(audioset.amplitude, 1);
 	}
 
 	/** Shake, 0–0.5: the drop formula with the drums thread's percussiveness — kicks shake the view, not bass notes. */
@@ -254,9 +226,6 @@ export class Drivers {
 
 	/** Loudness for size ranges (the envelope), 0–1. Never for brightness, never as a raw multiplier. */
 	get volume(): number { return this.#values[8]; }
-
-	/** Same as `volume`, for the amplitude — both are the RMS of the same waveform. */
-	get amplitude(): number { return this.#values[9]; }
 }
 //#endregion
 //#region Silhouette

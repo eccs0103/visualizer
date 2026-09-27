@@ -20,9 +20,7 @@ export abstract class Layer {
 	constructor(name: string, options: Partial<LayerOptions> = {}) {
 		if (new.target === Layer) throw new TypeError("Unable to create an instance of an abstract class");
 		if (name.length === 0) throw new TypeError("Layer name must not be empty");
-		let { opacity, blend } = options;
-		opacity ??= 1;
-		blend ??= Blend.normal;
+		const { opacity = 1, blend = Blend.normal } = options;
 		if (!Object.values(Blend).includes(blend)) throw new TypeError(`Layer '${name}' has an unknown blend '${blend}'`);
 		this.#name = name;
 		this.#opacity = Layer.#fit(opacity);
@@ -102,12 +100,12 @@ export abstract class PaintedLayer extends Layer {
 			return;
 		}
 		const canvas = ReferenceError.suppress(this.#canvas, `Layer '${this.name}' has not been sized`);
-		const { width, height, camera, audioset, environment } = stage;
+		const { width, height, camera, audioset } = stage;
 		context.reset();
 		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
 		context.transform(camera.a, camera.b, camera.c, camera.d, camera.e, camera.f);
 		this.#isDirty = true;
-		this.paint({ context, audioset, environment }, stage);
+		this.paint({ context, audioset }, stage);
 		output.globalAlpha = this.opacity;
 		output.globalCompositeOperation = this.blend as GlobalCompositeOperation;
 		output.drawImage(canvas, 0, 0);

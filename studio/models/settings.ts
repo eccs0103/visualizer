@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field, Optional, Enum } from "adaptive-extender/core";
+import { Model, Field, Enum } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
 import { type Layer } from "../services/layers.js";
 import { LayerSettings } from "./layer-settings.js";
@@ -78,12 +78,6 @@ export class Settings extends Model {
 
 	@Field(Number, { name: "rate" })
 	rate: number = 120;
-
-	@Field(Boolean, { name: "auto_correct" })
-	autoCorrect: boolean = true;
-
-	@Field(Optional.Of(Boolean), { name: "auto_train" })
-	autoTrain: boolean | undefined;
 
 	@Field(Boolean, { name: "lyrics" })
 	lyrics: boolean = true;

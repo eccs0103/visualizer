@@ -2,7 +2,6 @@
 
 import "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
-import { type Calibration } from "../models/calibration.js";
 
 const { max, round, min, sqrt } = Math;
 
@@ -17,7 +16,6 @@ class FluxStats {
 	}
 
 	get mean(): number { return this.#mean; }
-	get standardDeviation(): number { return this.#standardDeviation; }
 
 	onsetThreshold(multiplier: number): number {
 		return this.#mean + multiplier * this.#standardDeviation;
@@ -25,31 +23,21 @@ class FluxStats {
 }
 //#endregion
 //#region Frame processor
-/** The audio analysis every plugin reads: writes output slots [0–14]. The DJ (slots [15–20]) lives in `DjPilot`. */
 export class FrameProcessor {
-	static #capacity: number = 128;
+	static #capacity: number = 1280;
+	static #multiplier: number = 1.5;
+	static #window: number = 63.5 / 60 * 1000;
+	static #gap: number = 3.5 / 60 * 1000;
 
-	#prevFrequency: Float32Array = new Float32Array(SabLayout.inputMaxLength);
+	#prevFrequency: Float32Array = new Float32Array(SabLayout.maxLength);
 	#fluxHistory: Float32Array = new Float32Array(FrameProcessor.#capacity);
+	#timeHistory: Float64Array = new Float64Array(FrameProcessor.#capacity);
 	#fluxCursor: number = 0;
-	#lastFrame: number = -1;
-	#beatGap: number = 8;
+	#lastBeat: number = -Infinity;
 
 	#bins: [number, number][] | null = null;
 	#cachedLength: number = 0;
 	#cachedSampleRate: number = 0;
-
-	// Beat-detector constants — defaults match the pre-calibration behavior;
-	// overwritten by loadCalibration() once resources/data/calibration.json arrives.
-	#multiplier: number = 1.5;
-	#minGap: number = 8;
-	#window: number = 43;
-
-	loadCalibration(calibration: Calibration): void {
-		this.#multiplier = calibration.multiplier;
-		this.#minGap = calibration.minGap;
-		this.#window = min(calibration.window, FrameProcessor.#capacity);
-	}
 
 	#computeBins(length: number, sampleRate: number): [number, number][] {
 		const binWidth = (sampleRate / 2) / length;
@@ -67,8 +55,10 @@ export class FrameProcessor {
 		]);
 	}
 
-	#computeSpectralFlux(frequency: Float32Array, length: number): number {
+	#computeSpectralFlux(frequency: Float32Array, length: number, time: number): number {
 		const prevFrequency = this.#prevFrequency;
+		const capacity = FrameProcessor.#capacity;
+		const cursor = this.#fluxCursor;
 		let flux = 0;
 		for (let binIndex = 0; binIndex < length; binIndex++) {
 			const diff = frequency[binIndex] - prevFrequency[binIndex];
@@ -76,8 +66,9 @@ export class FrameProcessor {
 		}
 		flux /= length;
 		prevFrequency.set(frequency);
-		this.#fluxHistory[this.#fluxCursor % this.#window] = flux;
-		this.#fluxCursor++;
+		this.#fluxHistory[cursor % capacity] = flux;
+		this.#timeHistory[cursor % capacity] = time;
+		this.#fluxCursor = cursor + 1;
 		return flux;
 	}
 
@@ -94,16 +85,6 @@ export class FrameProcessor {
 		return energies;
 	}
 
-	#computeZeroCrossingRate(temporal: Float32Array, length: number): number {
-		let crossings = 0;
-		for (let sampleIndex = 1; sampleIndex < length; sampleIndex++) {
-			const previous = temporal[sampleIndex - 1] - 0.5;
-			const current = temporal[sampleIndex] - 0.5;
-			if ((previous >= 0) !== (current >= 0)) crossings++;
-		}
-		return crossings / length;
-	}
-
 	#computeSpectralCentroid(frequency: Float32Array, length: number): number {
 		let sumWeighted = 0, sumEnergy = 0;
 		for (let binIndex = 0; binIndex < length; binIndex++) {
@@ -114,34 +95,34 @@ export class FrameProcessor {
 		return 0;
 	}
 
-	#computeFluxStats(): FluxStats {
+	#computeFluxStats(time: number): FluxStats {
 		const fluxHistory = this.#fluxHistory;
-		const filled = min(this.#fluxCursor, this.#window);
-		let mean = 0;
-		for (let index = 0; index < filled; index++) mean += fluxHistory[index];
-		mean /= max(1, filled);
+		const timeHistory = this.#timeHistory;
+		const filled = min(this.#fluxCursor, FrameProcessor.#capacity);
+		const window = FrameProcessor.#window;
+		let mean = 0, count = 0;
+		for (let index = 0; index < filled; index++) {
+			if (time - timeHistory[index] >= window) continue;
+			mean += fluxHistory[index];
+			count++;
+		}
+		mean /= max(1, count);
 		let variance = 0;
 		for (let index = 0; index < filled; index++) {
+			if (time - timeHistory[index] >= window) continue;
 			const diff = fluxHistory[index] - mean;
 			variance += diff * diff;
 		}
-		return new FluxStats(mean, sqrt(variance / max(1, filled)));
+		return new FluxStats(mean, sqrt(variance / max(1, count)));
 	}
 
-	#detectBeat(flux: number, stats: FluxStats): boolean {
-		this.#beatGap++;
-		const detected = flux > stats.onsetThreshold(this.#multiplier) && this.#beatGap >= this.#minGap;
-		if (detected) this.#beatGap = 0;
+	#detectBeat(flux: number, stats: FluxStats, time: number): boolean {
+		const detected = flux > stats.onsetThreshold(FrameProcessor.#multiplier) && time - this.#lastBeat >= FrameProcessor.#gap;
+		if (detected) this.#lastBeat = time;
 		return detected;
 	}
 
-	/** Analyses one frame into `output`; returns false when the frame was already processed. */
-	process(frame: number, length: number, metadata: Float32Array, frequency: Float32Array, temporal: Float32Array, output: Float32Array): boolean {
-		if (frame === this.#lastFrame) return false;
-		this.#lastFrame = frame;
-
-		const sampleRate = metadata[0] || 44100;
-
+	process(length: number, sampleRate: number, time: number, frequency: Float32Array, output: Float32Array): void {
 		if (this.#bins === null || length !== this.#cachedLength || sampleRate !== this.#cachedSampleRate) {
 			this.#bins = this.#computeBins(length, sampleRate);
 			this.#cachedLength = length;
@@ -149,32 +130,21 @@ export class FrameProcessor {
 		}
 
 		const sliceFrequency = frequency.subarray(0, length);
-		const sliceTemporal = temporal.subarray(0, length);
-
-		const flux = this.#computeSpectralFlux(sliceFrequency, length);
+		const flux = this.#computeSpectralFlux(sliceFrequency, length, time);
 		const bandEnergies = this.#computeBandEnergies(sliceFrequency);
-		const zeroCrossingRate = this.#computeZeroCrossingRate(sliceTemporal, length);
 		const centroid = this.#computeSpectralCentroid(sliceFrequency, length);
 
-		const fluxStats = this.#computeFluxStats();
+		const fluxStats = this.#computeFluxStats(time);
 		const percussiveness = min(1, flux / (fluxStats.mean + 0.001));
-		const beatDetected = this.#detectBeat(flux, fluxStats);
+		const beatDetected = this.#detectBeat(flux, fluxStats, time);
 
-		const dropIntensity = min(1, percussiveness * 3) * bandEnergies[0];
-		const bassLevel = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
-		const distortion = min(1, percussiveness * zeroCrossingRate * 5);
-
-		output[1] = flux;
-		for (let bandIndex = 0; bandIndex < 6; bandIndex++) output[2 + bandIndex] = bandEnergies[bandIndex];
-		output[8] = zeroCrossingRate;
-		output[9] = centroid;
-		output[10] = percussiveness;
-		output[11] = Number(beatDetected);
-		output[12] = dropIntensity;
-		output[13] = bassLevel;
-		output[14] = distortion;
-		output[0] = frame;
-		return true;
+		output[0] = flux;
+		for (let bandIndex = 0; bandIndex < 6; bandIndex++) output[1 + bandIndex] = bandEnergies[bandIndex];
+		output[7] = centroid;
+		output[8] = percussiveness;
+		output[9] = Number(beatDetected);
+		output[10] = min(1, percussiveness * 3) * bandEnergies[0];
+		output[11] = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
 	}
 }
 //#endregion

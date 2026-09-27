@@ -18,7 +18,6 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 	#enabled: boolean = true;
 	#lyrics: Lyrics | null = null;
 	#index: number = -1;
-	#frame: number | null = null;
 	#idTrack: string | null = null;
 	#abort: AbortController | null = null;
 
@@ -52,21 +51,11 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 		this.#render();
 	}
 
-	#tick(): void {
+	#follow(): void {
+		const lyrics = this.#lyrics;
+		if (lyrics === null || lyrics.isEmpty) return;
+		if (this.#audioPlayer.paused) return;
 		this.#sync();
-		this.#frame = requestAnimationFrame(() => this.#tick());
-	}
-
-	#startLoop(): void {
-		if (this.#frame !== null) return;
-		this.#frame = requestAnimationFrame(() => this.#tick());
-	}
-
-	#stopLoop(): void {
-		const frame = this.#frame;
-		if (frame === null) return;
-		cancelAnimationFrame(frame);
-		this.#frame = null;
 	}
 
 	async #revalidate(track: Track, stored: string, signal: AbortSignal): Promise<void> {
@@ -74,14 +63,14 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 			const found = await LyricsFinder.find(track.signature, track.duration, signal);
 			if (this.#idTrack !== track.id) return;
 
-			let text = found ?? String.empty;
+			let text = String.empty;
+			if (found !== null) text = found;
 			if (String.isEmpty(text) && !String.isEmpty(stored)) text = stored;
 			await this.#player.setLyrics(track, text, Date.now());
 			if (text === stored) return;
 
 			this.#lyrics = Lyrics.parse(text);
 			this.#render();
-			if (!this.#audioPlayer.paused && !this.#lyrics.isEmpty) this.#startLoop();
 		} catch {
 			return;
 		}
@@ -103,7 +92,8 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 			if (this.#idTrack !== track.id) return null;
 			try {
 				const found = await LyricsFinder.find(track.signature, track.duration, signal);
-				const text = found ?? String.empty;
+				let text = String.empty;
+				if (found !== null) text = found;
 				if (this.#idTrack !== track.id) return null;
 				await player.setLyrics(track, text, Date.now());
 				return text;
@@ -124,7 +114,6 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 		this.#idTrack = idTrack;
 		this.#lyrics = null;
 		this.#index = -1;
-		this.#stopLoop();
 		this.#render();
 
 		if (track === null) {
@@ -141,7 +130,6 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 		if (content === null) content = String.empty;
 		this.#lyrics = Lyrics.parse(content);
 		this.#render();
-		if (!this.#audioPlayer.paused && !this.#lyrics.isEmpty) this.#startLoop();
 	}
 
 	async run(cell: BufferedCell<typeof Settings>, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, visualizer: Visualizer, inputLyricsToggle: HTMLInputElement, inputShake: HTMLInputElement, inputLyricsLookupToggle: HTMLInputElement): Promise<void> {
@@ -152,13 +140,7 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 		this.#enabled = settings.lyrics;
 
 		player.addEventListener("track", event => void this.#onTrack(event.detail));
-		audioPlayer.addEventListener("play", (event) => {
-			const lyrics = this.#lyrics;
-			if (lyrics === null || lyrics.isEmpty) return;
-			this.#startLoop();
-		});
-		audioPlayer.addEventListener("pause", event => this.#stopLoop());
-		audioPlayer.addEventListener("emptied", event => this.#stopLoop());
+		visualizer.addEventListener("update", event => this.#follow());
 		audioPlayer.addEventListener("seeked", event => this.#sync());
 
 		inputLyricsToggle.checked = settings.lyrics;

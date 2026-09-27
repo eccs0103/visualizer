@@ -287,20 +287,6 @@ ol#visualization-layers > li > span.pin {
 	visibility: hidden;
 }
 
-input#feedback-good + label[for="feedback-good"] > span.icon {
-	--url: url(../../assets/icons/thumbs-up.svg);
-}
-
-input#feedback-bad + label[for="feedback-bad"] > span.icon {
-	--url: url(../../assets/icons/thumbs-down.svg);
-}
-
-input#feedback-good:checked + label[for="feedback-good"],
-input#feedback-bad:checked + label[for="feedback-bad"] {
-	background-color: initial;
-	outline: var(--size-separator) solid var(--color-light-negative);
-}
-
 /* Experimental */
 
 dialog.loader img[alt="Logo"] {

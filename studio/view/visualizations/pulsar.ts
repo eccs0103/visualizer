@@ -11,9 +11,9 @@ const random = Random.global;
 
 //#region Pulsar
 Registry.attach("Pulsar", class extends Visualization {
-	#layerHalo = this.newCustomLayer("Halo", this.#drawHalo.bind(this));
-	#layerWave = this.newCustomLayer("Wave", this.#drawWave.bind(this));
-	#layerShadow = this.newCustomLayer("Shadow", this.#drawShadow.bind(this));
+	#layerHalo = this.newLayer("Halo", this.#drawHalo.bind(this));
+	#layerWave = this.newLayer("Wave", this.#drawWave.bind(this));
+	#layerShadow = this.newLayer("Shadow", this.#drawShadow.bind(this));
 	#countStops: number = 96;
 	#radius: number;
 	#colorHaloOuter: Color = Color.fromHSL(0, 100, 60);
@@ -23,7 +23,7 @@ Registry.attach("Pulsar", class extends Visualization {
 	#pathHalo: Path2D = new Path2D();
 	#pathWave: Path2D = new Path2D();
 	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
-	#driverHalo: ColorDriver = ColorDriver.rotation;
+	#driverHalo: ColorDriver = new ColorDriver();
 	#colorShadow: Color;
 	#silhouette: Silhouette = new Silhouette(0.5, 1.03); // drums at half weight, the gain lets the ring's peaks reach the mix's height
 	#drivers: Drivers = new Drivers();
@@ -41,11 +41,10 @@ Registry.attach("Pulsar", class extends Visualization {
 	//#region Update
 	#runCameraUpdate(stage: StageHost): void {
 		const radius = this.#radius;
-		const { camera, audioset } = stage;
-		const { djPunch } = audioset;
+		const { camera } = stage;
 		const dropIntensity = this.#drivers.drop;
 
-		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, radius >> 6) * (1 + djPunch);
+		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, radius >> 6);
 		camera.translateSelf(random.number(-1, 1) * shake, random.number(-1, 1) * shake);
 	}
 
@@ -64,11 +63,11 @@ Registry.attach("Pulsar", class extends Visualization {
 		const shaperFrequency = this.#shaperFrequency;
 		const stops = this.#stopsHalo;
 		const { audioset } = stage;
-		const { volume, bassLevel, djTilt, length } = audioset; // brightness stays on production's own scale
+		const { volume, bassLevel, length } = audioset; // brightness stays on production's own scale
 		const dataFrequency = this.#silhouette.shape(audioset);
 		const spectralCentroid = this.#drivers.centroid;
 		const semiLength = length / 2;
-		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -30, 30) + djTilt.lerp(-12, 12, -20, 20);
+		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -30, 30);
 		const normIllumination = meanGeometric(volume.lerp(0, 1, 0.1, 1.0), bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0.5, 1.0));
 
 		this.#gradientHalo = null;
@@ -98,7 +97,7 @@ Registry.attach("Pulsar", class extends Visualization {
 	#runWaveBuilding(stage: StageHost): void {
 		const radius = this.#radius;
 		const { width, audioset } = stage;
-		const { dataTemporal, amplitude, length } = audioset;
+		const { dataTemporal, volume, length } = audioset;
 		const percussiveness = this.#drivers.percussiveness;
 		const scalePercussive = percussiveness.lerp(0, 1, 1.0, 1.15);
 
@@ -108,7 +107,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		for (let index = 0; index < length; index++) {
 			const normProgress = index.lerp(0, length);
 			const normDatumTemporal = dataTemporal[trunc(normProgress * length)].lerp(0, 1, -1, 1);
-			const normScale = normDatumTemporal * amplitude * scalePercussive;
+			const normScale = normDatumTemporal * volume * scalePercussive;
 			position.x = width * (normProgress - 0.5);
 			position.y = radius * normScale;
 			path.lineTo(position.x, position.y);
@@ -141,15 +140,14 @@ Registry.attach("Pulsar", class extends Visualization {
 		const radius = this.#radius;
 		const colorHaloInner = this.#colorHaloInner;
 		const pathHalo = this.#pathHalo;
-		const { context, audioset } = host;
-		const { djBoost } = audioset;
+		const { context } = host;
 		const bassLevel = this.#drivers.bassLevel;
 
 		context.lineWidth = radius >> 7;
 		context.fillStyle = colorHaloInner.toString();
 		context.fill(pathHalo);
 		context.strokeStyle = this.#obtainGradientHalo(context);
-		const blurHalo = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 6, radius >> 3) * djBoost.lerp(0.25, 1.75, 0.8, 1.2) / 2);
+		const blurHalo = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 6, radius >> 3) / 2);
 		if (blurHalo >= 1) {
 			context.filter = `blur(${blurHalo}px)`;
 			context.stroke(pathHalo);

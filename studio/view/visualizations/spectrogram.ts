@@ -12,10 +12,10 @@ const random = Random.global;
 
 //#region Spectrogram
 Registry.attach("Spectrogram", class extends Visualization {
-	#layerRidge = this.newCustomLayer("Ridge", this.#drawRidge.bind(this));
-	#layerBloom = this.newCustomLayer("Bloom", this.#drawBloom.bind(this), { blend: Blend.lighter });
-	#layerThread = this.newCustomLayer("Thread", this.#drawThread.bind(this), { blend: Blend.lighter });
-	#layerVignette = this.newCustomLayer("Vignette", this.#drawVignette.bind(this), { blend: Blend.multiply });
+	#layerRidge = this.newLayer("Ridge", this.#drawRidge.bind(this));
+	#layerBloom = this.newLayer("Bloom", this.#drawBloom.bind(this), { blend: Blend.lighter });
+	#layerThread = this.newLayer("Thread", this.#drawThread.bind(this), { blend: Blend.lighter });
+	#layerVignette = this.newLayer("Vignette", this.#drawVignette.bind(this), { blend: Blend.multiply });
 	#countStops: number = 64;
 	#side: number;
 	#lineWidth: number;
@@ -29,7 +29,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#hueSpread: number = 0;
 	#hueBias: number = 0;
 	#normLightness: number = 0;
-	#driverRidge: ColorDriver = ColorDriver.rotation;
+	#driverRidge: ColorDriver = new ColorDriver();
 	#deltaRotation: number = 360 / 6;
 	#colorShadow: Color = Color.newBlack;
 	#silhouette: Silhouette = new Silhouette(0.5, 1.03); // drums at half weight, the gain lets the ridge's peaks reach the mix's height
@@ -52,13 +52,13 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const deltaRotation = this.#deltaRotation;
 		const { audioset, environment } = stage;
 
-		driverRidge.tick(colorRidgeSeed, deltaRotation, environment.delta, audioset.amplitude);
+		driverRidge.tick(colorRidgeSeed, deltaRotation, environment.delta, audioset.volume);
 	}
 
 	#runCameraUpdate(stage: StageHost): void {
 		const side = this.#side;
 		const { camera, audioset, environment } = stage;
-		const { djPunch, beatDetected } = audioset;
+		const { beatDetected } = audioset;
 		const dropIntensity = this.#drivers.drop;
 		const percussiveness = this.#drivers.percussiveness;
 
@@ -66,7 +66,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 		if (beatDetected) this.#normPulseEnergy = 1;
 
 		const pulse = 1 + this.#normPulseEnergy * percussiveness.lerp(0, 1, 0.03, 0.08);
-		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, side >> 7) * (1 + djPunch);
+		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, side >> 7);
 		camera.translateSelf(random.number(-1, 1) * shake, random.number(-1, 1) * shake).scaleSelf(pulse);
 	}
 
@@ -76,16 +76,15 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const peak = this.#side * this.#normHeightFactor;
 		const colorRidgeSeed = this.#colorRidgeSeed;
 		const { width, audioset } = stage;
-		const { volume, spectralCentroid, djTilt, djSpread, djFocus, length } = audioset; // brightness stays on production's own scale
+		const { volume, spectralCentroid, length } = audioset; // brightness stays on production's own scale
 		const dataFrequency = this.#silhouette.shape(audioset);
 		const loudness = this.#drivers.volume;
-		const amplitude = this.#drivers.amplitude;
 		const centroidMelody = this.#drivers.centroid;
-		const focusBin = djFocus.lerp(-100, -20, 0, length - 1);
-		const hueSpread = this.#hueSpread = djSpread.lerp(1, 59, 90, 150);
-		const hueBias = this.#hueBias = centroidMelody.clamp(0, 0.45).lerp(0, 0.45, -40, 40) + djTilt.lerp(-12, 12, -25, 25);
+		const focusBin = (length - 1) / 2;
+		const hueSpread = this.#hueSpread = 120;
+		const hueBias = this.#hueBias = centroidMelody.clamp(0, 0.45).lerp(0, 0.45, -40, 40);
 		const normLightness = this.#normLightness = meanGeometric(volume.lerp(0, 1, 0.25, 0.75), spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, 0.3, 0.8));
-		const envelope = meanGeometric(loudness.lerp(0, 1, 0.7, 1.3), amplitude.lerp(0, 1, 0.8, 1.2));
+		const envelope = meanGeometric(loudness.lerp(0, 1, 0.7, 1.3), loudness.lerp(0, 1, 0.8, 1.2));
 		this.#colorRidgeMid = new Color(colorRidgeSeed).rotate(hueSpread * 0.5 + hueBias).illuminate(normLightness);
 
 		const path = this.#pathRidge = new Path2D();
@@ -121,8 +120,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const normLightness = this.#normLightness;
 		const colorRidgeSeed = this.#colorRidgeSeed;
 		const pathRidge = this.#pathRidge;
-		const { context, audioset } = host;
-		const { djBoost } = audioset;
+		const { context } = host;
 		const bassLevel = this.#drivers.bassLevel;
 		const { width } = context.canvas;
 
@@ -135,7 +133,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 				.toString());
 		}
 		context.fillStyle = gradientRidge;
-		const blurRidge = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, lineWidth * 2, lineWidth * 10) * djBoost.lerp(0.25, 1.75, 0.8, 1.2) / 2);
+		const blurRidge = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, lineWidth * 2, lineWidth * 10) / 2);
 		if (blurRidge >= 1) {
 			context.filter = `blur(${blurRidge}px)`;
 			context.fill(pathRidge);
@@ -167,7 +165,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const lineWidth = this.#lineWidth;
 		const colorRidgeMid = this.#colorRidgeMid;
 		const { context, audioset } = host;
-		const { dataTemporal, amplitude, length } = audioset;
+		const { dataTemporal, volume, length } = audioset;
 		const spectralFlux = this.#drivers.flux;
 		const high = this.#drivers.high;
 		const highMid = this.#drivers.highMid;
@@ -183,7 +181,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 			const dataIndex = trunc(normProgress.lerp(0, 1, 0, length - 1));
 			const normDatumTemporal = dataTemporal[dataIndex].lerp(0, 1, -1, 1);
 			position.x = width * (normProgress - 0.5);
-			position.y = normDatumTemporal * amplitude * peak * 0.6;
+			position.y = normDatumTemporal * volume * peak * 0.6;
 			if (index === 0) context.moveTo(position.x, position.y);
 			else context.lineTo(position.x, position.y);
 		}

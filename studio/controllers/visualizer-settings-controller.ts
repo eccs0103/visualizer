@@ -4,6 +4,7 @@ import "adaptive-extender/web";
 import { Controller, BufferedCell } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
+import { Audioset } from "../models/audioset.js";
 import { Registry } from "../services/visualization-registry.js";
 
 //#region Visualizer settings controller
@@ -12,7 +13,6 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 	#cell: BufferedCell<typeof Settings>;
 	#selectVisualizerVisualization: HTMLSelectElement;
 	#inputVisualizerRate: HTMLInputElement;
-	#inputAutocorrectToggle: HTMLInputElement;
 	#inputVisualizationQuality: HTMLInputElement;
 	#inputVisualizationSmoothing: HTMLInputElement;
 	#inputVisualizationFocus: HTMLInputElement;
@@ -35,26 +35,24 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		select.dispatchEvent(new Event("change"));
 	}
 
+	#refreshKnobs(): void {
+		const { audioset } = this.#visualizer;
+		this.#inputVisualizationQuality.value = String(audioset.quality);
+		this.#inputVisualizationSmoothing.value = String(audioset.smoothing);
+		this.#inputVisualizationFocus.value = String(audioset.focus);
+		this.#inputVisualizationSpread.value = String(audioset.spread);
+		this.#inputVisualizationBoost.value = String(audioset.boost);
+		this.#inputVisualizationTilt.value = String(audioset.tilt);
+		this.#inputVisualizationPunch.value = String(audioset.punch);
+	}
+
 	#applyVisualization(): void {
 		const settings = this.#cell.content;
 		const visualizer = this.#visualizer;
 		visualizer.visualization = this.#selectVisualizerVisualization.value;
 		settings.visualization = visualizer.visualization;
-		const { configuration } = settings;
-		visualizer.quality = configuration.quality;
-		this.#inputVisualizationQuality.value = String(visualizer.quality);
-		visualizer.smoothing = configuration.smoothing;
-		this.#inputVisualizationSmoothing.value = String(visualizer.smoothing);
-		visualizer.focus = configuration.focus;
-		this.#inputVisualizationFocus.value = String(visualizer.focus);
-		visualizer.spread = configuration.spread;
-		this.#inputVisualizationSpread.value = String(visualizer.spread);
-		visualizer.boost = configuration.boost;
-		this.#inputVisualizationBoost.value = String(visualizer.boost);
-		visualizer.tilt = configuration.tilt;
-		this.#inputVisualizationTilt.value = String(visualizer.tilt);
-		visualizer.punch = configuration.punch;
-		this.#inputVisualizationPunch.value = String(visualizer.punch);
+		visualizer.audioset.apply(settings.configuration);
+		this.#refreshKnobs();
 	}
 
 	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
@@ -63,8 +61,6 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		this.#selectVisualizerVisualization = selectVisualizerVisualization;
 
 		const inputVisualizerRate = this.#inputVisualizerRate = dialogConfigurator.getElement(HTMLInputElement, "input#visualizer-rate");
-		const inputAutocorrectToggle = this.#inputAutocorrectToggle = dialogConfigurator.getElement(HTMLInputElement, "input#auto-correct-toggle");
-		dialogConfigurator.getElement(HTMLElement, "section#ai-toggle").hidden = !visualizer.isDj;
 		const inputVisualizationQuality = this.#inputVisualizationQuality = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-quality");
 		const inputVisualizationSmoothing = this.#inputVisualizationSmoothing = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-smoothing");
 		const inputVisualizationFocus = this.#inputVisualizationFocus = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-focus");
@@ -74,6 +70,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		const inputVisualizationPunch = this.#inputVisualizationPunch = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-punch");
 
 		const settings = cell.content;
+		const { audioset } = visualizer;
 
 		for (const name of Registry.names()) {
 			const option = selectVisualizerVisualization.appendChild(document.createElement("option"));
@@ -97,124 +94,83 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 			await cell.save(500);
 		});
 
-		inputVisualizationQuality.min = String(Visualizer.minQuality);
-		inputVisualizationQuality.max = String(Visualizer.maxQuality);
+		inputVisualizationQuality.min = String(Audioset.minQuality);
+		inputVisualizationQuality.max = String(Audioset.maxQuality);
 		inputVisualizationQuality.step = String(1);
-		inputVisualizationQuality.value = String(visualizer.quality);
 		inputVisualizationQuality.addEventListener("change", async (event) => {
-			visualizer.quality = Number(inputVisualizationQuality.value);
-			inputVisualizationQuality.value = String(visualizer.quality);
-			settings.configuration.quality = visualizer.quality;
+			audioset.quality = Number(inputVisualizationQuality.value);
+			inputVisualizationQuality.value = String(audioset.quality);
+			settings.configuration.quality = audioset.quality;
 			await cell.save(500);
 		});
 
-		inputVisualizationSmoothing.min = String(Visualizer.minSmoothing);
-		inputVisualizationSmoothing.max = String(Visualizer.maxSmoothing);
+		inputVisualizationSmoothing.min = String(Audioset.minSmoothing);
+		inputVisualizationSmoothing.max = String(Audioset.maxSmoothing);
 		inputVisualizationSmoothing.step = String(0.1);
-		inputVisualizationSmoothing.value = String(visualizer.smoothing);
 		inputVisualizationSmoothing.addEventListener("input", (event) => {
-			visualizer.smoothing = Number(inputVisualizationSmoothing.value);
+			audioset.smoothing = Number(inputVisualizationSmoothing.value);
 		});
 		inputVisualizationSmoothing.addEventListener("change", async (event) => {
-			settings.configuration.smoothing = visualizer.smoothing;
+			settings.configuration.smoothing = audioset.smoothing;
 			await cell.save(500);
 		});
 
-		inputVisualizationFocus.min = String(-100);
-		inputVisualizationFocus.max = String(-20);
+		inputVisualizationFocus.min = String(Audioset.minFocus);
+		inputVisualizationFocus.max = String(Audioset.maxFocus);
 		inputVisualizationFocus.step = String(1);
-		inputVisualizationFocus.value = String(visualizer.focus);
-		inputVisualizationFocus.disabled = visualizer.autoCorrect;
 		inputVisualizationFocus.addEventListener("input", (event) => {
-			visualizer.focus = Number(inputVisualizationFocus.value);
+			audioset.focus = Number(inputVisualizationFocus.value);
 		});
 		inputVisualizationFocus.addEventListener("change", async (event) => {
-			settings.configuration.focus = visualizer.focus;
+			settings.configuration.focus = audioset.focus;
 			await cell.save(500);
 		});
 
-		inputVisualizationSpread.min = String(1);
-		inputVisualizationSpread.max = String(59);
+		inputVisualizationSpread.min = String(Audioset.minSpread);
+		inputVisualizationSpread.max = String(Audioset.maxSpread);
 		inputVisualizationSpread.step = String(1);
-		inputVisualizationSpread.value = String(visualizer.spread);
-		inputVisualizationSpread.disabled = visualizer.autoCorrect;
 		inputVisualizationSpread.addEventListener("input", (event) => {
-			visualizer.spread = Number(inputVisualizationSpread.value);
+			audioset.spread = Number(inputVisualizationSpread.value);
 		});
 		inputVisualizationSpread.addEventListener("change", async (event) => {
-			settings.configuration.spread = visualizer.spread;
+			settings.configuration.spread = audioset.spread;
 			await cell.save(500);
 		});
 
-		inputVisualizationBoost.min = String(Visualizer.minBoost);
-		inputVisualizationBoost.max = String(Visualizer.maxBoost);
+		inputVisualizationBoost.min = String(Audioset.minBoost);
+		inputVisualizationBoost.max = String(Audioset.maxBoost);
 		inputVisualizationBoost.step = String(0.05);
-		inputVisualizationBoost.value = String(settings.configuration.boost);
-		visualizer.boost = settings.configuration.boost;
-		inputVisualizationBoost.disabled = visualizer.autoCorrect;
 		inputVisualizationBoost.addEventListener("input", (event) => {
-			visualizer.boost = Number(inputVisualizationBoost.value);
+			audioset.boost = Number(inputVisualizationBoost.value);
 		});
 		inputVisualizationBoost.addEventListener("change", async (event) => {
-			settings.configuration.boost = visualizer.boost;
+			settings.configuration.boost = audioset.boost;
 			await cell.save(500);
 		});
 
-		inputVisualizationTilt.min = String(Visualizer.minTilt);
-		inputVisualizationTilt.max = String(Visualizer.maxTilt);
+		inputVisualizationTilt.min = String(Audioset.minTilt);
+		inputVisualizationTilt.max = String(Audioset.maxTilt);
 		inputVisualizationTilt.step = String(0.5);
-		inputVisualizationTilt.value = String(settings.configuration.tilt);
-		visualizer.tilt = settings.configuration.tilt;
-		inputVisualizationTilt.disabled = visualizer.autoCorrect;
 		inputVisualizationTilt.addEventListener("input", (event) => {
-			visualizer.tilt = Number(inputVisualizationTilt.value);
+			audioset.tilt = Number(inputVisualizationTilt.value);
 		});
 		inputVisualizationTilt.addEventListener("change", async (event) => {
-			settings.configuration.tilt = visualizer.tilt;
+			settings.configuration.tilt = audioset.tilt;
 			await cell.save(500);
 		});
 
-		inputVisualizationPunch.min = String(Visualizer.minPunch);
-		inputVisualizationPunch.max = String(Visualizer.maxPunch);
+		inputVisualizationPunch.min = String(Audioset.minPunch);
+		inputVisualizationPunch.max = String(Audioset.maxPunch);
 		inputVisualizationPunch.step = String(0.05);
-		inputVisualizationPunch.value = String(settings.configuration.punch);
-		visualizer.punch = settings.configuration.punch;
-		inputVisualizationPunch.disabled = visualizer.autoCorrect;
 		inputVisualizationPunch.addEventListener("input", (event) => {
-			visualizer.punch = Number(inputVisualizationPunch.value);
+			audioset.punch = Number(inputVisualizationPunch.value);
 		});
 		inputVisualizationPunch.addEventListener("change", async (event) => {
-			settings.configuration.punch = visualizer.punch;
+			settings.configuration.punch = audioset.punch;
 			await cell.save(500);
 		});
 
-		visualizer.addEventListener("update", async (event) => {
-			if (!visualizer.autoCorrect) return;
-			inputVisualizationFocus.value = String(visualizer.focus);
-			settings.configuration.focus = visualizer.focus;
-			inputVisualizationSpread.value = String(visualizer.spread);
-			settings.configuration.spread = visualizer.spread;
-			inputVisualizationBoost.value = String(visualizer.boost);
-			settings.configuration.boost = visualizer.boost;
-			inputVisualizationTilt.value = String(visualizer.tilt);
-			settings.configuration.tilt = visualizer.tilt;
-			inputVisualizationPunch.value = String(visualizer.punch);
-			settings.configuration.punch = visualizer.punch;
-		});
-
-		inputAutocorrectToggle.checked = visualizer.autoCorrect;
-		inputAutocorrectToggle.addEventListener("input", (event) => {
-			visualizer.autoCorrect = inputAutocorrectToggle.checked;
-			inputVisualizationFocus.disabled = visualizer.autoCorrect;
-			inputVisualizationSpread.disabled = visualizer.autoCorrect;
-			inputVisualizationBoost.disabled = visualizer.autoCorrect;
-			inputVisualizationTilt.disabled = visualizer.autoCorrect;
-			inputVisualizationPunch.disabled = visualizer.autoCorrect;
-		});
-		inputAutocorrectToggle.addEventListener("change", async (event) => {
-			settings.autoCorrect = visualizer.autoCorrect;
-			await cell.save(500);
-		});
+		this.#refreshKnobs();
 
 		window.addEventListener("keydown", (event) => {
 			const step = this.#readDirection(event.code);

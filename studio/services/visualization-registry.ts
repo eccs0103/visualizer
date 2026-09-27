@@ -4,51 +4,42 @@ import "adaptive-extender/core";
 import { type StageHost, type VisualizationBundle, type VisualizationDescriptor } from "../models/visualization.js";
 import { CodeLayer, type Layer, type LayerOptions, type LayerPainter } from "./layers.js";
 
+//#region Visualization
+export class Visualization implements VisualizationBundle {
+	static #reserved: ReadonlySet<string> = new Set(["Background", "Lyrics"]);
+	#layers: Layer[] = [];
+
+	constructor() {
+		if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
+	}
+
+	get layers(): readonly Layer[] { return this.#layers; }
+
+	newLayer(name: string, painter: LayerPainter, options: Partial<LayerOptions> = {}): Layer {
+		const layers = this.#layers;
+		if (Visualization.#reserved.has(name)) throw new TypeError(`Layer name '${name}' is reserved by the engine`);
+		if (layers.some(layer => layer.name === name)) throw new TypeError(`Layer name '${name}' is used more than once`);
+		const layer = new CodeLayer(name, painter, options);
+		layers.push(layer);
+		return layer;
+	}
+
+	rebuild(stage: StageHost): void {
+		void stage;
+	}
+
+	update(stage: StageHost): void {
+		void stage;
+	}
+}
+//#endregion
 //#region Registry
 export class Registry {
 	static #descriptors: Map<string, VisualizationDescriptor> = new Map();
-	static #reserved: ReadonlySet<string> = new Set(["Background", "Lyrics"]);
 
-	//#region Visualization
-	static #Visualization: VisualizationDescriptor = class Visualization implements VisualizationBundle {
-		#layers: Layer[] = [];
-
-		constructor() {
-			if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
-			if (Registry.#lockDescriptor) throw new TypeError("Illegal constructor");
-		}
-
-		get layers(): readonly Layer[] { return this.#layers; }
-
-		newCustomLayer(name: string, painter: LayerPainter, options: Partial<LayerOptions> = {}): Layer {
-			if (Registry.#reserved.has(name)) throw new TypeError(`Layer name '${name}' is reserved by the engine`);
-			if (this.#layers.some(layer => layer.name === name)) throw new TypeError(`Layer name '${name}' is used more than once`);
-			const layer = new CodeLayer(name, painter, options);
-			this.#layers.push(layer);
-			return layer;
-		}
-
-		rebuild(stage: StageHost): void {
-			void stage;
-		}
-
-		update(stage: StageHost): void {
-			void stage;
-		}
-	};
-
-	static get Visualization(): VisualizationDescriptor { return this.#Visualization; }
-
-	static #lockDescriptor: boolean = true;
 	static createBundle(descriptor: VisualizationDescriptor): VisualizationBundle {
-		Registry.#lockDescriptor = false;
-		try {
-			return Reflect.construct(descriptor, []);
-		} finally {
-			Registry.#lockDescriptor = true;
-		}
+		return new descriptor();
 	}
-	//#endregion
 
 	static get default(): string {
 		const key: IteratorResult<string, BuiltinIteratorReturn> = this.#descriptors.keys().next();
@@ -90,6 +81,4 @@ ${Error.from(reason)}`);
 		return this.#descriptors.entries();
 	}
 }
-
-export const { Visualization } = Registry;
 //#endregion

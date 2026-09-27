@@ -115,58 +115,6 @@
 					<input id="lyrics-shake" type="range" class="value depth rounded">
 				</section>
 			</section>
-			<section id="ai-toggle" class="option" hidden>
-				<h4 class="title">AI</h4>
-				<span class="definition">Enables the neural network. When on, the AI continuously adjusts the visualization parameters to match the music. While it's on, Focus, Spread, Boost, Tilt and Punch are locked because the AI drives them.</span>
-				<input id="auto-correct-toggle" type="checkbox" hidden>
-				<label for="auto-correct-toggle" role="checkbox" class="value depth toggle">
-					<span class="layer knob"></span>
-				</label>
-			</section>
-			<hr id="ai-separator" class="depth" hidden>
-			<h2 id="ai-heading" hidden>AI dashboard</h2>
-			<section id="ai-reward" class="option" hidden>
-				<h4 class="title">Learning steps</h4>
-				<span class="definition">How many RL update steps the AI has taken. More steps means more adapted behavior. Saved across sessions.</span>
-				<span id="ai-step-count" class="value">0</span>
-				<section id="ai-learning" class="option" hidden>
-					<h4 class="title">Continuous learning</h4>
-					<span class="definition">When on, the AI keeps updating weights as music plays. Turn off to freeze the current behavior.</span>
-					<input id="learning-toggle" type="checkbox" hidden>
-					<label for="learning-toggle" role="checkbox" class="value depth toggle">
-						<span class="layer knob"></span>
-					</label>
-				</section>
-				<section id="ai-feedback" class="option" hidden>
-					<h4 class="title">Feedback</h4>
-					<span class="definition">Hold feedback on the AI. The longer a thumb stays active, the stronger it learns; thumb up reinforces the current behavior, thumb down pushes it back toward neutral. Press an active thumb again to release.</span>
-					<div class="value flex column with-gap">
-						<input id="feedback-good" type="checkbox" hidden>
-						<label for="feedback-good" role="checkbox" class="rounded depth with-padding flex">
-							<span class="icon in-line highlight">Thumb up</span>
-						</label>
-						<input id="feedback-bad" type="checkbox" hidden>
-						<label for="feedback-bad" role="checkbox" class="rounded depth with-padding flex">
-							<span class="icon in-line alert">Thumb down</span>
-						</label>
-					</div>
-				</section>
-			</section>
-			<section id="ai-reset" class="option" hidden>
-				<h4 class="title">Reset model</h4>
-				<span class="definition">Clears all learned weights and resets the AI to its default state.</span>
-				<button id="reset-model" type="button" class="value rounded depth with-padding">Reset</button>
-			</section>
-			<section id="ai-export" class="option" hidden>
-				<h4 class="title">Export weights</h4>
-				<span class="definition">Downloads the AI weights file to your device. Use this to back up your trained model.</span>
-				<button id="export-model" type="button" class="value rounded depth with-padding">Export</button>
-			</section>
-			<section id="ai-share" class="option" hidden>
-				<h4 class="title">Share weights</h4>
-				<span class="definition">Opens a GitHub issue to submit your trained model to the author. Export your weights first, then attach the file to the issue.</span>
-				<button id="share-model" type="button" class="value rounded depth with-padding">Share</button>
-			</section>
 			<hr class="depth">
 			<h2>Visualization</h2>
 			<section class="option">
