@@ -4,7 +4,7 @@ import "adaptive-extender/core";
 import { Color, Random, Vector2D } from "adaptive-extender/core";
 import { type StageHost, type VisualizationHost } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
-import { ColorDriver, Shaper, Silhouette, Threads } from "../../services/visualization-tools.js";
+import { ColorDriver, Drivers, Shaper, Silhouette } from "../../services/visualization-tools.js";
 
 const { min, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
 const random = Random.global;
@@ -25,7 +25,7 @@ Registry.attach("Pulsar", class extends Visualization {
 	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 	#driverHalo: ColorDriver = ColorDriver.rotation;
 	#colorShadow: Color;
-	#silhouette: Silhouette = new Silhouette(0.5, 1.24); // drums at half weight, the gain keeps the mix's typical ring size
+	#silhouette: Silhouette = new Silhouette(0.5, 1.03); // drums at half weight, the gain lets the ring's peaks reach the mix's height
 
 	//#region Rebuild
 	rebuild(stage: StageHost): void {
@@ -41,7 +41,8 @@ Registry.attach("Pulsar", class extends Visualization {
 	#runCameraUpdate(stage: StageHost): void {
 		const radius = this.#radius;
 		const { camera, audioset } = stage;
-		const { dropIntensity, djPunch } = audioset;
+		const { djPunch } = audioset;
+		const dropIntensity = Drivers.drop(audioset);
 
 		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, radius >> 6) * (1 + djPunch);
 		camera.translateSelf(random.number(-1, 1) * shake, random.number(-1, 1) * shake);
@@ -62,10 +63,11 @@ Registry.attach("Pulsar", class extends Visualization {
 		const shaperFrequency = this.#shaperFrequency;
 		const stops = this.#stopsHalo;
 		const { audioset } = stage;
-		const { volume, djTilt, length, stems } = audioset;
+		const { djTilt, length } = audioset;
 		const dataFrequency = this.#silhouette.shape(audioset);
-		const bassLevel = Threads.bassLevel(stems);
-		const spectralCentroid = Threads.centroid(stems);
+		const volume = Drivers.volume(audioset);
+		const bassLevel = Drivers.bassLevel(audioset);
+		const spectralCentroid = Drivers.centroid(audioset);
 		const semiLength = length / 2;
 		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -30, 30) + djTilt.lerp(-12, 12, -20, 20);
 		const normIllumination = meanGeometric(volume.lerp(0, 1, 0.1, 1.0), bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0.5, 1.0));
@@ -97,8 +99,8 @@ Registry.attach("Pulsar", class extends Visualization {
 	#runWaveBuilding(stage: StageHost): void {
 		const radius = this.#radius;
 		const { width, audioset } = stage;
-		const { dataTemporal, amplitude, length, stems } = audioset;
-		const percussiveness = Threads.percussiveness(stems);
+		const { dataTemporal, amplitude, length } = audioset;
+		const percussiveness = Drivers.percussiveness(audioset);
 		const scalePercussive = percussiveness.lerp(0, 1, 1.0, 1.15);
 
 		const path = this.#pathWave = new Path2D();
@@ -140,8 +142,8 @@ Registry.attach("Pulsar", class extends Visualization {
 		const colorHaloInner = this.#colorHaloInner;
 		const pathHalo = this.#pathHalo;
 		const { context, audioset } = host;
-		const { djBoost, stems } = audioset;
-		const bassLevel = Threads.bassLevel(stems);
+		const { djBoost } = audioset;
+		const bassLevel = Drivers.bassLevel(audioset);
 
 		context.lineWidth = radius >> 7;
 		context.fillStyle = colorHaloInner.toString();

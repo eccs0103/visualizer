@@ -5,7 +5,7 @@ import { Color, Random, Vector2D } from "adaptive-extender/core";
 import { Blend } from "../../models/blend.js";
 import { type StageHost, type VisualizationHost } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
-import { ColorDriver, Shaper, Silhouette, Threads } from "../../services/visualization-tools.js";
+import { ColorDriver, Drivers, Shaper, Silhouette } from "../../services/visualization-tools.js";
 
 const { min, sign, PI, abs, trunc, exp, meanGeometric } = Math;
 const random = Random.global;
@@ -32,7 +32,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#driverRidge: ColorDriver = ColorDriver.rotation;
 	#deltaRotation: number = 360 / 6;
 	#colorShadow: Color = Color.newBlack;
-	#silhouette: Silhouette = new Silhouette(0.5, 1.24); // drums at half weight, the gain keeps the mix's typical ridge height
+	#silhouette: Silhouette = new Silhouette(0.5, 1.03); // drums at half weight, the gain lets the ridge's peaks reach the mix's height
 
 	//#region Rebuild
 	rebuild(stage: StageHost): void {
@@ -57,8 +57,9 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#runCameraUpdate(stage: StageHost): void {
 		const side = this.#side;
 		const { camera, audioset, environment } = stage;
-		const { dropIntensity, djPunch, beatDetected, stems } = audioset;
-		const percussiveness = Threads.percussiveness(stems);
+		const { djPunch, beatDetected } = audioset;
+		const dropIntensity = Drivers.drop(audioset);
+		const percussiveness = Drivers.percussiveness(audioset);
 
 		this.#normPulseEnergy = (this.#normPulseEnergy - environment.delta * 0.004).clamp(0, Infinity);
 		if (beatDetected) this.#normPulseEnergy = 1;
@@ -74,9 +75,11 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const peak = this.#side * this.#normHeightFactor;
 		const colorRidgeSeed = this.#colorRidgeSeed;
 		const { width, audioset } = stage;
-		const { volume, amplitude, djTilt, djSpread, djFocus, length, stems } = audioset;
+		const { djTilt, djSpread, djFocus, length } = audioset;
 		const dataFrequency = this.#silhouette.shape(audioset);
-		const spectralCentroid = Threads.centroid(stems);
+		const volume = Drivers.volume(audioset);
+		const amplitude = Drivers.amplitude(audioset);
+		const spectralCentroid = Drivers.centroid(audioset);
 		const focusBin = djFocus.lerp(-100, -20, 0, length - 1);
 		const hueSpread = this.#hueSpread = djSpread.lerp(1, 59, 90, 150);
 		const hueBias = this.#hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -40, 40) + djTilt.lerp(-12, 12, -25, 25);
@@ -117,8 +120,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const colorRidgeSeed = this.#colorRidgeSeed;
 		const pathRidge = this.#pathRidge;
 		const { context, audioset } = host;
-		const { djBoost, stems } = audioset;
-		const bassLevel = Threads.bassLevel(stems);
+		const { djBoost } = audioset;
+		const bassLevel = Drivers.bassLevel(audioset);
 		const { width } = context.canvas;
 
 		const gradientRidge = context.createLinearGradient(-width / 2, 0, width / 2, 0);
@@ -142,9 +145,9 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#drawBloom(host: VisualizationHost): void {
 		const colorRidgeMid = this.#colorRidgeMid;
 		const { context, audioset } = host;
-		const { bass, stems } = audioset;
-		const subBass = Threads.subBass(stems);
-		const bassLevel = Threads.bassLevel(stems);
+		const { bass } = audioset;
+		const subBass = Drivers.subBass(audioset);
+		const bassLevel = Drivers.bassLevel(audioset);
 		const bloomEnergy = meanGeometric(subBass.clamp(0, 0.8).lerp(0, 0.8, 0, 1), bass.clamp(0, 0.8).lerp(0, 0.8, 0, 1));
 		const radius = this.#side * bloomEnergy.lerp(0, 1, 0.05, 0.22);
 
@@ -162,10 +165,10 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const lineWidth = this.#lineWidth;
 		const colorRidgeMid = this.#colorRidgeMid;
 		const { context, audioset } = host;
-		const { dataTemporal, amplitude, length, stems } = audioset;
-		const spectralFlux = Threads.flux(stems);
-		const high = Threads.high(stems);
-		const highMid = Threads.highMid(stems);
+		const { dataTemporal, amplitude, length } = audioset;
+		const spectralFlux = Drivers.flux(audioset);
+		const high = Drivers.high(audioset);
+		const highMid = Drivers.highMid(audioset);
 		const { width } = context.canvas;
 		const peak = this.#side * this.#normHeightFactor;
 		const sparkle = meanGeometric(high.clamp(0, 0.5).lerp(0, 0.5, 0, 1), highMid.clamp(0, 0.6).lerp(0, 0.6, 0, 1));
