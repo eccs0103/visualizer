@@ -4,7 +4,7 @@ import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
 import { type AudiosetView } from "../models/visualization.js";
 
-const { split, PI, exp, sqrt, asin, min } = Math;
+const { split, PI, exp, sqrt, asin, min, max, trunc } = Math;
 
 //#region Shaper
 export class Shaper {
@@ -79,73 +79,184 @@ export class ColorDriver {
 	}
 }
 //#endregion
+//#region Running range
+/**
+ * The quiet-to-loud range of one input in the song that is playing: its 5th and 95th percentiles
+ * over the last ~30 seconds, sampled on the clock so the window is the same at any frame rate.
+ * Until enough of the song has been heard it leans on a prior range (measured over MUSDB18HQ), and
+ * the span never shrinks below a fraction of the prior span, so a quiet passage is not blown up into noise.
+ */
+class RunningRange {
+	static #capacity: number = 256; // samples, ~32 s
+	static #interval: number = 0.125; // s between samples
+	static #refresh: number = 0.5; // s between percentile updates
+	static #warmup: number = 40; // samples (~5 s) before the song's own range is fully trusted
+	static #floor: number = 0.3; // minimum span, as a fraction of the prior span
+
+	#prior: [number, number];
+	#window: Float64Array = new Float64Array(RunningRange.#capacity);
+	#sorted: Float64Array = new Float64Array(RunningRange.#capacity);
+	#count: number = 0;
+	#cursor: number = 0;
+	#untilSample: number = 0;
+	#untilRefresh: number = 0;
+	#low: number;
+	#high: number;
+
+	constructor(prior: [number, number]) {
+		this.#prior = prior;
+		[this.#low, this.#high] = prior;
+	}
+
+	reset(): void {
+		this.#count = 0;
+		this.#cursor = 0;
+		[this.#low, this.#high] = this.#prior;
+	}
+
+	push(value: number, delta: number): void {
+		this.#untilSample -= delta;
+		this.#untilRefresh -= delta;
+		if (this.#untilSample <= 0) {
+			this.#untilSample += RunningRange.#interval;
+			this.#window[this.#cursor] = value;
+			this.#cursor = (this.#cursor + 1) % RunningRange.#capacity;
+			this.#count = min(this.#count + 1, RunningRange.#capacity);
+		}
+		if (this.#untilRefresh > 0) return;
+		this.#untilRefresh += RunningRange.#refresh;
+		this.#refit();
+	}
+
+	#refit(): void {
+		const count = this.#count;
+		if (count < 8) return;
+		const sorted = this.#sorted.subarray(0, count);
+		sorted.set(this.#window.subarray(0, count));
+		sorted.sort();
+		let low = sorted[trunc(count * 0.05)], high = sorted[min(count - 1, trunc(count * 0.95))];
+		const [priorLow, priorHigh] = this.#prior;
+		const floor = (priorHigh - priorLow) * RunningRange.#floor;
+		if (high - low < floor) {
+			const middle = (high + low) / 2;
+			low = middle - floor / 2;
+			high = middle + floor / 2;
+		}
+		const trust = min(1, count / RunningRange.#warmup);
+		this.#low = priorLow + (low - priorLow) * trust;
+		this.#high = priorHigh + (high - priorHigh) * trust;
+	}
+
+	/** `value` mapped from this range onto 0–`top`, clamped. */
+	fit(value: number, top: number): number {
+		const low = this.#low, high = max(this.#high, this.#low + 1e-9);
+		return value.clamp(low, high).lerp(low, high, 0, top);
+	}
+}
+//#endregion
 //#region Drivers
 /**
  * The inputs the built-in visualizations feed their effects, each taken from the source that best
- * follows the instrument the effect stands for, and fitted so the effect sweeps its whole designed range.
+ * follows the instrument the effect stands for, and fitted to the song that is playing so the effect
+ * sweeps its whole designed range (the number after each name below) on a quiet ballad and on a loud
+ * EDM master alike. A fixed fit pinned loud masters again: on one EDM track the envelope sat at its
+ * maximum 81% of the time, the bloom 37%, the shake 29%.
  *
- * Every driver maps its source's 5th percentile to the low end and its 95th percentile to the high end
- * of the range the visualizations already use (the number after each name below), measured over the
- * MUSDB18HQ test set at the default analyser settings. Without the fit, the mix inputs sat pinned: glow
- * at its maximum ~90% of the time, shake ~76%, while shimmer used ~10% of its range. The source for each
- * was chosen by correlation with the true isolated instrument; the mix stays where it measured better
- * (beat timing, the bass band — which keeps production's own range, since every fit tracked the bass worse).
+ * Sources were chosen by correlation with the true isolated instrument over MUSDB18HQ; the mix stays
+ * where it measured better (beat timing, the bass band). Colour brightness is deliberately not driven
+ * here: `illuminate()` turns a full-range input into white, so brightness keeps production's own scale.
+ *
+ * Call `update()` once per frame, before reading any driver.
  */
 export class Drivers {
-	static #drop: [number, number] = [0.0455, 0.9471];
-	static #percussiveness: [number, number] = [0.0259, 1];
-	static #bassLevel: [number, number] = [0.0240, 0.7524];
-	static #subBass: [number, number] = [0.0285, 0.8544];
-	static #centroid: [number, number] = [0.0930, 0.3115];
-	static #high: [number, number] = [0.0006, 0.2653];
-	static #highMid: [number, number] = [0.0071, 0.3011];
-	static #flux: [number, number] = [0.0010, 0.0202];
-	static #volume: [number, number] = [0.0355, 0.1996];
+	static #silence: number = 0.01; // volume below which the music counts as stopped
+	static #gap: number = 1.5; // s of silence that starts a fresh song
+	static #tops: number[] = [0.5, 1, 0.6, 0.8, 0.45, 0.5, 0.6, 0.3, 1];
 
-	static #fit(value: number, [low, high]: [number, number], top: number): number {
-		return value.clamp(low, high).lerp(low, high, 0, top);
+	#ranges: RunningRange[] = [
+		new RunningRange([0.0455, 0.9471]), // drop
+		new RunningRange([0.0259, 1]), // percussiveness
+		new RunningRange([0.0240, 0.7524]), // bass level
+		new RunningRange([0.0285, 0.8544]), // sub-bass
+		new RunningRange([0.0930, 0.3115]), // centroid
+		new RunningRange([0.0006, 0.2653]), // high
+		new RunningRange([0.0071, 0.3011]), // high-mid
+		new RunningRange([0.0010, 0.0202]), // flux
+		new RunningRange([0.0355, 0.1996]), // volume
+	];
+	#sources: Float64Array = new Float64Array(9);
+	#values: Float64Array = new Float64Array(10);
+	#silent: number = 0;
+
+	#watchSilence(volume: number, delta: number): void {
+		if (volume >= Drivers.#silence) {
+			this.#silent = 0;
+			return;
+		}
+		const before = this.#silent;
+		this.#silent += delta;
+		if (before >= Drivers.#gap || this.#silent < Drivers.#gap) return;
+		for (const range of this.#ranges) range.reset();
 	}
 
-	/** Shake, 0–0.5: the drop formula with the drums thread's percussiveness — kicks shake the view, not bass notes. Tracks the kick 0.395 vs 0.225. */
-	static drop(audioset: AudiosetView): number {
-		const { subBass, stems } = audioset;
-		return Drivers.#fit(min(1, stems.drums.percussiveness * 3) * subBass, Drivers.#drop, 0.5);
-	}
-
-	/** Pulse and wave punch, 0–1: the drums thread's percussiveness. Tracks the drums 0.658 vs 0.606. */
-	static percussiveness(audioset: AudiosetView): number { return Drivers.#fit(audioset.stems.drums.percussiveness, Drivers.#percussiveness, 1); }
-
-	/** Glow, blur and illumination, 0–0.6: the bass thread's bass level — the glow follows the bass line, not the kick. Tracks the bass 0.462 vs 0.353. */
-	static bassLevel(audioset: AudiosetView): number { return Drivers.#fit(audioset.stems.bass.bassLevel, Drivers.#bassLevel, 0.6); }
-
-	/** Bloom radius, 0–0.8: the bass thread's sub-bass band. Tracks the bass 0.466 vs 0.447. */
-	static subBass(audioset: AudiosetView): number { return Drivers.#fit(audioset.stems.bass.subBass, Drivers.#subBass, 0.8); }
-
-	/** Colour, 0–0.45: the melody's (vocals + other) energy-weighted centroid — hi-hats stop pulling the hue. Tracks the melody 0.557 vs 0.455. */
-	static centroid(audioset: AudiosetView): number {
-		const { vocals, other } = audioset.stems;
+	#readSources(audioset: AudiosetView): void {
+		const { subBass, volume, stems } = audioset;
+		const { drums, bass, vocals, other } = stems;
 		const energy = vocals.energy + other.energy;
-		if (energy <= 0) return 0;
-		return Drivers.#fit((vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy, Drivers.#centroid, 0.45);
+		const sources = this.#sources;
+		sources[0] = min(1, drums.percussiveness * 3) * subBass;
+		sources[1] = drums.percussiveness;
+		sources[2] = bass.bassLevel;
+		sources[3] = bass.subBass;
+		sources[4] = energy > 0 ? (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy : 0;
+		sources[5] = drums.high;
+		sources[6] = drums.highMid;
+		sources[7] = vocals.spectralFlux + other.spectralFlux;
+		sources[8] = volume;
 	}
 
-	/** Sparkle, 0–0.5: the drums thread's high band — cymbals and hats. Tracks the drums 0.837 vs 0.824. */
-	static high(audioset: AudiosetView): number { return Drivers.#fit(audioset.stems.drums.high, Drivers.#high, 0.5); }
-
-	/** Sparkle, 0–0.6: the drums thread's high-mid band. Tracks the drums 0.560 vs 0.320. */
-	static highMid(audioset: AudiosetView): number { return Drivers.#fit(audioset.stems.drums.highMid, Drivers.#highMid, 0.6); }
-
-	/** Shimmer, 0–0.3: the melody's (vocals + other) spectral flux — how much the tune itself is changing. Tracks it 0.232 vs 0.048; vocals alone scored the same but would leave instrumentals still. */
-	static flux(audioset: AudiosetView): number {
-		const { vocals, other } = audioset.stems;
-		return Drivers.#fit(vocals.spectralFlux + other.spectralFlux, Drivers.#flux, 0.3);
+	/** Reads this frame's sources and advances every running range; `delta` is the frame time in seconds. */
+	update(audioset: AudiosetView, delta: number): void {
+		if (!Number.isFinite(delta) || delta < 0) delta = 0;
+		this.#watchSilence(audioset.volume, delta);
+		this.#readSources(audioset);
+		const ranges = this.#ranges, sources = this.#sources, values = this.#values, tops = Drivers.#tops;
+		for (let index = 0; index < ranges.length; index++) {
+			ranges[index].push(sources[index], delta);
+			values[index] = ranges[index].fit(sources[index], tops[index]);
+		}
+		values[9] = ranges[8].fit(audioset.amplitude, 1);
 	}
 
-	/** Loudness for ranges, 0–1: the mix volume, which otherwise stays below 0.2. Only for inputs used as a range, never as a raw multiplier. */
-	static volume(audioset: AudiosetView): number { return Drivers.#fit(audioset.volume, Drivers.#volume, 1); }
+	/** Shake, 0–0.5: the drop formula with the drums thread's percussiveness — kicks shake the view, not bass notes. */
+	get drop(): number { return this.#values[0]; }
 
-	/** Same as `volume` for the amplitude — both are the RMS of the same waveform. */
-	static amplitude(audioset: AudiosetView): number { return Drivers.#fit(audioset.amplitude, Drivers.#volume, 1); }
+	/** Pulse and wave punch, 0–1: the drums thread's percussiveness. */
+	get percussiveness(): number { return this.#values[1]; }
+
+	/** Glow, blur and bloom alpha, 0–0.6: the bass thread's bass level — the glow follows the bass line, not the kick. */
+	get bassLevel(): number { return this.#values[2]; }
+
+	/** Bloom radius, 0–0.8: the bass thread's sub-bass band. */
+	get subBass(): number { return this.#values[3]; }
+
+	/** Hue, 0–0.45: the melody's (vocals + other) energy-weighted centroid — hi-hats stop pulling the hue. */
+	get centroid(): number { return this.#values[4]; }
+
+	/** Sparkle, 0–0.5: the drums thread's high band — cymbals and hats. */
+	get high(): number { return this.#values[5]; }
+
+	/** Sparkle, 0–0.6: the drums thread's high-mid band. */
+	get highMid(): number { return this.#values[6]; }
+
+	/** Shimmer, 0–0.3: the melody's (vocals + other) spectral flux — how much the tune itself is changing. */
+	get flux(): number { return this.#values[7]; }
+
+	/** Loudness for size ranges (the envelope), 0–1. Never for brightness, never as a raw multiplier. */
+	get volume(): number { return this.#values[8]; }
+
+	/** Same as `volume`, for the amplitude — both are the RMS of the same waveform. */
+	get amplitude(): number { return this.#values[9]; }
 }
 //#endregion
 //#region Silhouette
