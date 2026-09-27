@@ -2,7 +2,8 @@
 
 import "adaptive-extender/core";
 import { Blend } from "../models/blend.js";
-import { type StageHost, type VisualizationHost } from "../models/visualization.js";
+import { type Stage } from "./stage.js";
+import { type Host } from "../models/visualization.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 
 //#region Layer
@@ -38,7 +39,7 @@ export abstract class Layer {
 	get isVisible(): boolean { return !this.#isFaulted && this.#opacity > 0; }
 	get isDependent(): boolean { return false; }
 
-	abstract render(stage: StageHost, output: OffscreenCanvasRenderingContext2D): void;
+	abstract render(stage: Stage, output: OffscreenCanvasRenderingContext2D): void;
 
 	apply(settings: LayerSettings): void {
 		this.#opacity = Layer.#fit(settings.opacity);
@@ -49,8 +50,8 @@ export abstract class Layer {
 		this.#isFaulted = true;
 	}
 
-	resize(width: number, height: number): void {
-		void width, height;
+	resize(stage: Stage): void {
+		void stage;
 		this.#isFaulted = false;
 	}
 
@@ -59,62 +60,65 @@ export abstract class Layer {
 //#endregion
 //#region Painted layer
 export abstract class PaintedLayer extends Layer {
-	#canvas: OffscreenCanvas | null = null;
-	#context: OffscreenCanvasRenderingContext2D | null = null;
+	#host: Host | null = null;
 	#isDirty: boolean = false;
 
-	abstract paint(host: VisualizationHost, stage: StageHost): void;
+	abstract paint(host: Host, stage: Stage): void;
 
-	isIdle(stage: StageHost): boolean {
+	isIdle(stage: Stage): boolean {
 		void stage;
 		return false;
 	}
 
-	resize(width: number, height: number): void {
-		super.resize(width, height);
+	resize(stage: Stage): void {
+		super.resize(stage);
 		this.#isDirty = false;
-		const canvas = this.#canvas;
-		if (canvas !== null) {
+		const { width, height } = stage;
+		const host = this.#host;
+		if (host !== null) {
+			const { canvas } = host.context;
 			canvas.width = width;
 			canvas.height = height;
 			return;
 		}
-		const created = this.#canvas = new OffscreenCanvas(width, height);
-		this.#context = ReferenceError.suppress(created.getContext("2d"), `Failed to acquire 2D rendering context for layer '${this.name}'`);
+		const canvas = new OffscreenCanvas(width, height);
+		const context = ReferenceError.suppress(canvas.getContext("2d"), `Failed to acquire 2D rendering context for layer '${this.name}'`);
+		this.#host = { context, audioset: stage, environment: stage };
 	}
 
 	release(): void {
-		const canvas = this.#canvas;
-		if (canvas === null) return;
+		const host = this.#host;
+		if (host === null) return;
+		const { canvas } = host.context;
 		canvas.width = 0;
 		canvas.height = 0;
 		this.#isDirty = false;
 	}
 
-	render(stage: StageHost, output: OffscreenCanvasRenderingContext2D): void {
-		const context = ReferenceError.suppress(this.#context, `Layer '${this.name}' has not been sized`);
+	render(stage: Stage, output: OffscreenCanvasRenderingContext2D): void {
+		const host = ReferenceError.suppress(this.#host, `Layer '${this.name}' has not been sized`);
+		const { context } = host;
 		if (this.isIdle(stage)) {
 			if (!this.#isDirty) return;
 			context.reset();
 			this.#isDirty = false;
 			return;
 		}
-		const canvas = ReferenceError.suppress(this.#canvas, `Layer '${this.name}' has not been sized`);
-		const { width, height, camera, audioset } = stage;
+		const { width, height, camera } = stage;
 		context.reset();
 		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
 		context.transform(camera.a, camera.b, camera.c, camera.d, camera.e, camera.f);
 		this.#isDirty = true;
-		this.paint({ context, audioset }, stage);
+		this.paint(host, stage);
 		output.globalAlpha = this.opacity;
 		output.globalCompositeOperation = this.blend as GlobalCompositeOperation;
-		output.drawImage(canvas, 0, 0);
+		output.drawImage(context.canvas, 0, 0);
 	}
 }
 //#endregion
 //#region Code layer
 export interface LayerPainter {
-	(host: VisualizationHost): void;
+	(host: Host): void;
 }
 
 export class CodeLayer extends PaintedLayer {
@@ -127,7 +131,7 @@ export class CodeLayer extends PaintedLayer {
 
 	get isDependent(): boolean { return true; }
 
-	paint(host: VisualizationHost): void {
+	paint(host: Host): void {
 		this.#painter(host);
 	}
 }

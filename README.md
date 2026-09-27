@@ -20,25 +20,24 @@ Below is an example of how to create and attach a custom visualization:
 
 ```typescript
 import "adaptive-extender/core";
-import { type StageHost, type VisualizationHost } from "../../models/visualization.js";
+import { type Host } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 
 Registry.attach("My custom title", class extends Visualization {
-	// Layers are declared bottom to top; the engine adds the background and the lyrics itself.
-	#layerCircle = this.newLayer("Circle", this.#drawCircle.bind(this));
-
-	// Called when the canvas is resized or the active visualization changes.
-	rebuild(stage: StageHost): void {
-		const { width, height, audioset, environment } = stage;
+	constructor() {
+		super();
+		// Layers are declared bottom to top; the engine adds the background and the lyrics itself.
+		this.newLayer("Circle", this.#drawCircle.bind(this));
 	}
 
-	// Called on every frame, before any layer is painted.
-	update(stage: StageHost): void {
-		const { camera, audioset, environment } = stage;
-		camera.translateSelf(0, 0); // Origin is the canvas centre; shake or zoom every layer at once.
+	// Called on every frame, before any layer is painted. The context's transform is the camera.
+	update(host: Host): void {
+		const zoom = 1 + host.audioset.bassLevel * 0.1;
+		host.context.scale(zoom, zoom);
 	}
 
-	#drawCircle(host: VisualizationHost): void {
+	// Everything in host is read-only except the context. The origin is the canvas centre.
+	#drawCircle(host: Host): void {
 		const { context, audioset } = host;
 		context.beginPath();
 		context.arc(0, 0, 100 * audioset.volume, 0, 2 * Math.PI);

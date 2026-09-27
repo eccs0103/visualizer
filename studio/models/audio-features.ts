@@ -9,12 +9,10 @@ export class SabLayout {
 	static #maxLength: number = 16384;
 	static #bins: number = 512;
 	static #stems: number = 4;
-	static #block: number = 12;
 
 	static get maxLength(): number { return SabLayout.#maxLength; }
 	static get bins(): number { return SabLayout.#bins; }
 	static get stems(): number { return SabLayout.#stems; }
-	static get block(): number { return SabLayout.#block; }
 }
 //#endregion
 //#region Signal
@@ -194,71 +192,6 @@ export class StemMasks {
 			const mask = masks[bin * stems + stem] * (1 - weight) + masks[nextBin * stems + stem] * weight;
 			out[index] = whole[index] * mask;
 		}
-	}
-}
-//#endregion
-//#region Spectrum
-export class Spectrum {
-	#source: () => Float32Array;
-	#values: Float32Array = new Float32Array(SabLayout.block);
-
-	constructor(source: () => Float32Array) {
-		this.#source = source;
-	}
-
-	static createBuffer(): SharedArrayBuffer {
-		return new SharedArrayBuffer(SabLayout.block * (1 + SabLayout.stems) * 4);
-	}
-
-	get dataFrequency(): Float32Array { return this.#source(); }
-	get spectralFlux(): number { return this.#values[0]; }
-	get subBass(): number { return this.#values[1]; }
-	get bass(): number { return this.#values[2]; }
-	get lowMid(): number { return this.#values[3]; }
-	get mid(): number { return this.#values[4]; }
-	get highMid(): number { return this.#values[5]; }
-	get high(): number { return this.#values[6]; }
-	get spectralCentroid(): number { return this.#values[7]; }
-	get percussiveness(): number { return this.#values[8]; }
-	get beatDetected(): boolean { return this.#values[9] > 0.5; }
-	get dropIntensity(): number { return this.#values[10]; }
-	get bassLevel(): number { return this.#values[11]; }
-
-	get energy(): number {
-		const values = this.#values;
-		return values[1] + values[2] + values[3] + values[4] + values[5] + values[6];
-	}
-
-	readFrom(features: Float32Array, index: number): void {
-		const block = SabLayout.block;
-		this.#values.set(features.subarray(index * block, (index + 1) * block));
-	}
-}
-//#endregion
-//#region Stems
-export class Stems {
-	#drums: Spectrum;
-	#bass: Spectrum;
-	#vocals: Spectrum;
-	#other: Spectrum;
-
-	constructor(masks: StemMasks, length: () => number, whole: () => Float32Array) {
-		this.#drums = new Spectrum(() => masks.drums(length(), whole()));
-		this.#bass = new Spectrum(() => masks.bass(length(), whole()));
-		this.#vocals = new Spectrum(() => masks.vocals(length(), whole()));
-		this.#other = new Spectrum(() => masks.other(length(), whole()));
-	}
-
-	get drums(): Spectrum { return this.#drums; }
-	get bass(): Spectrum { return this.#bass; }
-	get vocals(): Spectrum { return this.#vocals; }
-	get other(): Spectrum { return this.#other; }
-
-	readFrom(features: Float32Array): void {
-		this.#drums.readFrom(features, 1);
-		this.#bass.readFrom(features, 2);
-		this.#vocals.readFrom(features, 3);
-		this.#other.readFrom(features, 4);
 	}
 }
 //#endregion

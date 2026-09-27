@@ -43,14 +43,13 @@ class OffscreenCanvasPortable {
 //#endregion
 
 //#region Command
-export interface CommandDiscriminator extends InitializeAnalyzerCommandDiscriminator, InitializeMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
 }
 
 export interface CommandScheme {
 	$type: keyof CommandDiscriminator;
 }
 
-@Descendant(Deferred(_ => InitializeAnalyzerCommand))
 @Descendant(Deferred(_ => InitializeMaskCommand))
 @Descendant(Deferred(_ => InitializeRenderCommand))
 @Descendant(Deferred(_ => TickCommand))
@@ -66,48 +65,6 @@ export abstract class Command extends Model {
 	constructor() {
 		super();
 		if (new.target === Command) throw new TypeError("Unable to create an instance of an abstract class");
-	}
-}
-//#endregion
-//#region Initialize analyzer command
-export interface InitializeAnalyzerCommandDiscriminator {
-	"InitializeAnalyzerCommand": InitializeAnalyzerCommand;
-}
-
-export interface InitializeAnalyzerCommandScheme extends CommandScheme {
-	$type: keyof InitializeAnalyzerCommandDiscriminator;
-	sabSignal: SharedArrayBuffer;
-	sabFeatures: SharedArrayBuffer;
-	sabMask: SharedArrayBuffer;
-	sampleRate: number;
-}
-
-export class InitializeAnalyzerCommand extends Command {
-	@Field(SharedArrayBufferPortable)
-	sabSignal: SharedArrayBuffer;
-
-	@Field(SharedArrayBufferPortable)
-	sabFeatures: SharedArrayBuffer;
-
-	@Field(SharedArrayBufferPortable)
-	sabMask: SharedArrayBuffer;
-
-	@Field(Number)
-	sampleRate: number;
-
-	constructor();
-	constructor(sabSignal: SharedArrayBuffer, sabFeatures: SharedArrayBuffer, sabMask: SharedArrayBuffer, sampleRate: number);
-	constructor(sabSignal?: SharedArrayBuffer, sabFeatures?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, sampleRate?: number) {
-		if (sabSignal === undefined || sabFeatures === undefined || sabMask === undefined || sampleRate === undefined) {
-			super();
-			return;
-		}
-
-		super();
-		this.sabSignal = sabSignal;
-		this.sabFeatures = sabFeatures;
-		this.sabMask = sabMask;
-		this.sampleRate = sampleRate;
 	}
 }
 //#endregion
@@ -161,8 +118,8 @@ export interface InitializeRenderCommandDiscriminator {
 export interface InitializeRenderCommandScheme extends CommandScheme {
 	$type: keyof InitializeRenderCommandDiscriminator;
 	sabSignal: SharedArrayBuffer;
-	sabFeatures: SharedArrayBuffer;
 	sabMask: SharedArrayBuffer;
+	sampleRate: number;
 	canvas: OffscreenCanvas;
 }
 
@@ -171,26 +128,26 @@ export class InitializeRenderCommand extends Command {
 	sabSignal: SharedArrayBuffer;
 
 	@Field(SharedArrayBufferPortable)
-	sabFeatures: SharedArrayBuffer;
-
-	@Field(SharedArrayBufferPortable)
 	sabMask: SharedArrayBuffer;
+
+	@Field(Number)
+	sampleRate: number;
 
 	@Field(OffscreenCanvasPortable)
 	canvas: OffscreenCanvas;
 
 	constructor();
-	constructor(sabSignal: SharedArrayBuffer, sabFeatures: SharedArrayBuffer, sabMask: SharedArrayBuffer, canvas: OffscreenCanvas);
-	constructor(sabSignal?: SharedArrayBuffer, sabFeatures?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, canvas?: OffscreenCanvas) {
-		if (sabSignal === undefined || sabFeatures === undefined || sabMask === undefined || canvas === undefined) {
+	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, sampleRate: number, canvas: OffscreenCanvas);
+	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, sampleRate?: number, canvas?: OffscreenCanvas) {
+		if (sabSignal === undefined || sabMask === undefined || sampleRate === undefined || canvas === undefined) {
 			super();
 			return;
 		}
 
 		super();
 		this.sabSignal = sabSignal;
-		this.sabFeatures = sabFeatures;
 		this.sabMask = sabMask;
+		this.sampleRate = sampleRate;
 		this.canvas = canvas;
 	}
 }

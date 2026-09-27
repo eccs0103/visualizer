@@ -2,9 +2,10 @@
 
 import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
-import { type AudiosetView } from "../models/visualization.js";
+import { SabLayout } from "../models/audio-features.js";
+import { type Audioset } from "../models/visualization.js";
 
-const { split, PI, exp, sqrt, asin, min, max, trunc } = Math;
+const { split, PI, exp, sqrt, asin, min, max, round, trunc } = Math;
 
 //#region Shaper
 export class Shaper {
@@ -34,8 +35,8 @@ export class Shaper {
 	}
 }
 //#endregion
-//#region Color driver
-export class ColorDriver {
+//#region Hue drift
+export class HueDrift {
 	#offset: number = 0;
 
 	tick(color: Color, rate: number, delta: number, factor: number = 1): void {
@@ -46,54 +47,283 @@ export class ColorDriver {
 	}
 }
 //#endregion
-//#region Running range
+//#region Stem mix
+export class StemMix {
+	#drums: number;
+	#bass: number;
+	#vocals: number;
+	#other: number;
+	#gain: number;
+	#spectrum: Float32Array = new Float32Array(0);
+
+	constructor(drums: number, bass: number, vocals: number, other: number, gain: number) {
+		this.#drums = drums;
+		this.#bass = bass;
+		this.#vocals = vocals;
+		this.#other = other;
+		this.#gain = gain;
+	}
+
+	mix(audioset: Audioset): Float32Array {
+		const whole = audioset.dataFrequency;
+		const drums = audioset.dataDrums;
+		const bass = audioset.dataBass;
+		const vocals = audioset.dataVocals;
+		const other = audioset.dataOther;
+		const { length } = whole;
+		let spectrum = this.#spectrum;
+		if (spectrum.length !== length) spectrum = this.#spectrum = new Float32Array(length);
+		const cutDrums = 1 - this.#drums;
+		const cutBass = 1 - this.#bass;
+		const cutVocals = 1 - this.#vocals;
+		const cutOther = 1 - this.#other;
+		const gain = this.#gain;
+		for (let index = 0; index < length; index++) {
+			const rest = whole[index] - drums[index] * cutDrums - bass[index] * cutBass - vocals[index] * cutVocals - other[index] * cutOther;
+			spectrum[index] = min(1, rest * gain);
+		}
+		return spectrum;
+	}
+}
+//#endregion
+//#region Spectrum analysis
+class FluxStats {
+	#mean: number;
+	#standardDeviation: number;
+
+	constructor(mean: number, standardDeviation: number) {
+		this.#mean = mean;
+		this.#standardDeviation = standardDeviation;
+	}
+
+	get mean(): number { return this.#mean; }
+
+	onsetThreshold(multiplier: number): number {
+		return this.#mean + multiplier * this.#standardDeviation;
+	}
+}
+
+export class SpectrumAnalysis {
+	static #capacity: number = 1280;
+	static #multiplier: number = 1.5;
+	static #window: number = 63.5 / 60 * 1000;
+	static #gap: number = 3.5 / 60 * 1000;
+
+	#prevFrequency: Float32Array = new Float32Array(SabLayout.maxLength);
+	#fluxHistory: Float32Array = new Float32Array(SpectrumAnalysis.#capacity);
+	#timeHistory: Float64Array = new Float64Array(SpectrumAnalysis.#capacity);
+	#fluxCursor: number = 0;
+	#lastBeat: number = -Infinity;
+	#bins: [number, number][] | null = null;
+	#cachedLength: number = 0;
+	#cachedSampleRate: number = 0;
+	#time: number = NaN;
+	#values: Float32Array = new Float32Array(12);
+
+	get spectralFlux(): number { return this.#values[0]; }
+	get subBass(): number { return this.#values[1]; }
+	get bass(): number { return this.#values[2]; }
+	get lowMid(): number { return this.#values[3]; }
+	get mid(): number { return this.#values[4]; }
+	get highMid(): number { return this.#values[5]; }
+	get high(): number { return this.#values[6]; }
+	get spectralCentroid(): number { return this.#values[7]; }
+	get percussiveness(): number { return this.#values[8]; }
+	get beatDetected(): boolean { return this.#values[9] > 0.5; }
+	get dropIntensity(): number { return this.#values[10]; }
+	get bassLevel(): number { return this.#values[11]; }
+
+	get energy(): number {
+		const values = this.#values;
+		return values[1] + values[2] + values[3] + values[4] + values[5] + values[6];
+	}
+
+	#computeBins(length: number, sampleRate: number): [number, number][] {
+		const binWidth = (sampleRate / 2) / length;
+		const bands: [number, number][] = [
+			[20, 60],
+			[60, 250],
+			[250, 500],
+			[500, 2000],
+			[2000, 6000],
+			[6000, 20000],
+		];
+		return bands.map(([low, high]) => [
+			max(0, round(low / binWidth)),
+			min(length - 1, round(high / binWidth)),
+		]);
+	}
+
+	#obtainBins(length: number, sampleRate: number): [number, number][] {
+		const bins = this.#bins;
+		if (bins !== null && length === this.#cachedLength && sampleRate === this.#cachedSampleRate) return bins;
+		this.#cachedLength = length;
+		this.#cachedSampleRate = sampleRate;
+		return this.#bins = this.#computeBins(length, sampleRate);
+	}
+
+	#computeSpectralFlux(frequency: ArrayLike<number>, length: number, time: number): number {
+		const prevFrequency = this.#prevFrequency;
+		const capacity = SpectrumAnalysis.#capacity;
+		const cursor = this.#fluxCursor;
+		let flux = 0;
+		for (let binIndex = 0; binIndex < length; binIndex++) {
+			const diff = frequency[binIndex] - prevFrequency[binIndex];
+			if (diff > 0) flux += diff;
+		}
+		flux /= length;
+		prevFrequency.set(frequency);
+		this.#fluxHistory[cursor % capacity] = flux;
+		this.#timeHistory[cursor % capacity] = time;
+		this.#fluxCursor = cursor + 1;
+		return flux;
+	}
+
+	#computeBandEnergies(frequency: ArrayLike<number>, bins: [number, number][]): Float32Array {
+		const energies = new Float32Array(6);
+		for (let bandIndex = 0; bandIndex < 6; bandIndex++) {
+			const [low, high] = bins[bandIndex];
+			if (low >= high) continue;
+			let sum = 0;
+			for (let binIndex = low; binIndex <= high; binIndex++) sum += frequency[binIndex];
+			energies[bandIndex] = sum / (high - low + 1);
+		}
+		return energies;
+	}
+
+	#computeSpectralCentroid(frequency: ArrayLike<number>, length: number): number {
+		let sumWeighted = 0, sumEnergy = 0;
+		for (let binIndex = 0; binIndex < length; binIndex++) {
+			sumWeighted += frequency[binIndex] * binIndex;
+			sumEnergy += frequency[binIndex];
+		}
+		if (sumEnergy > 0.001) return sumWeighted / (sumEnergy * length);
+		return 0;
+	}
+
+	#computeFluxStats(time: number): FluxStats {
+		const fluxHistory = this.#fluxHistory;
+		const timeHistory = this.#timeHistory;
+		const filled = min(this.#fluxCursor, SpectrumAnalysis.#capacity);
+		const window = SpectrumAnalysis.#window;
+		let mean = 0, count = 0;
+		for (let index = 0; index < filled; index++) {
+			if (time - timeHistory[index] >= window) continue;
+			mean += fluxHistory[index];
+			count++;
+		}
+		mean /= max(1, count);
+		let variance = 0;
+		for (let index = 0; index < filled; index++) {
+			if (time - timeHistory[index] >= window) continue;
+			const diff = fluxHistory[index] - mean;
+			variance += diff * diff;
+		}
+		return new FluxStats(mean, sqrt(variance / max(1, count)));
+	}
+
+	#detectBeat(flux: number, stats: FluxStats, time: number): boolean {
+		const detected = flux > stats.onsetThreshold(SpectrumAnalysis.#multiplier) && time - this.#lastBeat >= SpectrumAnalysis.#gap;
+		if (detected) this.#lastBeat = time;
+		return detected;
+	}
+
+	analyze(spectrum: ArrayLike<number>, audioset: Audioset): void {
+		const { time, length, sampleRate } = audioset;
+		if (time === this.#time) return;
+		this.#time = time;
+		if (length === 0) return;
+
+		const bins = this.#obtainBins(length, sampleRate);
+		const flux = this.#computeSpectralFlux(spectrum, length, time);
+		const bandEnergies = this.#computeBandEnergies(spectrum, bins);
+		const centroid = this.#computeSpectralCentroid(spectrum, length);
+
+		const fluxStats = this.#computeFluxStats(time);
+		const percussiveness = min(1, flux / (fluxStats.mean + 0.001));
+		const beatDetected = this.#detectBeat(flux, fluxStats, time);
+
+		const values = this.#values;
+		values[0] = flux;
+		for (let bandIndex = 0; bandIndex < 6; bandIndex++) values[1 + bandIndex] = bandEnergies[bandIndex];
+		values[7] = centroid;
+		values[8] = percussiveness;
+		values[9] = Number(beatDetected);
+		values[10] = min(1, percussiveness * 3) * bandEnergies[0];
+		values[11] = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
+	}
+}
+//#endregion
+//#region Auto range
 /**
  * The quiet-to-loud range of one input in the song that is playing: its 5th and 95th percentiles
  * over the last ~30 seconds, sampled on the clock so the window is the same at any frame rate.
  * Until enough of the song has been heard it leans on a prior range (measured over MUSDB18HQ), and
  * the span never shrinks below a fraction of the prior span, so a quiet passage is not blown up into noise.
  */
-class RunningRange {
+export class AutoRange {
 	static #capacity: number = 256; // samples, ~32 s
 	static #interval: number = 0.125; // s between samples
 	static #refresh: number = 0.5; // s between percentile updates
 	static #warmup: number = 40; // samples (~5 s) before the song's own range is fully trusted
 	static #floor: number = 0.3; // minimum span, as a fraction of the prior span
+	static #silence: number = 0.01; // volume below which the music counts as stopped
+	static #gap: number = 1.5; // s of silence that starts a fresh song
 
-	#prior: [number, number];
-	#window: Float64Array = new Float64Array(RunningRange.#capacity);
-	#sorted: Float64Array = new Float64Array(RunningRange.#capacity);
+	#lowPrior: number;
+	#highPrior: number;
+	#window: Float64Array = new Float64Array(AutoRange.#capacity);
+	#sorted: Float64Array = new Float64Array(AutoRange.#capacity);
 	#count: number = 0;
 	#cursor: number = 0;
 	#untilSample: number = 0;
 	#untilRefresh: number = 0;
+	#silent: number = 0;
 	#low: number;
 	#high: number;
+	#level: number = 0;
 
-	constructor(prior: [number, number]) {
-		this.#prior = prior;
-		[this.#low, this.#high] = prior;
+	constructor(low: number, high: number) {
+		this.#lowPrior = low;
+		this.#highPrior = high;
+		this.#low = low;
+		this.#high = high;
 	}
 
-	reset(): void {
+	get level(): number { return this.#level; }
+
+	#reset(): void {
 		this.#count = 0;
 		this.#cursor = 0;
-		[this.#low, this.#high] = this.#prior;
+		this.#low = this.#lowPrior;
+		this.#high = this.#highPrior;
 	}
 
-	push(value: number, delta: number): void {
+	#watchSilence(volume: number, delta: number): void {
+		if (volume >= AutoRange.#silence) {
+			this.#silent = 0;
+			return;
+		}
+		const gap = AutoRange.#gap;
+		const before = this.#silent;
+		const silent = this.#silent = before + delta;
+		if (before >= gap || silent < gap) return;
+		this.#reset();
+	}
+
+	#sample(value: number, delta: number): void {
 		this.#untilSample -= delta;
 		this.#untilRefresh -= delta;
 		if (this.#untilSample <= 0) {
-			const capacity = RunningRange.#capacity;
+			const capacity = AutoRange.#capacity;
 			const cursor = this.#cursor;
-			this.#untilSample += RunningRange.#interval;
+			this.#untilSample += AutoRange.#interval;
 			this.#window[cursor] = value;
 			this.#cursor = (cursor + 1) % capacity;
 			this.#count = min(this.#count + 1, capacity);
 		}
 		if (this.#untilRefresh > 0) return;
-		this.#untilRefresh += RunningRange.#refresh;
+		this.#untilRefresh += AutoRange.#refresh;
 		this.#refit();
 	}
 
@@ -104,156 +334,26 @@ class RunningRange {
 		sorted.set(this.#window.subarray(0, count));
 		sorted.sort();
 		let low = sorted[trunc(count * 0.05)], high = sorted[min(count - 1, trunc(count * 0.95))];
-		const [priorLow, priorHigh] = this.#prior;
-		const floor = (priorHigh - priorLow) * RunningRange.#floor;
+		const lowPrior = this.#lowPrior;
+		const highPrior = this.#highPrior;
+		const floor = (highPrior - lowPrior) * AutoRange.#floor;
 		if (high - low < floor) {
 			const middle = (high + low) / 2;
 			low = middle - floor / 2;
 			high = middle + floor / 2;
 		}
-		const trust = min(1, count / RunningRange.#warmup);
-		this.#low = priorLow + (low - priorLow) * trust;
-		this.#high = priorHigh + (high - priorHigh) * trust;
+		const trust = min(1, count / AutoRange.#warmup);
+		this.#low = lowPrior + (low - lowPrior) * trust;
+		this.#high = highPrior + (high - highPrior) * trust;
 	}
 
-	/** `value` mapped from this range onto 0–`top`, clamped. */
-	fit(value: number, top: number): number {
+	push(value: number, volume: number, delta: number): void {
+		if (!Number.isFinite(delta) || delta < 0) delta = 0;
+		this.#watchSilence(volume, delta);
+		this.#sample(value, delta);
 		const low = this.#low;
 		const high = max(this.#high, low + 1e-9);
-		return value.clamp(low, high).lerp(low, high, 0, top);
-	}
-}
-//#endregion
-//#region Drivers
-/**
- * The inputs the built-in visualizations feed their effects, each taken from the source that best
- * follows the instrument the effect stands for, and fitted to the song that is playing so the effect
- * sweeps its whole designed range (the number after each name below) on a quiet ballad and on a loud
- * EDM master alike. A fixed fit pinned loud masters again: on one EDM track the envelope sat at its
- * maximum 81% of the time, the bloom 37%, the shake 29%.
- *
- * Sources were chosen by correlation with the true isolated instrument over MUSDB18HQ; the mix stays
- * where it measured better (beat timing, the bass band). Colour brightness is deliberately not driven
- * here: `illuminate()` turns a full-range input into white, so brightness keeps production's own scale.
- *
- * Call `update()` once per frame, before reading any driver.
- */
-export class Drivers {
-	static #silence: number = 0.01; // volume below which the music counts as stopped
-	static #gap: number = 1.5; // s of silence that starts a fresh song
-	static #tops: number[] = [0.5, 1, 0.6, 0.8, 0.45, 0.5, 0.6, 0.3, 1];
-
-	#ranges: RunningRange[] = [
-		new RunningRange([0.0455, 0.9471]), // drop
-		new RunningRange([0.0259, 1]), // percussiveness
-		new RunningRange([0.0240, 0.7524]), // bass level
-		new RunningRange([0.0285, 0.8544]), // sub-bass
-		new RunningRange([0.0930, 0.3115]), // centroid
-		new RunningRange([0.0006, 0.2653]), // high
-		new RunningRange([0.0071, 0.3011]), // high-mid
-		new RunningRange([0.0010, 0.0202]), // flux
-		new RunningRange([0.0355, 0.1996]), // volume
-	];
-	#sources: Float64Array = new Float64Array(9);
-	#values: Float64Array = new Float64Array(9);
-	#silent: number = 0;
-
-	#watchSilence(volume: number, delta: number): void {
-		if (volume >= Drivers.#silence) {
-			this.#silent = 0;
-			return;
-		}
-		const gap = Drivers.#gap;
-		const before = this.#silent;
-		const silent = this.#silent = before + delta;
-		if (before >= gap || silent < gap) return;
-		for (const range of this.#ranges) range.reset();
-	}
-
-	#readSources(audioset: AudiosetView): void {
-		const { subBass, volume, stems } = audioset;
-		const { drums, bass, vocals, other } = stems;
-		const energy = vocals.energy + other.energy;
-		const sources = this.#sources;
-		sources[0] = min(1, drums.percussiveness * 3) * subBass;
-		sources[1] = drums.percussiveness;
-		sources[2] = bass.bassLevel;
-		sources[3] = bass.subBass;
-		let centroid = 0;
-		if (energy > 0) centroid = (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy;
-		sources[4] = centroid;
-		sources[5] = drums.high;
-		sources[6] = drums.highMid;
-		sources[7] = vocals.spectralFlux + other.spectralFlux;
-		sources[8] = volume;
-	}
-
-	/** Reads this frame's sources and advances every running range; `delta` is the frame time in seconds. */
-	update(audioset: AudiosetView, delta: number): void {
-		if (!Number.isFinite(delta) || delta < 0) delta = 0;
-		this.#watchSilence(audioset.volume, delta);
-		this.#readSources(audioset);
-		const ranges = this.#ranges, sources = this.#sources, values = this.#values, tops = Drivers.#tops;
-		for (let index = 0; index < ranges.length; index++) {
-			ranges[index].push(sources[index], delta);
-			values[index] = ranges[index].fit(sources[index], tops[index]);
-		}
-	}
-
-	/** Shake, 0–0.5: the drop formula with the drums thread's percussiveness — kicks shake the view, not bass notes. */
-	get drop(): number { return this.#values[0]; }
-
-	/** Pulse and wave punch, 0–1: the drums thread's percussiveness. */
-	get percussiveness(): number { return this.#values[1]; }
-
-	/** Glow, blur and bloom alpha, 0–0.6: the bass thread's bass level — the glow follows the bass line, not the kick. */
-	get bassLevel(): number { return this.#values[2]; }
-
-	/** Bloom radius, 0–0.8: the bass thread's sub-bass band. */
-	get subBass(): number { return this.#values[3]; }
-
-	/** Hue, 0–0.45: the melody's (vocals + other) energy-weighted centroid — hi-hats stop pulling the hue. */
-	get centroid(): number { return this.#values[4]; }
-
-	/** Sparkle, 0–0.5: the drums thread's high band — cymbals and hats. */
-	get high(): number { return this.#values[5]; }
-
-	/** Sparkle, 0–0.6: the drums thread's high-mid band. */
-	get highMid(): number { return this.#values[6]; }
-
-	/** Shimmer, 0–0.3: the melody's (vocals + other) spectral flux — how much the tune itself is changing. */
-	get flux(): number { return this.#values[7]; }
-
-	/** Loudness for size ranges (the envelope), 0–1. Never for brightness, never as a raw multiplier. */
-	get volume(): number { return this.#values[8]; }
-}
-//#endregion
-//#region Silhouette
-/**
- * The spectrum a silhouette is drawn from, rebuilt from the four threads: every thread at full weight
- * except drums, which are reduced so hi-hats and snares stop jagging the shape (the drums still move
- * the picture through the camera). A gain lets the shape's peaks reach the mix's own height; the
- * buffer is reused frame to frame.
- */
-export class Silhouette {
-	#weightDrums: number;
-	#gain: number;
-	#spectrum: Float32Array = new Float32Array(0);
-
-	constructor(weightDrums: number, gain: number) {
-		this.#weightDrums = weightDrums;
-		this.#gain = gain;
-	}
-
-	shape(audioset: AudiosetView): Float32Array {
-		const whole = audioset.dataFrequency;
-		const drums = audioset.stems.drums.dataFrequency;
-		const { length } = whole;
-		let spectrum = this.#spectrum;
-		if (spectrum.length !== length) spectrum = this.#spectrum = new Float32Array(length);
-		const reduction = 1 - this.#weightDrums, gain = this.#gain;
-		for (let index = 0; index < length; index++) spectrum[index] = min(1, (whole[index] - drums[index] * reduction) * gain);
-		return spectrum;
+		this.#level = value.clamp(low, high).lerp(low, high, 0, 1);
 	}
 }
 //#endregion

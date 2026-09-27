@@ -4,30 +4,29 @@ import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 import { Registry } from "../services/visualization-registry.js";
 import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
-import { WorkerAudioset, WorkerEnvironment } from "../services/worker-visualization.js";
 import { Stage } from "../services/stage.js";
+import { Scene } from "../services/scene.js";
 import "../view/visualizations.js";
 
 //#region Visualization worker
 class VisualizationWorker extends Controller {
-	#stages: Map<string, Stage> = new Map();
+	#scenes: Map<string, Scene> = new Map();
 	#context: OffscreenCanvasRenderingContext2D;
-	#audioset: WorkerAudioset;
-	#environment: WorkerEnvironment;
+	#stage: Stage;
 	#selection: string;
 	#width: number = 0;
 	#height: number = 0;
 	#rebuilt: boolean = false;
 	#frame: number = -1;
 
-	#findStage(name: string): Stage {
-		return ReferenceError.suppress(this.#stages.get(name), `Visualization with name '${name}' is not attached`);
+	#findScene(name: string): Scene {
+		return ReferenceError.suppress(this.#scenes.get(name), `Visualization with name '${name}' is not attached`);
 	}
 
 	#select(name: string): void {
 		const selection = this.#selection;
 		if (name === selection) return;
-		this.#findStage(selection).release();
+		this.#findScene(selection).release();
 		this.#selection = name;
 	}
 
@@ -35,31 +34,30 @@ class VisualizationWorker extends Controller {
 		const width = this.#width;
 		const height = this.#height;
 		if (width === 0 || height === 0) return;
-		const context = this.#context;
-		this.#audioset.sync();
-		this.#environment.reset();
-		const { canvas } = context;
+		const stage = this.#stage;
+		const { canvas } = this.#context;
 		canvas.width = width;
 		canvas.height = height;
-		const stage = this.#findStage(this.#selection);
-		stage.rebuild(width, height);
-		stage.render(context);
+		stage.sync();
+		stage.resize(canvas.width, canvas.height);
+		const scene = this.#findScene(this.#selection);
+		scene.rebuild();
+		scene.render();
 		this.#rebuilt = true;
 	}
 
 	#onMessage(event: MessageEvent): void {
 		const command = Command.import(event.data, "command");
-		const stages = this.#stages;
+		const scenes = this.#scenes;
 
 		if (command instanceof InitializeRenderCommand) {
-			const { sabSignal, sabFeatures, sabMask, canvas } = command;
+			const { sabSignal, sabMask, sampleRate, canvas } = command;
 
-			this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
-			const audioset = this.#audioset = new WorkerAudioset(sabSignal, sabFeatures, sabMask);
-			const environment = this.#environment = new WorkerEnvironment();
+			const context = this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
+			const stage = this.#stage = new Stage(sabSignal, sabMask, sampleRate);
 			let selection: string | null = null;
 			for (const [name, descriptor] of Registry.entries()) {
-				stages.set(name, new Stage(name, Registry.createBundle(descriptor), audioset, environment));
+				scenes.set(name, new Scene(name, Registry.create(descriptor), stage, context));
 				if (selection === null) selection = name;
 			}
 			this.#selection = ReferenceError.suppress(selection, "Failed to find any visualization");
@@ -70,19 +68,19 @@ class VisualizationWorker extends Controller {
 
 		if (command instanceof TickCommand) {
 			if (!this.#rebuilt) return;
-			const audioset = this.#audioset;
-			const frame = audioset.frame;
+			const stage = this.#stage;
+			const frame = stage.frame;
 			if (frame === this.#frame) return;
 			this.#frame = frame;
-			audioset.sync();
-			this.#environment.tick();
-			this.#findStage(this.#selection).render(this.#context);
+			stage.sync();
+			stage.tick();
+			this.#findScene(this.#selection).render();
 			return;
 		}
 
 		if (command instanceof RebuildRenderCommand) {
 			const { width, height, visualization, hue, saturation, lightness } = command;
-			this.#environment.updateColor(hue, saturation, lightness);
+			this.#stage.updateColor(hue, saturation, lightness);
 			this.#select(visualization);
 			this.#width = width;
 			this.#height = height;
@@ -92,24 +90,24 @@ class VisualizationWorker extends Controller {
 
 		if (command instanceof LyricsRenderCommand) {
 			const { previous, current, next } = command;
-			this.#environment.updateLyrics(previous, current, next);
+			this.#stage.updateLyrics(previous, current, next);
 			return;
 		}
 
 		if (command instanceof ShakeRenderCommand) {
-			this.#environment.updateShake(command.value);
+			this.#stage.updateShake(command.value);
 			return;
 		}
 
 		if (command instanceof LayersRenderCommand) {
 			const { visualization, layers, background, lyrics } = command;
-			this.#findStage(visualization).arrange(layers, background, lyrics);
+			this.#findScene(visualization).arrange(layers, background, lyrics);
 			return;
 		}
 
 		if (command instanceof ImageRenderCommand) {
 			const { visualization, image } = command;
-			void this.#findStage(visualization).setBackground(image);
+			void this.#findScene(visualization).setBackground(image);
 			return;
 		}
 	}

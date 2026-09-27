@@ -2,10 +2,10 @@
 
 import "adaptive-extender/web";
 import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
-import { Audioset } from "../models/audioset.js";
-import { AudioAnalyzer } from "./audio-analyzer.js";
+import { AudiosetManager } from "./audioset-manager.js";
+import { StemMasks } from "../models/audio-features.js";
 import { Registry } from "./visualization-registry.js";
-import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
+import { Command, InitializeMaskCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { type BackgroundSettings } from "../models/background-settings.js";
 
@@ -23,12 +23,12 @@ export class Visualizer extends EventTarget {
 	static #minRate: number = 30;
 	static #maxRate: number = 1200;
 	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
+	#maskWorker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
 	#engine: WebEngine = new FastEngine();
 	#visualization: string;
 	#shake: number = 0.2;
 	#canvas: HTMLCanvasElement;
-	#audioset: Audioset;
-	#analyzer: AudioAnalyzer;
+	#manager: AudiosetManager;
 
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement) {
 		super();
@@ -42,11 +42,15 @@ export class Visualizer extends EventTarget {
 		this.#canvas = canvas;
 		this.#fixCanvasSize();
 
-		const audioset = this.#audioset = new Audioset(media);
-		const analyzer = this.#analyzer = new AudioAnalyzer(audioset);
+		const manager = this.#manager = new AudiosetManager(media);
+		const { sab } = manager.signal;
+		const sabMask = StemMasks.createBuffer();
+		const urlModel = new URL("../data/stem-mask/model.json", baseURI).toString();
+		const urlWasm = new URL("../wasm/", baseURI).toString();
+		this.#maskWorker.postMessage(Command.export(new InitializeMaskCommand(sab, sabMask, urlModel, urlWasm)));
 
 		const offscreen = canvas.transferControlToOffscreen();
-		this.#worker.postMessage(Command.export(new InitializeRenderCommand(audioset.signal.sab, analyzer.sabFeatures, analyzer.sabMask, offscreen)), [offscreen]);
+		this.#worker.postMessage(Command.export(new InitializeRenderCommand(sab, sabMask, manager.sampleRate, offscreen)), [offscreen]);
 
 		this.#rebuild();
 		window.addEventListener("resize", event => this.#rebuild());
@@ -83,7 +87,7 @@ export class Visualizer extends EventTarget {
 		this.#engine.limit = value;
 	}
 
-	get audioset(): Audioset { return this.#audioset; }
+	get manager(): AudiosetManager { return this.#manager; }
 
 	get visualization(): string {
 		return this.#visualization;
@@ -119,9 +123,10 @@ export class Visualizer extends EventTarget {
 	}
 
 	#update(): void {
-		this.#audioset.capture();
-		this.#analyzer.tick();
-		this.#worker.postMessage(Visualizer.#tick);
+		const tick = Visualizer.#tick;
+		this.#manager.capture();
+		this.#maskWorker.postMessage(tick);
+		this.#worker.postMessage(tick);
 		this.dispatchEvent(new Event("update"));
 	}
 

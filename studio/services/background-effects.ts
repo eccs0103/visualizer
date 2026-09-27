@@ -2,7 +2,7 @@
 
 import "adaptive-extender/core";
 import { BackgroundEffectKind } from "../models/background-settings.js";
-import { type StageHost } from "../models/visualization.js";
+import { type Stage } from "./stage.js";
 
 //#region Placement
 export class Placement {
@@ -27,12 +27,12 @@ export class Placement {
 //#endregion
 //#region Background effect
 export abstract class BackgroundEffect {
-	abstract place(stage: StageHost, intensity: number, placement: Placement): void;
+	abstract place(stage: Stage, intensity: number, placement: Placement): void;
 }
 //#endregion
 //#region No effect
 class NoEffect extends BackgroundEffect {
-	place(stage: StageHost, intensity: number, placement: Placement): void {
+	place(stage: Stage, intensity: number, placement: Placement): void {
 		void stage, intensity, placement;
 	}
 }
@@ -41,7 +41,7 @@ class NoEffect extends BackgroundEffect {
 class ShakeEffect extends BackgroundEffect {
 	static #gain: number = 4;
 
-	place(stage: StageHost, intensity: number, placement: Placement): void {
+	place(stage: Stage, intensity: number, placement: Placement): void {
 		const { camera } = stage;
 		const factor = intensity * ShakeEffect.#gain;
 		placement.x = camera.e * factor;
@@ -55,14 +55,13 @@ class PulseEffect extends BackgroundEffect {
 	static #decay: number = 4;
 	#energy: number = 0;
 
-	place(stage: StageHost, intensity: number, placement: Placement): void {
-		const { audioset, environment } = stage;
-		const { delta } = environment;
+	place(stage: Stage, intensity: number, placement: Placement): void {
+		const { delta } = stage;
 		let energy = this.#energy;
 		if (Number.isFinite(delta)) energy = (energy - delta * PulseEffect.#decay).clamp(0, 1);
-		if (audioset.beatDetected) energy = 1;
+		if (stage.beatDetected) energy = 1;
 		this.#energy = energy;
-		const level = energy * 0.6 + audioset.bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0, 1) * 0.4;
+		const level = energy * 0.6 + stage.bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0, 1) * 0.4;
 		placement.scale = 1 + intensity * level * 0.08;
 	}
 }
@@ -71,7 +70,7 @@ class PulseEffect extends BackgroundEffect {
 class ParallaxEffect extends BackgroundEffect {
 	static #gain: number = 4;
 
-	place(stage: StageHost, intensity: number, placement: Placement): void {
+	place(stage: Stage, intensity: number, placement: Placement): void {
 		const { camera } = stage;
 		const factor = intensity * ParallaxEffect.#gain;
 		placement.x = -camera.e * factor;

@@ -2,18 +2,15 @@
 
 import "adaptive-extender/core";
 import { Color, Random, Vector2D } from "adaptive-extender/core";
-import { type StageHost, type VisualizationHost } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
-import { ColorDriver, Drivers, Shaper, Silhouette } from "../../services/visualization-tools.js";
+import { type Host } from "../../models/visualization.js";
+import { AutoRange, HueDrift, Shaper, SpectrumAnalysis, StemMix } from "../../services/visualization-tools.js";
 
 const { min, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
 const random = Random.global;
 
 //#region Pulsar
 Registry.attach("Pulsar", class extends Visualization {
-	#layerHalo = this.newLayer("Halo", this.#drawHalo.bind(this));
-	#layerWave = this.newLayer("Wave", this.#drawWave.bind(this));
-	#layerShadow = this.newLayer("Shadow", this.#drawShadow.bind(this));
 	#countStops: number = 96;
 	#radius: number;
 	#colorHaloOuter: Color = Color.fromHSL(0, 100, 60);
@@ -23,14 +20,29 @@ Registry.attach("Pulsar", class extends Visualization {
 	#pathHalo: Path2D = new Path2D();
 	#pathWave: Path2D = new Path2D();
 	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
-	#driverHalo: ColorDriver = new ColorDriver();
+	#drift: HueDrift = new HueDrift();
 	#colorShadow: Color;
-	#silhouette: Silhouette = new Silhouette(0.5, 1.03); // drums at half weight, the gain lets the ring's peaks reach the mix's height
-	#drivers: Drivers = new Drivers();
+	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1.03); // drums at half weight, the gain lets the ring's peaks reach the mix's height
+	#drums: SpectrumAnalysis = new SpectrumAnalysis();
+	#bass: SpectrumAnalysis = new SpectrumAnalysis();
+	#vocals: SpectrumAnalysis = new SpectrumAnalysis();
+	#other: SpectrumAnalysis = new SpectrumAnalysis();
+	#drop: AutoRange = new AutoRange(0.0455, 0.9471);
+	#percussiveness: AutoRange = new AutoRange(0.0259, 1);
+	#bassLevel: AutoRange = new AutoRange(0.0240, 0.7524);
+	#centroid: AutoRange = new AutoRange(0.0930, 0.3115);
+
+	constructor() {
+		super();
+		this.newLayer("Halo", this.#drawHalo.bind(this));
+		this.newLayer("Wave", this.#drawWave.bind(this));
+		this.newLayer("Shadow", this.#drawShadow.bind(this));
+	}
 
 	//#region Rebuild
-	rebuild(stage: StageHost): void {
-		const { width, height, environment } = stage;
+	rebuild(host: Host): void {
+		const { context, environment } = host;
+		const { width, height } = context.canvas;
 		const { hue, saturation, lightness } = environment.colorBackground;
 
 		this.#radius = min(width, height) / 2;
@@ -39,35 +51,53 @@ Registry.attach("Pulsar", class extends Visualization {
 	}
 	//#endregion
 	//#region Update
-	#runCameraUpdate(stage: StageHost): void {
+	#runLevels(host: Host): void {
+		const { audioset, environment } = host;
+		const { delta } = environment;
+		const { volume, subBass } = audioset;
+		const drums = this.#drums;
+		const bass = this.#bass;
+		const vocals = this.#vocals;
+		const other = this.#other;
+
+		drums.analyze(audioset.dataDrums, audioset);
+		bass.analyze(audioset.dataBass, audioset);
+		vocals.analyze(audioset.dataVocals, audioset);
+		other.analyze(audioset.dataOther, audioset);
+		const energy = vocals.energy + other.energy;
+		let centroid = 0;
+		if (energy > 0) centroid = (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy;
+		this.#drop.push(min(1, drums.percussiveness * 3) * subBass, volume, delta);
+		this.#percussiveness.push(drums.percussiveness, volume, delta);
+		this.#bassLevel.push(bass.bassLevel, volume, delta);
+		this.#centroid.push(centroid, volume, delta);
+	}
+
+	#runCameraUpdate(host: Host): void {
 		const radius = this.#radius;
-		const { camera } = stage;
-		const dropIntensity = this.#drivers.drop;
 
-		const shake = dropIntensity.clamp(0, 0.5).lerp(0, 0.5, 0, radius >> 6);
-		camera.translateSelf(random.number(-1, 1) * shake, random.number(-1, 1) * shake);
+		const shake = this.#drop.level.lerp(0, 1, 0, radius >> 6);
+		host.context.translate(random.number(-1, 1) * shake, random.number(-1, 1) * shake);
 	}
 
-	#runHaloRotation(stage: StageHost): void {
-		const driverHalo = this.#driverHalo;
-		const colorHaloOuter = this.#colorHaloOuter;
-		const { audioset, environment } = stage;
+	#runHaloRotation(host: Host): void {
+		const { audioset, environment } = host;
+		const { delta } = environment;
 
-		driverHalo.tick(colorHaloOuter, 360 / 6, environment.delta, audioset.volume);
+		this.#drift.tick(this.#colorHaloOuter, 360 / 6, delta, audioset.volume);
 	}
 
-	#runHaloBuilding(stage: StageHost): void {
+	#runHaloBuilding(host: Host): void {
 		const radius = this.#radius;
 		const countStops = this.#countStops;
 		const colorHaloOuter = this.#colorHaloOuter;
 		const shaperFrequency = this.#shaperFrequency;
 		const stops = this.#stopsHalo;
-		const { audioset } = stage;
+		const { audioset } = host;
 		const { volume, bassLevel, length } = audioset; // brightness stays on production's own scale
-		const dataFrequency = this.#silhouette.shape(audioset);
-		const spectralCentroid = this.#drivers.centroid;
+		const dataFrequency = this.#silhouette.mix(audioset);
 		const semiLength = length / 2;
-		const hueBias = spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, -30, 30);
+		const hueBias = this.#centroid.level.lerp(0, 1, -30, 30);
 		const normIllumination = meanGeometric(volume.lerp(0, 1, 0.1, 1.0), bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0.5, 1.0));
 
 		this.#gradientHalo = null;
@@ -94,12 +124,12 @@ Registry.attach("Pulsar", class extends Visualization {
 		path.closePath();
 	}
 
-	#runWaveBuilding(stage: StageHost): void {
+	#runWaveBuilding(host: Host): void {
 		const radius = this.#radius;
-		const { width, audioset } = stage;
+		const { context, audioset } = host;
+		const { width } = context.canvas;
 		const { dataTemporal, volume, length } = audioset;
-		const percussiveness = this.#drivers.percussiveness;
-		const scalePercussive = percussiveness.lerp(0, 1, 1.0, 1.15);
+		const scalePercussive = this.#percussiveness.level.lerp(0, 1, 1.0, 1.15);
 
 		const path = this.#pathWave = new Path2D();
 		path.moveTo(-width / 2, 0);
@@ -115,12 +145,12 @@ Registry.attach("Pulsar", class extends Visualization {
 		path.lineTo(width / 2, 0);
 	}
 
-	update(stage: StageHost): void {
-		this.#drivers.update(stage.audioset, stage.environment.delta);
-		this.#runHaloRotation(stage);
-		this.#runCameraUpdate(stage);
-		this.#runHaloBuilding(stage);
-		this.#runWaveBuilding(stage);
+	update(host: Host): void {
+		this.#runLevels(host);
+		this.#runHaloRotation(host);
+		this.#runCameraUpdate(host);
+		this.#runHaloBuilding(host);
+		this.#runWaveBuilding(host);
 	}
 	//#endregion
 	//#region Layers
@@ -136,18 +166,17 @@ Registry.attach("Pulsar", class extends Visualization {
 		return gradientHalo;
 	}
 
-	#drawHalo(host: VisualizationHost): void {
+	#drawHalo(host: Host): void {
 		const radius = this.#radius;
 		const colorHaloInner = this.#colorHaloInner;
 		const pathHalo = this.#pathHalo;
 		const { context } = host;
-		const bassLevel = this.#drivers.bassLevel;
 
 		context.lineWidth = radius >> 7;
 		context.fillStyle = colorHaloInner.toString();
 		context.fill(pathHalo);
 		context.strokeStyle = this.#obtainGradientHalo(context);
-		const blurHalo = trunc(bassLevel.clamp(0, 0.6).lerp(0, 0.6, radius >> 6, radius >> 3) / 2);
+		const blurHalo = trunc(this.#bassLevel.level.lerp(0, 1, radius >> 6, radius >> 3) / 2);
 		if (blurHalo >= 1) {
 			context.filter = `blur(${blurHalo}px)`;
 			context.stroke(pathHalo);
@@ -156,7 +185,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.stroke(pathHalo);
 	}
 
-	#drawWave(host: VisualizationHost): void {
+	#drawWave(host: Host): void {
 		const radius = this.#radius;
 		const pathWave = this.#pathWave;
 		const { context } = host;
@@ -170,7 +199,7 @@ Registry.attach("Pulsar", class extends Visualization {
 		context.stroke(pathWave);
 	}
 
-	#drawShadow(host: VisualizationHost): void {
+	#drawShadow(host: Host): void {
 		const radius = this.#radius;
 		const colorShadow = this.#colorShadow;
 		const { context } = host;

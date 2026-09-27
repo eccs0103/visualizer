@@ -10,13 +10,12 @@ import { type VitePlugin } from "./environment/plugins/vite-plugin.js";
 export default defineConfig(async (env) => {
 	const root: URL = new URL(import.meta.url);
 	const inputs: URL[] = [
-		new URL("./studio/index.html", root),
+		new URL("./studio/index.html", root)
 	];
 	const rootEntries: URL[] = [
 		new URL("./environment/controllers/coi-worker.ts", root)
 	];
 	const pathEntries: URL[] = [
-		new URL("./studio/controllers/audio-analyzer-worker.ts", root),
 		new URL("./studio/controllers/visualization-worker.ts", root),
 		new URL("./studio/controllers/stem-mask-worker.ts", root),
 		new URL("./studio/controllers/clip-accumulator-worker.ts", root),

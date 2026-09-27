@@ -1,124 +1,140 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { type AudiosetView, type StageHost, type VisualizationBundle, type VisualizationEnvironment } from "../models/visualization.js";
-import { type LayerSettings } from "../models/layer-settings.js";
-import { type BackgroundSettings } from "../models/background-settings.js";
-import { type Layer } from "./layers.js";
-import { BackgroundLayer, LyricsLayer } from "./engine-layers.js";
+import { Color } from "adaptive-extender/core";
+import { SabLayout, Signal, StemMasks } from "../models/audio-features.js";
+import { type Audioset, type Environment, type LyricsWindow } from "../models/visualization.js";
+import { SpectrumAnalysis } from "./visualization-tools.js";
 
 //#region Stage
-export class Stage implements StageHost {
-	#name: string;
-	#bundle: VisualizationBundle;
-	#background: BackgroundLayer = new BackgroundLayer();
-	#lyrics: LyricsLayer = new LyricsLayer();
-	#layers: Layer[];
-	#audioset: AudiosetView;
-	#environment: VisualizationEnvironment;
+export class Stage implements Audioset, Environment {
+	#signal: Signal;
+	#masks: StemMasks;
+	#sampleRate: number;
+	#analysis: SpectrumAnalysis = new SpectrumAnalysis();
+	#frame: number = -1;
+	#length: number = 0;
+	#time: number = NaN;
+	#frequency: Float32Array;
+	#temporal: Float32Array;
 	#camera: DOMMatrix = new DOMMatrix();
 	#width: number = 0;
 	#height: number = 0;
-	#isBroken: boolean = false;
+	#lastTime: number = NaN;
+	#delta: number = NaN;
+	#color: Color = Color.newBlack;
+	#previous: string | null = null;
+	#current: string | null = null;
+	#next: string | null = null;
+	#shake: number = 0.2;
+	#lyrics: LyricsWindow | null = null;
 
-	constructor(name: string, bundle: VisualizationBundle, audioset: AudiosetView, environment: VisualizationEnvironment) {
-		this.#name = name;
-		this.#bundle = bundle;
-		this.#layers = Array.from(bundle.layers);
-		this.#audioset = audioset;
-		this.#environment = environment;
+	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, sampleRate: number) {
+		const signal = this.#signal = new Signal(sabSignal);
+		this.#masks = new StemMasks(sabMask);
+		this.#sampleRate = sampleRate;
+		this.#frequency = signal.frequency.subarray(0, 0);
+		this.#temporal = signal.temporal.subarray(0, 0);
 	}
 
+	//#region Audioset
+	get length(): number { return this.#length; }
+	get sampleRate(): number { return this.#sampleRate; }
+	get time(): number { return this.#time; }
+	get volume(): number { return this.#signal.volume; }
+	get dataFrequency(): Float32Array { return this.#frequency; }
+	get dataTemporal(): Float32Array { return this.#temporal; }
+	get dataDrums(): Float32Array { return this.#masks.drums(this.#length, this.#frequency); }
+	get dataBass(): Float32Array { return this.#masks.bass(this.#length, this.#frequency); }
+	get dataVocals(): Float32Array { return this.#masks.vocals(this.#length, this.#frequency); }
+	get dataOther(): Float32Array { return this.#masks.other(this.#length, this.#frequency); }
+	get spectralFlux(): number { return this.#analysis.spectralFlux; }
+	get subBass(): number { return this.#analysis.subBass; }
+	get bass(): number { return this.#analysis.bass; }
+	get lowMid(): number { return this.#analysis.lowMid; }
+	get mid(): number { return this.#analysis.mid; }
+	get highMid(): number { return this.#analysis.highMid; }
+	get high(): number { return this.#analysis.high; }
+	get spectralCentroid(): number { return this.#analysis.spectralCentroid; }
+	get percussiveness(): number { return this.#analysis.percussiveness; }
+	get beatDetected(): boolean { return this.#analysis.beatDetected; }
+	get dropIntensity(): number { return this.#analysis.dropIntensity; }
+	get bassLevel(): number { return this.#analysis.bassLevel; }
+	//#endregion
+	//#region Environment
+	get delta(): number { return this.#delta; }
+	get colorBackground(): Color { return new Color(this.#color); }
+	get lyrics(): LyricsWindow | null { return this.#lyrics; }
+	//#endregion
+	//#region Engine
+	get frame(): number { return this.#signal.frame; }
 	get width(): number { return this.#width; }
 	get height(): number { return this.#height; }
 	get camera(): DOMMatrix { return this.#camera; }
-	get audioset(): AudiosetView { return this.#audioset; }
-	get environment(): VisualizationEnvironment { return this.#environment; }
+	get color(): Color { return this.#color; }
 
-	#report(subject: string, reason: unknown): void {
-		console.error(`${subject} of visualization '${this.#name}' failed and was disabled until the next rebuild:\n${Error.from(reason)}`);
-	}
-
-	#resetCamera(): void {
-		const camera = this.#camera;
-		camera.a = 1;
-		camera.b = 0;
-		camera.c = 0;
-		camera.d = 1;
-		camera.e = 0;
-		camera.f = 0;
-	}
-
-	#update(): void {
-		if (this.#isBroken) return;
-		try {
-			this.#bundle.update(this);
-		} catch (reason) {
-			this.#isBroken = true;
-			this.#report("Update", reason);
+	#refreshLyrics(): void {
+		const previous = this.#previous;
+		const current = this.#current;
+		const next = this.#next;
+		if (previous === null && current === null && next === null) {
+			this.#lyrics = null;
+			return;
 		}
+		this.#lyrics = { previous, current, next, shake: this.#shake };
 	}
 
-	#draw(layer: Layer, output: OffscreenCanvasRenderingContext2D): void {
-		if (!layer.isVisible) return;
-		if (layer.isDependent && this.#isBroken) return;
-		try {
-			layer.render(this, output);
-		} catch (reason) {
-			layer.fault();
-			this.#report(`Layer '${layer.name}'`, reason);
+	sync(): void {
+		const signal = this.#signal;
+		const frame = signal.frame;
+		const length = signal.length;
+		this.#masks.invalidate();
+		if (frame === this.#frame) return;
+		this.#frame = frame;
+		if (1 > length || length > SabLayout.maxLength) return;
+		if (length !== this.#length) {
+			this.#length = length;
+			this.#frequency = signal.frequency.subarray(0, length);
+			this.#temporal = signal.temporal.subarray(0, length);
 		}
+		this.#time = signal.time;
+		this.#analysis.analyze(this.#frequency, this);
 	}
 
-	arrange(settings: readonly LayerSettings[], background: BackgroundSettings, lyrics: LayerSettings): void {
-		this.#background.apply(background);
-		this.#lyrics.apply(lyrics);
-		const layers = this.#layers;
-		const ordered: Layer[] = [];
-		for (const entry of settings) {
-			const layer = layers.find(candidate => candidate.name === entry.name);
-			if (layer === undefined) continue;
-			if (ordered.includes(layer)) continue;
-			layer.apply(entry);
-			ordered.push(layer);
-		}
-		for (const layer of layers) if (!ordered.includes(layer)) ordered.push(layer);
-		this.#layers = ordered;
-	}
-
-	async setBackground(image: Blob | null): Promise<void> {
-		await this.#background.setImage(image);
-	}
-
-	rebuild(width: number, height: number): void {
+	resize(width: number, height: number): void {
 		this.#width = width;
 		this.#height = height;
-		this.#isBroken = false;
-		this.#resetCamera();
-		this.#background.resize(width, height);
-		this.#lyrics.resize(width, height);
-		for (const layer of this.#layers) layer.resize(width, height);
-		try {
-			this.#bundle.rebuild(this);
-		} catch (reason) {
-			this.#isBroken = true;
-			this.#report("Rebuild", reason);
-		}
+		this.#lastTime = performance.now() / 1000;
+		this.#delta = 0;
 	}
 
-	release(): void {
-		this.#background.release();
-		this.#lyrics.release();
-		for (const layer of this.#layers) layer.release();
+	tick(): void {
+		const now = performance.now() / 1000;
+		const lastTime = this.#lastTime;
+		this.#delta = NaN;
+		if (Number.isFinite(lastTime)) this.#delta = now - lastTime;
+		this.#lastTime = now;
 	}
 
-	render(output: OffscreenCanvasRenderingContext2D): void {
-		this.#resetCamera();
-		this.#update();
-		output.reset();
-		this.#draw(this.#background, output);
-		for (const layer of this.#layers) this.#draw(layer, output);
-		this.#draw(this.#lyrics, output);
+	updateCamera(camera: DOMMatrix): void {
+		this.#camera = camera;
 	}
+
+	updateColor(hue: number, saturation: number, lightness: number): void {
+		this.#color = Color.fromHSL(hue, saturation, lightness);
+	}
+
+	updateLyrics(previous: string | null, current: string | null, next: string | null): void {
+		this.#previous = previous;
+		this.#current = current;
+		this.#next = next;
+		this.#refreshLyrics();
+	}
+
+	updateShake(value: number): void {
+		this.#shake = value;
+		this.#refreshLyrics();
+	}
+	//#endregion
 }
 //#endregion

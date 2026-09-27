@@ -3,7 +3,8 @@
 import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
 import { BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "../models/background-settings.js";
-import { type StageHost, type VisualizationHost } from "../models/visualization.js";
+import { type Stage } from "./stage.js";
+import { type Host } from "../models/visualization.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { Layer, PaintedLayer } from "./layers.js";
 import { BackgroundEffect, BackgroundEffects, Placement } from "./background-effects.js";
@@ -78,8 +79,9 @@ ${Error.from(reason)}`);
 		if (previous !== null) previous.close();
 	}
 
-	resize(width: number, height: number): void {
-		super.resize(width, height);
+	resize(stage: Stage): void {
+		super.resize(stage);
+		const { width, height } = stage;
 		this.#width = width;
 		this.#height = height;
 		this.#isStale = true;
@@ -134,7 +136,7 @@ ${Error.from(reason)}`);
 		return canvas;
 	}
 
-	#blitMoved(stage: StageHost, output: OffscreenCanvasRenderingContext2D, canvas: OffscreenCanvas): void {
+	#blitMoved(stage: Stage, output: OffscreenCanvasRenderingContext2D, canvas: OffscreenCanvas): void {
 		const width = this.#width;
 		const height = this.#height;
 		const placement = this.#placement;
@@ -149,8 +151,8 @@ ${Error.from(reason)}`);
 		output.restore();
 	}
 
-	render(stage: StageHost, output: OffscreenCanvasRenderingContext2D): void {
-		const color = stage.environment.colorBackground;
+	render(stage: Stage, output: OffscreenCanvasRenderingContext2D): void {
+		const color = stage.color;
 		let colorText = this.#colorText;
 		if (color !== this.#color || colorText === null) {
 			colorText = color.toString();
@@ -182,16 +184,15 @@ export class LyricsLayer extends PaintedLayer {
 		super("Lyrics");
 	}
 
-	isIdle(stage: StageHost): boolean {
-		return stage.environment.lyrics === null;
+	isIdle(stage: Stage): boolean {
+		return stage.lyrics === null;
 	}
 
-	paint(host: VisualizationHost, stage: StageHost): void {
+	paint(host: Host, stage: Stage): void {
 		const { context } = host;
-		const { lyrics } = stage.environment;
+		const { width, height, camera, lyrics } = stage;
 		if (lyrics === null) return;
 		const { previous, current, next, shake } = lyrics;
-		const { width, height, camera } = stage;
 
 		const side = min(width, height);
 		const sizeCurrent = side * 0.045;

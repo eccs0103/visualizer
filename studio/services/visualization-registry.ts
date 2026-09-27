@@ -1,11 +1,11 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { type StageHost, type VisualizationBundle, type VisualizationDescriptor } from "../models/visualization.js";
 import { CodeLayer, type Layer, type LayerOptions, type LayerPainter } from "./layers.js";
+import { type Host } from "../models/visualization.js";
 
 //#region Visualization
-export class Visualization implements VisualizationBundle {
+export class Visualization {
 	static #reserved: ReadonlySet<string> = new Set(["Background", "Lyrics"]);
 	#layers: Layer[] = [];
 
@@ -13,31 +13,31 @@ export class Visualization implements VisualizationBundle {
 		if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
 	}
 
-	get layers(): readonly Layer[] { return this.#layers; }
+	static layers(visualization: Visualization): readonly Layer[] {
+		return visualization.#layers;
+	}
 
-	newLayer(name: string, painter: LayerPainter, options: Partial<LayerOptions> = {}): Layer {
+	newLayer(name: string, painter: LayerPainter, options: Partial<LayerOptions> = {}): void {
 		const layers = this.#layers;
 		if (Visualization.#reserved.has(name)) throw new TypeError(`Layer name '${name}' is reserved by the engine`);
 		if (layers.some(layer => layer.name === name)) throw new TypeError(`Layer name '${name}' is used more than once`);
-		const layer = new CodeLayer(name, painter, options);
-		layers.push(layer);
-		return layer;
+		layers.push(new CodeLayer(name, painter, options));
 	}
 
-	rebuild(stage: StageHost): void {
-		void stage;
+	rebuild(host: Host): void {
+		void host;
 	}
 
-	update(stage: StageHost): void {
-		void stage;
+	update(host: Host): void {
+		void host;
 	}
 }
 //#endregion
 //#region Registry
 export class Registry {
-	static #descriptors: Map<string, VisualizationDescriptor> = new Map();
+	static #descriptors: Map<string, typeof Visualization> = new Map();
 
-	static createBundle(descriptor: VisualizationDescriptor): VisualizationBundle {
+	static create(descriptor: typeof Visualization): Visualization {
 		return new descriptor();
 	}
 
@@ -47,15 +47,15 @@ export class Registry {
 		return key.value;
 	}
 
-	static attach(name: string, descriptor: VisualizationDescriptor): void {
+	static attach(name: string, descriptor: typeof Visualization): void {
 		const descriptors = this.#descriptors;
 		if (descriptors.has(name)) {
 			console.error(`Visualization '${name}' is already attached, the duplicate was ignored`);
 			return;
 		}
 		try {
-			const bundle = this.createBundle(descriptor);
-			if (bundle.layers.length === 0) throw new TypeError("The visualization declared no layers, see CONTRIBUTING.md");
+			const visualization = this.create(descriptor);
+			if (Visualization.layers(visualization).length === 0) throw new TypeError("The visualization declared no layers, see CONTRIBUTING.md");
 		} catch (reason) {
 			console.error(`Visualization '${name}' was rejected:
 ${Error.from(reason)}`);
@@ -66,7 +66,7 @@ ${Error.from(reason)}`);
 
 	static layers(name: string): readonly Layer[] {
 		const descriptor = ReferenceError.suppress(this.#descriptors.get(name), `Visualization with name '${name}' is not attached`);
-		return this.createBundle(descriptor).layers;
+		return Visualization.layers(this.create(descriptor));
 	}
 
 	static names(): IterableIterator<string> {
@@ -77,7 +77,7 @@ ${Error.from(reason)}`);
 		return this.#descriptors.has(name);
 	}
 
-	static entries(): IterableIterator<[string, VisualizationDescriptor]> {
+	static entries(): IterableIterator<[string, typeof Visualization]> {
 		return this.#descriptors.entries();
 	}
 }

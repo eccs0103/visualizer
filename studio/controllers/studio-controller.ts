@@ -48,7 +48,7 @@ class StudioController extends Controller {
 		settings.reconcile();
 		visualizer.rate = settings.rate;
 		visualizer.visualization = settings.visualization;
-		visualizer.audioset.apply(settings.configuration);
+		visualizer.manager.apply(settings.configuration);
 
 		const divInterface = body.getElement(HTMLDivElement, "div#interface");
 		const buttonOpenPlaylist = divInterface.getElement(HTMLButtonElement, "button#open-playlist");

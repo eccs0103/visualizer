@@ -2,12 +2,19 @@
 
 import "adaptive-extender/core";
 import { type Color } from "adaptive-extender/core";
-import { type Layer, type LayerOptions, type LayerPainter } from "../services/layers.js";
 
-//#region Spectrum view
-export interface SpectrumView {
-	get dataFrequency(): Float32Array;
-	get energy(): number;
+//#region Audioset
+export interface Audioset {
+	get length(): number;
+	get sampleRate(): number;
+	get time(): number;
+	get volume(): number;
+	get dataFrequency(): ArrayLike<number>;
+	get dataTemporal(): ArrayLike<number>;
+	get dataDrums(): ArrayLike<number>;
+	get dataBass(): ArrayLike<number>;
+	get dataVocals(): ArrayLike<number>;
+	get dataOther(): ArrayLike<number>;
 	get spectralFlux(): number;
 	get subBass(): number;
 	get bass(): number;
@@ -21,75 +28,25 @@ export interface SpectrumView {
 	get dropIntensity(): number;
 	get bassLevel(): number;
 }
-
-export interface StemsView {
-	get drums(): SpectrumView;
-	get bass(): SpectrumView;
-	get vocals(): SpectrumView;
-	get other(): SpectrumView;
-}
 //#endregion
-//#region Audioset view
-export interface AudiosetView extends SpectrumView {
-	get length(): number;
-	get dataTemporal(): Float32Array;
-	get volume(): number;
-	get stems(): StemsView;
-}
-//#endregion
-//#region Visualization environment
-export interface VisualizationEnvironment {
-	get delta(): number;
-	get colorBackground(): Color;
-	get lyrics(): LyricsView | null;
-}
-//#endregion
-//#region Lyrics view
-export interface LyricsView {
+//#region Environment
+export interface LyricsWindow {
 	get previous(): string | null;
 	get current(): string | null;
 	get next(): string | null;
 	get shake(): number;
 }
 
-export class LyricsWindow implements LyricsView {
-	previous: string | null;
-	current: string | null;
-	next: string | null;
-	shake: number;
-
-	constructor(previous: string | null, current: string | null, next: string | null, shake: number) {
-		this.previous = previous;
-		this.current = current;
-		this.next = next;
-		this.shake = shake;
-	}
+export interface Environment {
+	get delta(): number;
+	get colorBackground(): Color;
+	get lyrics(): LyricsWindow | null;
 }
 //#endregion
-//#region Visualization host
-export interface VisualizationHost {
+//#region Host
+export interface Host {
 	get context(): OffscreenCanvasRenderingContext2D;
-	get audioset(): AudiosetView;
-}
-//#endregion
-//#region Stage host
-export interface StageHost {
-	get width(): number;
-	get height(): number;
-	get camera(): DOMMatrix;
-	get audioset(): AudiosetView;
-	get environment(): VisualizationEnvironment;
-}
-//#endregion
-//#region Visualization
-export interface VisualizationBundle {
-	get layers(): readonly Layer[];
-	newLayer(name: string, painter: LayerPainter, options?: Partial<LayerOptions>): Layer;
-	rebuild(stage: StageHost): void;
-	update(stage: StageHost): void;
-}
-
-export interface VisualizationDescriptor {
-	new(): VisualizationBundle;
+	get audioset(): Audioset;
+	get environment(): Environment;
 }
 //#endregion
