@@ -115,7 +115,9 @@ export abstract class PaintedLayer extends Layer {
 }
 //#endregion
 //#region Code layer
-export type LayerPainter = (host: VisualizationHost) => void;
+export interface LayerPainter {
+	(host: VisualizationHost): void;
+}
 
 export class CodeLayer extends PaintedLayer {
 	#painter: LayerPainter;

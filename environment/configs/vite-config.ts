@@ -2,11 +2,11 @@
 
 import "adaptive-extender/node";
 import { type InputOption, type OutputOptions, type PreRenderedChunk, type RollupOptions } from "rollup";
-import { type AppType, type BuildEnvironmentOptions, type ESBuildOptions, type PreviewOptions, type ServerOptions, type UserConfig } from "vite";
+import { type AppType, type BuildEnvironmentOptions, type EnvironmentOptions, type ESBuildOptions, type PreviewOptions, type ServerOptions, type UserConfig } from "vite";
 import { VitePlugin } from "../plugins/vite-plugin.js";
 import { RootEntryDevPlugin } from "../plugins/root-entry-dev-plugin.js";
 import { type OutgoingHttpHeaders } from "node:http";
-import { fileURLToPath } from "node:url";
+import URLUtilities from "node:url";
 
 //#region Vite config
 export class ViteConfig {
@@ -30,7 +30,7 @@ export class ViteConfig {
 		const root = `${process.cwd().replace(/\\/g, "/")}/`;
 		const inputs: Record<string, string> = {};
 		for (const url of this.#inputs) {
-			const input = fileURLToPath(url);
+			const input = URLUtilities.fileURLToPath(url);
 			const path = input.replace(/\\/g, "/");
 			let name = path.replace(root, String.empty);
 			name = name.replace(/\.[^/.]+$/, String.empty);
@@ -44,7 +44,7 @@ export class ViteConfig {
 	#normalizeServiceWorkers(): Record<string, string> {
 		const entries: Record<string, string> = {};
 		for (const url of this.#rootEntries) {
-			const path = fileURLToPath(url);
+			const path = URLUtilities.fileURLToPath(url);
 			const filename = path.replace(/\\/g, "/").split("/").pop()!;
 			const name = filename.replace(/\.[^/.]+$/, String.empty);
 			entries[name] = path;
@@ -56,7 +56,7 @@ export class ViteConfig {
 		const root = `${process.cwd().replace(/\\/g, "/")}/`;
 		const entries = new Map<string, string>();
 		for (const url of this.#rootEntries) {
-			const path = fileURLToPath(url).replace(/\\/g, "/");
+			const path = URLUtilities.fileURLToPath(url).replace(/\\/g, "/");
 			const filename = path.split("/").pop()!;
 			const name = filename.replace(/\.[^/.]+$/, String.empty);
 			const relative = path.replace(root, String.empty);
@@ -69,7 +69,7 @@ export class ViteConfig {
 		const root = `${process.cwd().replace(/\\/g, "/")}/`;
 		const entries: Record<string, string> = {};
 		for (const url of this.#pathEntries) {
-			const input = fileURLToPath(url);
+			const input = URLUtilities.fileURLToPath(url);
 			const path = input.replace(/\\/g, "/");
 			const name = path.replace(root, String.empty).replace(/\.[^/.]+$/, String.empty);
 			entries[name] = input;
@@ -98,7 +98,7 @@ export class ViteConfig {
 	}
 
 	#buildEnvironment(): BuildEnvironmentOptions {
-		const outDir: string = fileURLToPath(this.#output);
+		const outDir: string = URLUtilities.fileURLToPath(this.#output);
 		const emptyOutDir: boolean = true;
 		const target: string = "ES2025";
 		const rollupOptions: RollupOptions = this.#buildRollupOptions();
@@ -141,13 +141,15 @@ export class ViteConfig {
 		const appType: AppType = "mpa";
 		const publicDir: string = "resources";
 		const build: BuildEnvironmentOptions = this.#buildEnvironment();
+		const client: EnvironmentOptions = { build };
+		const environments: Record<string, EnvironmentOptions> = { client };
 		const server: ServerOptions = this.#buildServer();
 		const preview: PreviewOptions = this.#buildPreview();
 		const esbuild: ESBuildOptions = this.#buildESBuild();
 		const worker = this.#buildWorker();
 		const devPlugin = new RootEntryDevPlugin(this.#normalizeServiceWorkerDevEntries());
 		const plugins = [...this.#plugins, devPlugin].map(plugin => plugin.build());
-		return { base, appType, publicDir, build, server, preview, esbuild, worker, plugins };
+		return { base, appType, publicDir, environments, server, preview, esbuild, worker, plugins };
 	}
 }
 //#endregion

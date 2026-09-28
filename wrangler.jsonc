@@ -2,6 +2,11 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "visualizer",
 	"compatibility_date": "2026-07-16",
+	"main": "environment/workers/site-worker.ts",
+	"assets": {
+		"binding": "ASSETS",
+		"run_worker_first": ["/*", "!/assets/*"]
+	},
 	"routes": [
 		{ "pattern": "visualizer.eccs.dev", "custom_domain": true }
 	],

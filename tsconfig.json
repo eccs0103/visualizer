@@ -4,6 +4,7 @@
 	"references": [
 		{ "path": "./tsconfig.worker.json" },
 		{ "path": "./tsconfig.web.json" },
-		{ "path": "./tsconfig.node.json" }
+		{ "path": "./tsconfig.node.json" },
+		{ "path": "./tsconfig.cloudflare.json" }
 	]
 }

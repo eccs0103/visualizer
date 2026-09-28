@@ -5,21 +5,9 @@ import { Field, Model, Optional } from "adaptive-extender/core";
 
 //#region User profile
 export class UserProfile extends Model {
-	/** Resolved OS name (e.g. "Windows", "macOS", "Android", "iOS", "Linux", "ChromeOS"). Resolved from UA-CH platform → navigator.platform mapping → userAgent parsing chain. */
-	@Field(String, { name: "platform" })
-	platform: string;
-
-	/** true when the session is running on a mobile browser. Resolved from UA-CH mobile flag → userAgent mobile pattern match. Always a definitive boolean. */
-	@Field(Boolean, { name: "is_mobile" })
-	isMobile: boolean;
-
 	/** CPU instruction-set architecture (e.g. "x86_64", "arm64", "arm", "x86"). Resolved from UA-CH getHighEntropyValues → userAgent token parsing. Worst-case "unknown". */
 	@Field(String, { name: "cpu_architecture" })
 	cpuArchitecture: string;
-
-	/** Device model string (e.g. "Pixel 9 Pro", "SM-A546B"). Available on Android Chrome via UA-CH; absent on desktops, iOS, and Firefox/Safari. */
-	@Field(Optional.Of(String), { name: "device_model" })
-	model: string | undefined;
 
 	/** Logical CPU core count (navigator.hardwareConcurrency). Firefox caps this at 2 to resist fingerprinting. */
 	@Field(Number, { name: "cpu_cores" })
@@ -57,27 +45,36 @@ export class UserProfile extends Model {
 	@Field(String, { name: "pointer_type" })
 	pointer: string;
 
-	/** First (highest-priority) language tag from navigator.languages (e.g. "en-US", "ru"). Reflects the browser's UI language preference. */
-	@Field(String, { name: "primary_language" })
-	primaryLanguage: string;
-
 	/** navigator.doNotTrack resolved to a readable string. "enabled" when DNT is on, "disabled" when explicitly off, "unspecified" when the browser does not expose a value or the user has not set a preference. */
 	@Field(String, { name: "do_not_track" })
 	doNotTrack: string;
 
+	/** screen.width and screen.height in CSS pixels, formatted as "1920x1080". Stable per device, so it helps recognise the same device after its visitor id was reset. */
+	@Field(String, { name: "screen_resolution" })
+	resolution: string;
+
+	/** IANA time zone the device is set to (e.g. "Asia/Yerevan"), from Intl.DateTimeFormat().resolvedOptions(). Independent of IP geolocation, so it survives VPNs and datacenter egress. */
+	@Field(String, { name: "time_zone" })
+	timezone: string;
+
+	/** true when the page runs as an installed app (display-mode: standalone). */
+	@Field(Boolean, { name: "standalone" })
+	standalone: boolean;
+
+	/** navigator.webdriver — true when the browser is driven by automation (Selenium, Puppeteer, Playwright, headless crawlers). */
+	@Field(Boolean, { name: "webdriver" })
+	webdriver: boolean;
+
 	constructor();
-	constructor(platform: string, isMobile: boolean, cpuArchitecture: string, model: string | undefined, cpuCores: number, memoryGigabytes: number | undefined, maxTouchPoints: number, pixelRatio: number, bitDepth: number, darkMode: boolean, lowMotion: boolean, highContrast: boolean, pointer: string, primaryLanguage: string, doNotTrack: string);
-	constructor(platform?: string, isMobile?: boolean, cpuArchitecture?: string, model?: string, cpuCores?: number, memoryGigabytes?: number, maxTouchPoints?: number, pixelRatio?: number, bitDepth?: number, darkMode?: boolean, lowMotion?: boolean, highContrast?: boolean, pointer?: string, primaryLanguage?: string, doNotTrack?: string) {
-		if (platform === undefined || isMobile === undefined || cpuArchitecture === undefined || cpuCores === undefined || maxTouchPoints === undefined || pixelRatio === undefined || bitDepth === undefined || darkMode === undefined || lowMotion === undefined || highContrast === undefined || pointer === undefined || primaryLanguage === undefined || doNotTrack === undefined) {
+	constructor(cpuArchitecture: string, cpuCores: number, memoryGigabytes: number | undefined, maxTouchPoints: number, pixelRatio: number, bitDepth: number, darkMode: boolean, lowMotion: boolean, highContrast: boolean, pointer: string, doNotTrack: string, resolution: string, timezone: string, standalone: boolean, webdriver: boolean);
+	constructor(cpuArchitecture?: string, cpuCores?: number, memoryGigabytes?: number, maxTouchPoints?: number, pixelRatio?: number, bitDepth?: number, darkMode?: boolean, lowMotion?: boolean, highContrast?: boolean, pointer?: string, doNotTrack?: string, resolution?: string, timezone?: string, standalone?: boolean, webdriver?: boolean) {
+		if (cpuArchitecture === undefined || cpuCores === undefined || maxTouchPoints === undefined || pixelRatio === undefined || bitDepth === undefined || darkMode === undefined || lowMotion === undefined || highContrast === undefined || pointer === undefined || doNotTrack === undefined || resolution === undefined || timezone === undefined || standalone === undefined || webdriver === undefined) {
 			super();
 			return;
 		}
 
 		super();
-		this.platform = platform;
-		this.isMobile = isMobile;
 		this.cpuArchitecture = cpuArchitecture;
-		this.model = model;
 		this.cpuCores = cpuCores;
 		this.memoryGigabytes = memoryGigabytes;
 		this.maxTouchPoints = maxTouchPoints;
@@ -87,8 +84,11 @@ export class UserProfile extends Model {
 		this.lowMotion = lowMotion;
 		this.highContrast = highContrast;
 		this.pointer = pointer;
-		this.primaryLanguage = primaryLanguage;
 		this.doNotTrack = doNotTrack;
+		this.resolution = resolution;
+		this.timezone = timezone;
+		this.standalone = standalone;
+		this.webdriver = webdriver;
 	}
 }
 //#endregion

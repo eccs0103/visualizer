@@ -5,29 +5,24 @@ import { Field, Model } from "adaptive-extender/core";
 
 //#region Page leave
 export class PageLeave extends Model {
-	/** GA4 native engagement time in milliseconds. Accumulated foreground-visible time for this page. GA4 uses this field to mark sessions as engaged (≥ 10 000 ms) and to populate "Average engagement time" in standard reports. */
-	@Field(Number, { name: "engagement_time_msec" })
-	engagement: number;
-
-	/** Total seconds the tab was in the foreground (visible state). Human-readable counterpart of engagement_time_msec for GA4 Explorer filters and BigQuery queries. Rounded to the nearest whole second. */
-	@Field(Number, { name: "time_on_page" })
-	timeOnPage: number;
+	/** Accumulated foreground-visible time for this page in milliseconds. Deliberately not named engagement_time_msec: GA4 sums that parameter across events as incremental engagement, so a running total under that name would inflate GA4's own engagement metrics. */
+	@Field(Number, { name: "visible_ms" })
+	visibleMilliseconds: number;
 
 	/** Maximum scroll depth reached during the entire visit as an integer percentage (0–100). Monotonically non-decreasing — scrolling back up does not lower this value. */
 	@Field(Number, { name: "max_scroll_percent" })
 	maxScrollPercent: number;
 
 	constructor();
-	constructor(engagement: number, timeOnPage: number, maxScrollPercent: number);
-	constructor(engagement?: number, timeOnPage?: number, maxScrollPercent?: number) {
-		if (engagement === undefined || timeOnPage === undefined || maxScrollPercent === undefined) {
+	constructor(visibleMilliseconds: number, maxScrollPercent: number);
+	constructor(visibleMilliseconds?: number, maxScrollPercent?: number) {
+		if (visibleMilliseconds === undefined || maxScrollPercent === undefined) {
 			super();
 			return;
 		}
 
 		super();
-		this.engagement = engagement;
-		this.timeOnPage = timeOnPage;
+		this.visibleMilliseconds = visibleMilliseconds;
 		this.maxScrollPercent = maxScrollPercent;
 	}
 }

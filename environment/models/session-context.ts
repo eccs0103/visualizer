@@ -5,11 +5,7 @@ import { Field, Model, Optional } from "adaptive-extender/core";
 
 //#region Session context
 export class SessionContext extends Model {
-	/** Full URL that navigated to this page. "direct" when document.referrer is empty (typed URL, bookmark, or referrer policy stripped it). */
-	@Field(String, { name: "referrer_url" })
-	urlReferrer: string;
-
-	/** Hostname of the referring page (e.g. "google.com", "t.me"). "direct" when there is no referrer. "unknown" if the referrer URL could not be parsed. */
+	/** Hostname of the referring page (e.g. "google.com", "t.me"). "direct" when there is no referrer. "unknown" if the referrer URL could not be parsed. The full referrer URL is not sent: GA4 already records it as page_referrer. */
 	@Field(String, { name: "referrer_domain" })
 	domainReferrer: string;
 
@@ -17,7 +13,7 @@ export class SessionContext extends Model {
 	@Field(String, { name: "navigation_type" })
 	typeNavigation: string;
 
-	/** Full navigator.languages list joined by comma (e.g. "en-US,ru,fr"). Ordered by priority; the first entry matches primary_language in user properties. */
+	/** Full navigator.languages list joined by comma (e.g. "en-US,ru,fr"). Ordered by priority. GA4 itself only records the first entry (device.language). */
 	@Field(String, { name: "all_languages" })
 	languages: string;
 
@@ -41,28 +37,15 @@ export class SessionContext extends Model {
 	@Field(Optional.Of(Boolean), { name: "data_saver_enabled" })
 	dataSaver: boolean | undefined;
 
-	/** utm_source query parameter from the landing URL. Present only when the user arrived via a tracked campaign link. */
-	@Field(Optional.Of(String), { name: "utm_source" })
-	utmSource: string | undefined;
-
-	/** utm_medium query parameter from the landing URL (e.g. "email", "social", "cpc"). */
-	@Field(Optional.Of(String), { name: "utm_medium" })
-	utmMedium: string | undefined;
-
-	/** utm_campaign query parameter from the landing URL. */
-	@Field(Optional.Of(String), { name: "utm_campaign" })
-	utmCampaign: string | undefined;
-
 	constructor();
-	constructor(urlReferrer: string, domainReferrer: string, typeNavigation: string, languages: string, typeConnection: string | undefined, effectiveConnection: string | undefined, downlink: number | undefined, roundTripTimeMs: number | undefined, dataSaver: boolean | undefined, utmSource: string | undefined, utmMedium: string | undefined, utmCampaign: string | undefined);
-	constructor(urlReferrer?: string, domainReferrer?: string, typeNavigation?: string, languages?: string, typeConnection?: string, effectiveConnection?: string, downlink?: number, roundTripTimeMs?: number, dataSaver?: boolean, utmSource?: string, utmMedium?: string, utmCampaign?: string) {
-		if (urlReferrer === undefined || domainReferrer === undefined || typeNavigation === undefined || languages === undefined) {
+	constructor(domainReferrer: string, typeNavigation: string, languages: string, typeConnection: string | undefined, effectiveConnection: string | undefined, downlink: number | undefined, roundTripTimeMs: number | undefined, dataSaver: boolean | undefined);
+	constructor(domainReferrer?: string, typeNavigation?: string, languages?: string, typeConnection?: string, effectiveConnection?: string, downlink?: number, roundTripTimeMs?: number, dataSaver?: boolean) {
+		if (domainReferrer === undefined || typeNavigation === undefined || languages === undefined) {
 			super();
 			return;
 		}
 
 		super();
-		this.urlReferrer = urlReferrer;
 		this.domainReferrer = domainReferrer;
 		this.typeNavigation = typeNavigation;
 		this.languages = languages;
@@ -71,9 +54,6 @@ export class SessionContext extends Model {
 		this.downlink = downlink;
 		this.roundTripTimeMs = roundTripTimeMs;
 		this.dataSaver = dataSaver;
-		this.utmSource = utmSource;
-		this.utmMedium = utmMedium;
-		this.utmCampaign = utmCampaign;
 	}
 }
 //#endregion

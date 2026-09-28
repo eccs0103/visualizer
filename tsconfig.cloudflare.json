@@ -1,0 +1,11 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"lib": [ "ES2025" ],
+		"types": [ "@cloudflare/workers-types" ],
+		"skipLibCheck": true
+	},
+	"include": [
+		"environment/workers/**/*.ts"
+	]
+}

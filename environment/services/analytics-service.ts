@@ -4,6 +4,8 @@ import "adaptive-extender/web";
 import { type Model } from "adaptive-extender/web";
 import { SessionCollector } from "../controllers/session-collector.js";
 import { SessionIdentity } from "../models/session-identity.js";
+import { TrafficContext } from "../models/traffic-context.js";
+import { CookieJar } from "./cookie-jar.js";
 
 //#region Analytics service
 declare global {
@@ -33,6 +35,7 @@ export class AnalyticsService {
 		window.gtag("js", new Date());
 		window.gtag("config", id, exported);
 		window.gtag("set", exported);
+		window.gtag("set", TrafficContext.export(new TrafficContext(AnalyticsService.#resolveTraffic(), AnalyticsService.#resolveNetwork())));
 
 		const script = document.createElement("script");
 		script.async = true;
@@ -48,6 +51,17 @@ export class AnalyticsService {
 			AnalyticsService.#lock = true;
 		}
 		return AnalyticsService.#instance;
+	}
+
+	static #resolveTraffic(): string | undefined {
+		if (location.hostname !== "localhost") return undefined;
+		return "internal";
+	}
+
+	static #resolveNetwork(): string | undefined {
+		const network = CookieJar.read("_net");
+		if (network === null) return undefined;
+		return network;
 	}
 
 	#event(name: string, params: object): void {
