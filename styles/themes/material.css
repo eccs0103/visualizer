@@ -170,10 +170,15 @@
 		outline-style: solid;
 	} */
 
-	& :invalid,
+	& :is(input, select, textarea):user-invalid,
 	& [aria-required="true"]:empty,
 	& [aria-invalid="true"] {
 		outline-color: var(--color-error);
+		outline-style: solid;
+	}
+
+	& :focus-visible:not(:read-write) {
+		outline-color: var(--color-highlight);
 		outline-style: solid;
 	}
 
