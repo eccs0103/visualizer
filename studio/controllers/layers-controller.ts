@@ -1,10 +1,9 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller, BufferedCell } from "adaptive-extender/web";
+import { Controller, BufferedCell, type Store } from "adaptive-extender/web";
 import { Settings, type VisualizationSettings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
-import { ObjectStore } from "../services/object-store.js";
 import { LayersView } from "../view/layers-view.js";
 
 //#region Layers controller
@@ -13,7 +12,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 	#cell: BufferedCell<typeof Settings>;
 	#visualizer: Visualizer;
 	#view: LayersView;
-	#store: ObjectStore = new ObjectStore("Visualizer\\Backgrounds", "Images");
+	#store: Store<string> = indexedDB.openStore("Visualizer\\Backgrounds", "Images");
 
 	static #keyOf(visualization: string): string {
 		return `background:${visualization}`;
@@ -36,7 +35,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		for (const [name, configuration] of settings.attachments) {
 			const { background } = configuration;
 			if (!background.hasImage) continue;
-			const image = await this.#store.get(LayersController.#keyOf(name));
+			const image = await this.#store.select(LayersController.#keyOf(name));
 			if (image instanceof Blob) {
 				this.#visualizer.setBackground(name, image);
 				continue;
@@ -62,6 +61,15 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		return null;
 	}
 
+	async #save(key: string, file: File): Promise<void> {
+		const store = this.#store;
+		if (await store.select(key) === null) {
+			await store.insert(key, file);
+			return;
+		}
+		await store.update(key, file);
+	}
+
 	async #upload(file: File): Promise<void> {
 		const cell = this.#cell;
 		const view = this.#view;
@@ -69,7 +77,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		const problem = await this.#validate(file);
 		if (problem !== null) return view.showMessage(problem);
 		try {
-			await this.#store.put(LayersController.#keyOf(visualization), file);
+			await this.#save(LayersController.#keyOf(visualization), file);
 		} catch (reason) {
 			console.error(`Failed to store the background image:\n${Error.from(reason)}`);
 			return view.showMessage("The image could not be stored, the browser storage may be full");

@@ -1,8 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { BufferedCell } from "adaptive-extender/web";
-import { ObjectStore } from "./object-store.js";
+import { BufferedCell, type Store } from "adaptive-extender/web";
 import { Playlist, PlaybackMode, Track } from "../models/playlist.js";
 import { Settings } from "../models/settings.js";
 
@@ -14,13 +13,15 @@ export interface PlaylistPlayerEventMap {
 
 export class PlaylistPlayer extends EventTarget {
 	#audioPlayer: HTMLAudioElement;
-	#store: ObjectStore;
+	#store: Store<string>;
+	#legacy: Store<number>;
 	#cell: BufferedCell<typeof Settings>;
 
-	constructor(audioPlayer: HTMLAudioElement, store: ObjectStore, cell: BufferedCell<typeof Settings>) {
+	constructor(audioPlayer: HTMLAudioElement, store: Store<string>, legacy: Store<number>, cell: BufferedCell<typeof Settings>) {
 		super();
 		this.#audioPlayer = audioPlayer;
 		this.#store = store;
+		this.#legacy = legacy;
 		this.#cell = cell;
 	}
 
@@ -83,7 +84,7 @@ export class PlaylistPlayer extends EventTarget {
 			return;
 		}
 
-		const file = await this.#store.get(track.id);
+		const file = await this.#store.select(track.id);
 		if (!(file instanceof File)) throw new Error(`Missing audio data for track '${track.signature}'`);
 		const url = URL.createObjectURL(file);
 		await Promise.withSignal((signal, resolve, reject) => {
@@ -127,15 +128,15 @@ export class PlaylistPlayer extends EventTarget {
 
 	async #adoptLegacy(playlist: Playlist): Promise<void> {
 		if (!playlist.isEmpty) return;
-		const store = this.#store;
-		const legacy = await store.get(0);
-		if (!(legacy instanceof File)) return;
+		const legacy = this.#legacy;
+		const file = await legacy.select(0);
+		if (!(file instanceof File)) return;
 
 		const id = crypto.randomUUID();
-		const signature = Track.probeSignature(legacy.name);
-		const duration = await PlaylistPlayer.#probeDuration(legacy);
-		await store.put(id, legacy);
-		await store.delete(0);
+		const signature = Track.probeSignature(file.name);
+		const duration = await PlaylistPlayer.#probeDuration(file);
+		await this.#store.insert(id, file);
+		await legacy.delete(0);
 		playlist.append(new Track(id, signature, duration));
 		playlist.index = 0;
 	}
@@ -147,13 +148,15 @@ export class PlaylistPlayer extends EventTarget {
 		await this.#adoptLegacy(playlist);
 
 		const ids = new Set(playlist.tracks.map(track => track.id));
-		for (const key of await store.keys()) {
+		const orphans: string[] = [];
+		for (const [key] of await store.select()) {
 			const name = String(key);
 			let id = name;
 			if (name.endsWith(".lrc")) id = name.slice(0, -".lrc".length);
 			if (ids.has(id)) continue;
-			await store.delete(key);
+			orphans.push(key);
 		}
+		await store.delete(orphans);
 
 		void this.#persist();
 		await this.#load(playlist.current);
@@ -161,8 +164,8 @@ export class PlaylistPlayer extends EventTarget {
 	}
 
 	async readLyrics(track: Track): Promise<string | null> {
-		const value = await this.#store.get(PlaylistPlayer.#keyLyrics(track.id));
-		if (value === undefined) return null;
+		const value = await this.#store.select(PlaylistPlayer.#keyLyrics(track.id));
+		if (value === null) return null;
 		const text = String(value);
 		// ponytail: repairs the lyrics badge for rows written before the flag existed, or poisoned by a past failed lookup
 		const hasLyrics = !String.isEmpty(text);
@@ -174,10 +177,19 @@ export class PlaylistPlayer extends EventTarget {
 	}
 
 	async setLyrics(track: Track, text: string, checked: number | null): Promise<void> {
-		await this.#store.put(PlaylistPlayer.#keyLyrics(track.id), text);
+		await this.#save(PlaylistPlayer.#keyLyrics(track.id), text);
 		track.lyrics = !String.isEmpty(text);
 		track.checked = checked;
 		this.#notify();
+	}
+
+	async #save(key: string, value: unknown): Promise<void> {
+		const store = this.#store;
+		if (await store.select(key) === null) {
+			await store.insert(key, value);
+			return;
+		}
+		await store.update(key, value);
 	}
 
 	#appendPending(files: readonly File[]): Map<Track, File> {
@@ -194,7 +206,7 @@ export class PlaylistPlayer extends EventTarget {
 	async #import(track: Track, file: File): Promise<Error | null> {
 		try {
 			const duration = await PlaylistPlayer.#probeDuration(file);
-			await this.#store.put(track.id, file);
+			await this.#store.insert(track.id, file);
 			track.resolve(duration);
 			return null;
 		} catch (reason) {
@@ -260,9 +272,7 @@ export class PlaylistPlayer extends EventTarget {
 		if (!playlist.remove(id)) return;
 		this.#emitChange();
 
-		const store = this.#store;
-		await store.delete(id);
-		await store.delete(PlaylistPlayer.#keyLyrics(id));
+		await this.#store.delete([id, PlaylistPlayer.#keyLyrics(id)]);
 		if (wasCurrent) await this.#load(playlist.current);
 		void this.#persist();
 	}

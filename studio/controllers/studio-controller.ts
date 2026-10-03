@@ -1,10 +1,9 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller, BufferedCell, MetadataInjector } from "adaptive-extender/web";
+import { Controller, BufferedCell, MetadataInjector, type Store } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
-import { ObjectStore } from "../services/object-store.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { PlaylistPlayer } from "../services/playlist-player.js";
 import { AudioController } from "./audio-controller.js";
@@ -37,7 +36,8 @@ class StudioController extends Controller {
 		void AnalyticsController.launch();
 
 		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Studio\\Settings", Settings, new Settings());
-		const store: ObjectStore = new ObjectStore("Visualizer", "Audiolist");
+		const store: Store<string> = indexedDB.openStore("Visualizer", "Audiolist");
+		const legacy: Store<number> = indexedDB.openStore<number>("Visualizer", "Audiolist");
 		const url = new URL(location.href);
 		const search = new URLSearchParams(url.search);
 		const isDeveloper = search.has("developer");
@@ -51,7 +51,7 @@ class StudioController extends Controller {
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer, { isDeveloper });
 		const guard = new WakeGuard();
-		const player = new PlaylistPlayer(audioPlayer, store, cell);
+		const player = new PlaylistPlayer(audioPlayer, store, legacy, cell);
 
 		const settings = cell.content;
 		settings.reconcile();
