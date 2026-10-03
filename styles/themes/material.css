@@ -177,11 +177,6 @@
 		outline-style: solid;
 	}
 
-	& :focus-visible:not(:read-write) {
-		outline-color: var(--color-highlight);
-		outline-style: solid;
-	}
-
 	& :disabled,
 	& :disabled + label,
 	& [inert],
