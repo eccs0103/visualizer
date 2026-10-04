@@ -20,15 +20,15 @@ export class EngagementCollector extends Controller {
 		document.addEventListener("visibilitychange", this.#onVisibility.bind(this));
 	}
 
-	#onScroll(): void {
+	#onScroll(event: Event): void {
 		const { scrollY, innerHeight } = window;
 		const { scrollHeight } = document.documentElement;
 		if (scrollHeight <= innerHeight) return;
-		const scrollPercent = min(round((scrollY + innerHeight) / scrollHeight * 100), 100);
-		if (scrollPercent > this.#maxScrollPercent) this.#maxScrollPercent = scrollPercent;
+		const percent = min(round((scrollY + innerHeight) / scrollHeight * 100), 100);
+		if (percent > this.#maxScrollPercent) this.#maxScrollPercent = percent;
 	}
 
-	#onVisibility(): void {
+	#onVisibility(event: Event): void {
 		if (document.visibilityState !== "hidden") {
 			this.#sinceVisible = Date.now();
 			return;

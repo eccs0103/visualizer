@@ -68,29 +68,28 @@ export class ProfileCollector extends Controller {
 	}
 
 	async #resolveHighEntropy(): Promise<UADataValues> {
-		const uad = navigator.userAgentData;
-		if (uad === undefined) return {};
+		const { userAgentData } = navigator;
+		if (userAgentData === undefined) return {};
 		try {
-			return await uad.getHighEntropyValues(["architecture"]);
+			return await userAgentData.getHighEntropyValues(["architecture"]);
 		} catch { /* fall through to UA string */ }
 		return {};
 	}
 
 	#resolveArchitecture(data: UADataValues): string {
-		const fallback = this.#fallbackArchitecture();
 		const { architecture } = data;
-		if (architecture === undefined) return fallback;
-		return architecture.insteadEmpty(fallback);
+		if (architecture === undefined || String.isEmpty(architecture)) return this.#fallbackArchitecture();
+		return architecture;
 	}
 
 	#fallbackArchitecture(): string {
-		const ua = navigator.userAgent;
-		if (/Win64|WOW64/.test(ua)) return "x86_64";
-		if (/x86_64|x64;/.test(ua)) return "x86_64";
-		if (/aarch64|arm64/.test(ua)) return "arm64";
-		if (/armv7l|armv8l/.test(ua)) return "arm";
-		if (/Intel Mac OS X/.test(ua)) return "x86_64";
-		if (/Win32/.test(ua)) return "x86";
+		const { userAgent } = navigator;
+		if (/Win64|WOW64/.test(userAgent)) return "x86_64";
+		if (/x86_64|x64;/.test(userAgent)) return "x86_64";
+		if (/aarch64|arm64/.test(userAgent)) return "arm64";
+		if (/armv7l|armv8l/.test(userAgent)) return "arm";
+		if (/Intel Mac OS X/.test(userAgent)) return "x86_64";
+		if (/Win32/.test(userAgent)) return "x86";
 		return "unknown";
 	}
 
@@ -129,18 +128,11 @@ export class ProfileCollector extends Controller {
 		const languages = navigator.languages.join(",");
 		const typeNavigation = this.#resolveNavigation();
 		const { connection } = navigator;
-		let typeConnection: string | undefined;
-		let effectiveConnection: string | undefined;
-		let downlink: number | undefined;
-		let roundTripTimeMs: number | undefined;
-		let dataSaver: boolean | undefined;
-		if (connection !== undefined) {
-			typeConnection = ProfileCollector.#nonEmpty(connection.type);
-			effectiveConnection = ProfileCollector.#nonEmpty(connection.effectiveType);
-			downlink = connection.downlink;
-			roundTripTimeMs = connection.rtt;
-			dataSaver = connection.saveData;
-		}
+		const typeConnection = ProfileCollector.#nonEmpty(connection?.type);
+		const effectiveConnection = ProfileCollector.#nonEmpty(connection?.effectiveType);
+		const downlink = connection?.downlink;
+		const roundTripTimeMs = connection?.rtt;
+		const dataSaver = connection?.saveData;
 		analytics.dispatch("session_context", new SessionContext(domainReferrer, typeNavigation, languages, typeConnection, effectiveConnection, downlink, roundTripTimeMs, dataSaver));
 	}
 

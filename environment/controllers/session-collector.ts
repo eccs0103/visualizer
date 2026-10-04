@@ -3,6 +3,7 @@
 import "adaptive-extender/web";
 import { CookieJar } from "../services/cookie-jar.js";
 
+//#region Session collector
 export class SessionCollector {
 	static #keyUser = "_uaf";
 	static #keySession = "_saf";
@@ -44,3 +45,4 @@ export class SessionCollector {
 		return id;
 	}
 }
+//#endregion

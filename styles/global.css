@@ -328,7 +328,6 @@ span {
 		aspect-ratio: 1;
 		height: var(--size-standart);
 		width: var(--size-standart);
-		will-change: transform;
 
 		&.large-image {
 			height: var(--size-large-standart);

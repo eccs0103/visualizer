@@ -164,12 +164,6 @@
 		transition: var(--time-duration);
 	}
 
-	/* & :required,
-	& [aria-required="true"] {
-		outline-color: var(--color-warn);
-		outline-style: solid;
-	} */
-
 	& :is(input, select, textarea):user-invalid,
 	& [aria-required="true"]:empty,
 	& [aria-invalid="true"] {
@@ -206,7 +200,6 @@
 	}
 
 	& *::placeholder {
-		color: var(--color-light-negative);
 		filter: brightness(0.8);
 	}
 

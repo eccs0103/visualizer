@@ -59,9 +59,7 @@ export class AnalyticsService {
 	}
 
 	static #resolveNetwork(): string | undefined {
-		const network = CookieJar.read("_net");
-		if (network === null) return undefined;
-		return network;
+		return CookieJar.read("_net") ?? undefined;
 	}
 
 	#event(name: string, params: object): void {

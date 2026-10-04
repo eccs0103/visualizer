@@ -15,7 +15,7 @@ import { ClipController } from "./clip-controller.js";
 import { PlaylistController } from "./playlist-controller.js";
 import { LyricsController } from "./lyrics-controller.js";
 import { AnalyticsController } from "../../environment/controllers/analytics-controller.js";
-import { CorsIsolationController } from "../../environment/controllers/coi-controller.js";
+import { CrossOriginIsolationController } from "../../environment/controllers/coi-controller.js";
 import "../view/visualizations.js";
 
 const { baseURI, body } = document;
@@ -101,5 +101,5 @@ class StudioController extends Controller {
 }
 //#endregion
 
-await CorsIsolationController.launch();
+await CrossOriginIsolationController.launch();
 await StudioController.launch();

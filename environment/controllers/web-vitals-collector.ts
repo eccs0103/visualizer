@@ -27,6 +27,7 @@ export class WebVitalsCollector extends Controller {
 	#clsTotal = 0;
 	#inpWorstMs = 0;
 	#longTasks = 0;
+	#abort: AbortController = new AbortController();
 
 	async run(): Promise<void> {
 		const [navEntry] = performance.getEntriesByType("navigation");
@@ -41,7 +42,8 @@ export class WebVitalsCollector extends Controller {
 		this.#observeInp();
 		this.#observeLongTasks();
 
-		document.addEventListener("visibilitychange", this.#onHidden.bind(this), { once: true });
+		const { signal } = this.#abort;
+		document.addEventListener("visibilitychange", this.#onHidden.bind(this), { signal });
 	}
 
 	static #measure(value: number, scale: number): number | undefined {
@@ -49,7 +51,7 @@ export class WebVitalsCollector extends Controller {
 		return undefined;
 	}
 
-	#onHidden(): void {
+	#onHidden(event: Event): void {
 		if (document.visibilityState !== "hidden") return;
 		const fcpMs = this.#fcpMs;
 		const lcpMs = this.#lcpMs;
@@ -58,6 +60,7 @@ export class WebVitalsCollector extends Controller {
 		const inpMs = WebVitalsCollector.#measure(this.#inpWorstMs, 1);
 		const longTasks = WebVitalsCollector.#measure(this.#longTasks, 1);
 		analytics.dispatch("performance_context", new PerformanceContext(fcpMs, lcpMs, ttfbMs, clsScore, inpMs, longTasks));
+		this.#abort.abort();
 	}
 
 	#isLayoutShift(entry: PerformanceEntry): entry is LayoutShiftEntry {

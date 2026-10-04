@@ -24,7 +24,7 @@ export class InteractionCollector extends Controller {
 		analytics.dispatch("outbound_click", new OutboundClick(href, text));
 	}
 
-	#onCopy(): void {
+	#onCopy(event: ClipboardEvent): void {
 		const selection = window.getSelection();
 		if (selection === null) return;
 		const text = selection.toString();

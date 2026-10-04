@@ -3,8 +3,10 @@
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 
+declare const self: ServiceWorkerGlobalScope;
+
 //#region COI service worker
-class CorsIsolationWorker extends Controller {
+class CrossOriginIsolationWorker extends Controller {
 	async #tryFetch(request: Request): Promise<Response> {
 		try {
 			return await fetch(request);
@@ -24,12 +26,11 @@ class CorsIsolationWorker extends Controller {
 	}
 
 	async run(): Promise<void> {
-		const scope = self as unknown as ServiceWorkerGlobalScope;
-		scope.addEventListener("install", event => event.waitUntil(scope.skipWaiting()));
-		scope.addEventListener("activate", event => event.waitUntil(scope.clients.claim()));
-		scope.addEventListener("fetch", event => event.respondWith(this.#buildIsolatedResponse(event.request)));
+		self.addEventListener("install", event => event.waitUntil(self.skipWaiting()));
+		self.addEventListener("activate", event => event.waitUntil(self.clients.claim()));
+		self.addEventListener("fetch", event => event.respondWith(this.#buildIsolatedResponse(event.request)));
 	}
 }
 //#endregion
 
-CorsIsolationWorker.launch();
+void CrossOriginIsolationWorker.launch();

@@ -7,6 +7,7 @@ import { VitePlugin } from "../plugins/vite-plugin.js";
 import { RootEntryDevPlugin } from "../plugins/root-entry-dev-plugin.js";
 import { type OutgoingHttpHeaders } from "node:http";
 import URLUtilities from "node:url";
+import Path from "node:path";
 
 //#region Vite config
 export class ViteConfig {
@@ -45,8 +46,7 @@ export class ViteConfig {
 		const entries: Record<string, string> = {};
 		for (const url of this.#rootEntries) {
 			const path = URLUtilities.fileURLToPath(url);
-			const filename = path.replace(/\\/g, "/").split("/").pop()!;
-			const name = filename.replace(/\.[^/.]+$/, String.empty);
+			const { name } = Path.parse(path);
 			entries[name] = path;
 		}
 		return entries;
@@ -57,8 +57,7 @@ export class ViteConfig {
 		const entries = new Map<string, string>();
 		for (const url of this.#rootEntries) {
 			const path = URLUtilities.fileURLToPath(url).replace(/\\/g, "/");
-			const filename = path.split("/").pop()!;
-			const name = filename.replace(/\.[^/.]+$/, String.empty);
+			const { name } = Path.parse(path);
 			const relative = path.replace(root, String.empty);
 			entries.set(`/${name}.js`, `/${relative}`);
 		}
@@ -88,11 +87,11 @@ export class ViteConfig {
 	}
 
 	#buildRollupOptions(): RollupOptions {
-		const recordInputs = this.#normalizeInputs();
-		const recordServiceWorkers = this.#normalizeServiceWorkers();
-		const recordRelativeDirects = this.#normalizeRelativeDirects();
-		const input: InputOption = { ...recordInputs, ...recordServiceWorkers, ...recordRelativeDirects };
-		const names = new Set([...Object.keys(recordServiceWorkers), ...Object.keys(recordRelativeDirects)]);
+		const inputs = this.#normalizeInputs();
+		const workers = this.#normalizeServiceWorkers();
+		const directs = this.#normalizeRelativeDirects();
+		const input: InputOption = { ...inputs, ...workers, ...directs };
+		const names = new Set([...Object.keys(workers), ...Object.keys(directs)]);
 		const output: OutputOptions = this.#buildOutput(names);
 		return { input, output };
 	}

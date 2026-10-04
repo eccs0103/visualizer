@@ -5,9 +5,9 @@ import { Controller } from "adaptive-extender/web";
 
 const { baseURI } = document;
 
-//#region CORS isolation controller
-export class CorsIsolationController extends Controller {
-	static #MAX_32_BIT_INTEGER: number = 2_147_483_647;
+//#region Cross-origin isolation controller
+export class CrossOriginIsolationController extends Controller {
+	static #maxDelay: number = 2_147_483_647;
 
 	async run(): Promise<void> {
 		if (crossOriginIsolated) return;
@@ -16,7 +16,7 @@ export class CorsIsolationController extends Controller {
 		await serviceWorker.register(url, { type: "module" });
 		await serviceWorker.ready;
 		location.reload();
-		await Promise.asTimeout(CorsIsolationController.#MAX_32_BIT_INTEGER);
+		await Promise.asTimeout(CrossOriginIsolationController.#maxDelay);
 	}
 }
 //#endregion

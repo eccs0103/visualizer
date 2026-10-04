@@ -1,6 +1,6 @@
 "use strict";
 
-import { defineConfig, type UserConfig } from "vite";
+import { defineConfig } from "vite";
 import { type OutgoingHttpHeaders } from "node:http";
 import { type ViteConfig } from "./environment/configs/vite-config.js";
 import { MPAConfig } from "./environment/configs/mpa-config.js";
