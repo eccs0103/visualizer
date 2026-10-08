@@ -8,7 +8,7 @@ const { max, min } = Math;
 export class SabLayout {
 	static #maxLength: number = 16384;
 	static #bins: number = 512;
-	static #stems: number = 4;
+	static #stems: number = 6;
 
 	static get maxLength(): number { return SabLayout.#maxLength; }
 	static get bins(): number { return SabLayout.#bins; }
@@ -60,7 +60,7 @@ export class Signal {
 //#endregion
 //#region Stem masks
 /**
- * A view over the mask SAB — owns resampling the fixed `bins`-bin mask onto whatever `length` the main analyser is using (linear interpolation: both are linear FFT bins over 0..Nyquist, so this is exact, not an approximation) and multiplying by `dataFrequency` to produce an isolated-stem spectrum. Computed lazily per stem, cached until the blended masks or the requested length change — a visualization using one stem never pays to resample the other three.
+ * A view over the mask SAB — owns resampling the fixed `bins`-bin mask onto whatever `length` the main analyser is using (linear interpolation: both are linear FFT bins over 0..Nyquist, so this is exact, not an approximation) and multiplying by `dataFrequency` to produce an isolated-stem spectrum. Computed lazily per stem, cached until the blended masks or the requested length change — a visualization using one stem never pays to resample the others.
  *
  * The model publishes a few times per second, so the masks are not read raw: each frame blends the previous publication into the current one over the measured gap between them (`invalidate`), which keeps every stem moving at the render rate. The blend trails the model by one publication interval — it shows the model's own output, smoothed in time, never a prediction of what it will say next.
  *
@@ -71,6 +71,8 @@ export class StemMasks {
 	static #bass: number = 1;
 	static #vocals: number = 2;
 	static #other: number = 3;
+	static #guitar: number = 4;
+	static #keys: number = 5;
 	static #ceiling: number = 500; // ms — a longer gap (paused audio) must not stretch the next blend
 
 	#control: Int32Array;
@@ -81,8 +83,8 @@ export class StemMasks {
 	#version: number | null = null;
 	#weight: number | null = null;
 	#length: number | null = null;
-	#cache: Float32Array[] = [new Float32Array(0), new Float32Array(0), new Float32Array(0), new Float32Array(0)];
-	#fresh: boolean[] = [false, false, false, false];
+	#cache: Float32Array[] = Array.from({ length: SabLayout.stems }, () => new Float32Array(0));
+	#fresh: boolean[] = new Array<boolean>(SabLayout.stems).fill(false);
 
 	constructor(sabMask: SharedArrayBuffer) {
 		const size = SabLayout.bins * SabLayout.stems;
@@ -150,6 +152,8 @@ export class StemMasks {
 	bass(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#bass, length, whole); }
 	vocals(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#vocals, length, whole); }
 	other(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#other, length, whole); }
+	guitar(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#guitar, length, whole); }
+	keys(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#keys, length, whole); }
 
 	#spectrum(stem: number, length: number, whole: Float32Array): Float32Array {
 		const fresh = this.#fresh;

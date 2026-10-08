@@ -14,6 +14,8 @@ export interface Audioset {
 	get dataDrums(): ArrayLike<number>;
 	get dataBass(): ArrayLike<number>;
 	get dataVocals(): ArrayLike<number>;
+	get dataGuitar(): ArrayLike<number>;
+	get dataKeys(): ArrayLike<number>;
 	get dataOther(): ArrayLike<number>;
 	get spectralFlux(): number;
 	get subBass(): number;

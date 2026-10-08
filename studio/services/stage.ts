@@ -47,6 +47,8 @@ export class Stage implements Audioset, Environment {
 	get dataDrums(): Float32Array { return this.#masks.drums(this.#length, this.#frequency); }
 	get dataBass(): Float32Array { return this.#masks.bass(this.#length, this.#frequency); }
 	get dataVocals(): Float32Array { return this.#masks.vocals(this.#length, this.#frequency); }
+	get dataGuitar(): Float32Array { return this.#masks.guitar(this.#length, this.#frequency); }
+	get dataKeys(): Float32Array { return this.#masks.keys(this.#length, this.#frequency); }
 	get dataOther(): Float32Array { return this.#masks.other(this.#length, this.#frequency); }
 	get spectralFlux(): number { return this.#analysis.spectralFlux; }
 	get subBass(): number { return this.#analysis.subBass; }

@@ -28,7 +28,8 @@ Registry.attach("Spectrogram", class extends Visualization {
 	#drift: HueDrift = new HueDrift();
 	#deltaRotation: number = 360 / 6;
 	#colorShadow: Color = Color.newBlack;
-	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1.03); // drums at half weight, the gain lets the ridge's peaks reach the mix's height
+	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1, 1, 1.03); // drums at half weight, the gain lets the ridge's peaks reach the mix's height
+	#instruments: StemMix = new StemMix(0, 0, 0, 1, 1, 1, 1); // guitar + keys + other: everything but drums, bass and vocals, the "other" these levels were tuned on
 	#drums: SpectrumAnalysis = new SpectrumAnalysis();
 	#bass: SpectrumAnalysis = new SpectrumAnalysis();
 	#vocals: SpectrumAnalysis = new SpectrumAnalysis();
@@ -75,7 +76,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 		drums.analyze(audioset.dataDrums, audioset);
 		bass.analyze(audioset.dataBass, audioset);
 		vocals.analyze(audioset.dataVocals, audioset);
-		other.analyze(audioset.dataOther, audioset);
+		other.analyze(this.#instruments.mix(audioset), audioset);
 		const energy = vocals.energy + other.energy;
 		let centroid = 0;
 		if (energy > 0) centroid = (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy;

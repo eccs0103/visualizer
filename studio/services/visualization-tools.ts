@@ -56,14 +56,18 @@ export class StemMix {
 	#drums: number;
 	#bass: number;
 	#vocals: number;
+	#guitar: number;
+	#keys: number;
 	#other: number;
 	#gain: number;
 	#spectrum: Float32Array = new Float32Array(0);
 
-	constructor(drums: number, bass: number, vocals: number, other: number, gain: number) {
+	constructor(drums: number, bass: number, vocals: number, guitar: number, keys: number, other: number, gain: number) {
 		this.#drums = drums;
 		this.#bass = bass;
 		this.#vocals = vocals;
+		this.#guitar = guitar;
+		this.#keys = keys;
 		this.#other = other;
 		this.#gain = gain;
 	}
@@ -73,6 +77,8 @@ export class StemMix {
 		const drums = audioset.dataDrums;
 		const bass = audioset.dataBass;
 		const vocals = audioset.dataVocals;
+		const guitar = audioset.dataGuitar;
+		const keys = audioset.dataKeys;
 		const other = audioset.dataOther;
 		const { length } = whole;
 		let spectrum = this.#spectrum;
@@ -80,10 +86,12 @@ export class StemMix {
 		const cutDrums = 1 - this.#drums;
 		const cutBass = 1 - this.#bass;
 		const cutVocals = 1 - this.#vocals;
+		const cutGuitar = 1 - this.#guitar;
+		const cutKeys = 1 - this.#keys;
 		const cutOther = 1 - this.#other;
 		const gain = this.#gain;
 		for (let index = 0; index < length; index++) {
-			const rest = whole[index] - drums[index] * cutDrums - bass[index] * cutBass - vocals[index] * cutVocals - other[index] * cutOther;
+			const rest = whole[index] - drums[index] * cutDrums - bass[index] * cutBass - vocals[index] * cutVocals - guitar[index] * cutGuitar - keys[index] * cutKeys - other[index] * cutOther;
 			spectrum[index] = min(1, rest * gain);
 		}
 		return spectrum;

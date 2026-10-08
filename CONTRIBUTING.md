@@ -90,7 +90,9 @@ The engine runs at the rate the user picks (30–1200 fps). The audio, its analy
 | `dataDrums`        | `ArrayLike<number>` | The drums' part of `dataFrequency`.                 |
 | `dataBass`         | `ArrayLike<number>` | The bass line's part of `dataFrequency`.            |
 | `dataVocals`       | `ArrayLike<number>` | The vocals' part of `dataFrequency`.                |
-| `dataOther`        | `ArrayLike<number>` | Everything else's part of `dataFrequency`.          |
+| `dataGuitar`       | `ArrayLike<number>` | The guitars' part of `dataFrequency`.               |
+| `dataKeys`         | `ArrayLike<number>` | Piano's and keyboards' part of `dataFrequency`.     |
+| `dataOther`        | `ArrayLike<number>` | The rest (strings, wind, pads…) of `dataFrequency`. |
 | `spectralFlux`     | `number`            | How much the spectrum rose since the last frame.    |
 | `subBass`          | `number`            | 20–60 Hz.                                           |
 | `bass`             | `number`            | 60–250 Hz.                                          |
@@ -104,7 +106,7 @@ The engine runs at the rate the user picks (30–1200 fps). The audio, its analy
 | `dropIntensity`    | `number`            | Percussive sub-bass, `[0, 1]`.                      |
 | `bassLevel`        | `number`            | Blend of the sub-bass and bass bands.               |
 
-The four stem arrays come from a small neural model that decides, for every bin, which share of it belongs to each instrument; the four add back up to `dataFrequency`. They are estimates, and all the numbers above describe the whole mix. To get the same numbers for a stem, run a `SpectrumAnalysis` on it (see the tools).
+The six stem arrays come from a small neural model that decides, for every bin, which share of it belongs to each instrument; the six add back up to `dataFrequency`. They are estimates, and all the numbers above describe the whole mix. To get the same numbers for a stem, run a `SpectrumAnalysis` on it (see the tools).
 
 ### `host.environment`
 
@@ -149,12 +151,12 @@ Both are pinned: the user can change their opacity and blend mode but cannot mov
 
 [`services/visualization-tools.ts`](./studio/services/visualization-tools.ts) holds small, universal classes a visualization keeps in its fields between calls:
 
-| Tool               | Use                                                                                                                                                                                                                                                     |
-| :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Shaper`           | A `[0, 1] → [0, 1]` curve: `Shaper.sigmoid(steepness, center)`, `Shaper.arcsinSaturate`, `Shaper.smoothstep`, chained with `.then(next)` and applied with `.apply(value)`.                                                                              |
-| `HueDrift`         | Turns a colour's hue at `rate` degrees per second, by whole degrees: `tick(color, rate, environment.delta, factor)`.                                                                                                                                    |
-| `StemMix`          | The spectrum rebuilt from the stems with one weight each: `new StemMix(drums, bass, vocals, other, gain).mix(audioset)`. `new StemMix(0.5, 1, 1, 1, 1)` is the mix with the drums at half.                                                              |
-| `SpectrumAnalysis` | The same analysis the engine runs on the mix, for any spectrum: `analyze(audioset.dataDrums, audioset)` once per frame, then read `percussiveness`, `bassLevel`, the bands, `energy`, and so on.                                                        |
-| `AutoRange`        | A value relative to the song that is playing: `new AutoRange(low, high)` with a typical range, `push(value, audioset.volume, environment.delta)` once per frame, then `level` is `0`–`1` of this song's last ~30 s. Silence of 1.5 s starts a new song. |
+| Tool               | Use                                                                                                                                                                                                                                                                                               |
+| :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Shaper`           | A `[0, 1] → [0, 1]` curve: `Shaper.sigmoid(steepness, center)`, `Shaper.arcsinSaturate`, `Shaper.smoothstep`, chained with `.then(next)` and applied with `.apply(value)`.                                                                                                                        |
+| `HueDrift`         | Turns a colour's hue at `rate` degrees per second, by whole degrees: `tick(color, rate, environment.delta, factor)`.                                                                                                                                                                              |
+| `StemMix`          | The spectrum rebuilt from the stems with one weight each: `new StemMix(drums, bass, vocals, guitar, keys, other, gain).mix(audioset)`. `new StemMix(0.5, 1, 1, 1, 1, 1, 1)` is the mix with the drums at half; `new StemMix(0, 0, 0, 1, 1, 1, 1)` is every instrument but drums, bass and vocals. |
+| `SpectrumAnalysis` | The same analysis the engine runs on the mix, for any spectrum: `analyze(audioset.dataDrums, audioset)` once per frame, then read `percussiveness`, `bassLevel`, the bands, `energy`, and so on.                                                                                                  |
+| `AutoRange`        | A value relative to the song that is playing: `new AutoRange(low, high)` with a typical range, `push(value, audioset.volume, environment.delta)` once per frame, then `level` is `0`–`1` of this song's last ~30 s. Silence of 1.5 s starts a new song.                                           |
 
 Do not feed a full-range input into a colour's lightness: `Color.illuminate(1)` is white.
