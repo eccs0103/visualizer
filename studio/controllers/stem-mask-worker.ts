@@ -76,9 +76,9 @@ class InferencePace {
 class StemMaskWorker extends Controller {
 	static #grid: number = 60;
 	static #frames: number = 16;
-	static #divisor: number = 6;
-	static #smoothing: number = 0.5;
-	static #period: number = 1000 * StemMaskWorker.#divisor / StemMaskWorker.#grid;
+	static #divisor: number = 1;
+	static #halflife: number = 100;
+	static #acceptable: number = 100;
 
 	#signal: Signal | null = null;
 	#masks: StemMasks | null = null;
@@ -95,6 +95,7 @@ class StemMaskWorker extends Controller {
 	#frame: Float32Array = new Float32Array(SabLayout.bins);
 	#smoothed: Float32Array = new Float32Array(SabLayout.bins * SabLayout.stems).fill(1 / SabLayout.stems);
 	#folded: Float32Array = new Float32Array(SabLayout.bins * SabLayout.stems);
+	#published: number | null = null;
 
 	#capture(tap: Float32Array, masks: StemMasks, network: StemNetwork): void {
 		const now = performance.now();
@@ -143,16 +144,25 @@ class StemMaskWorker extends Controller {
 		try {
 			pace.start(performance.now());
 			const predicted = this.#fold(await network.infer(this.#pack()), network.stems);
+			const now = performance.now();
 			const smoothed = this.#smoothed;
-			const smoothing = StemMaskWorker.#smoothing;
+			const smoothing = this.#smoothing(now);
 			for (let index = 0; index < smoothed.length; index++) smoothed[index] += (predicted[index] - smoothed[index]) * smoothing;
-			masks.publish(smoothed, performance.timeOrigin + performance.now());
-			if (pace.finish(performance.now())) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed(StemMaskWorker.#period)));
+			masks.publish(smoothed, performance.timeOrigin + now);
+			if (pace.finish(now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed(StemMaskWorker.#acceptable)));
 		} catch (reason) {
 			this.#disable(reason);
 		} finally {
 			this.#busy = false;
 		}
+	}
+
+	/** How far the smoothed masks move toward a new prediction: half the way per `halflife` ms since the last publication, so the stems feel the same at any update rate (0.5 at the old 10/s). */
+	#smoothing(now: number): number {
+		const published = this.#published;
+		this.#published = now;
+		if (published === null) return 1;
+		return 1 - 0.5 ** ((now - published) / StemMaskWorker.#halflife);
 	}
 
 	/** The network's shares as the visualizer's stems: a model that splits finer (its extra stems come after the visualizer's own) has every extra stem summed into the last one, "other". */

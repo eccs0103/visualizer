@@ -78,8 +78,16 @@ class StemStep {
 class StemBuilder {
 	static #epsilon: number = 1e-3;
 	static #workgroup: number = 64;
-	static #tile: number = 32;
+	static #lanes: number = 8;
 	static #reach: number = 5;
+	// Filters and positions each convolution thread computes (at most 4 each), all bit-identical. Measured per inference (2026-10-08) on an Intel UHD 630: 2×4 29.4 ms, 4×4 33.7, 2×2 38.1, 1×4 36.2; on an RTX 3050: 2×4 5.71, 4×4 6.45, 2×2 5.37, 1×4 5.28. 2×4 is best where it matters most, on integrated GPUs.
+	static #rows: number = 2;
+	static #columns: number = 4;
+
+	/** The convolution shader's pipeline constants for the tile shape the dispatches are sized for. */
+	static get tiling(): Record<string, number> {
+		return { rows: StemBuilder.#rows, columns: StemBuilder.#columns };
+	}
 
 	#device: GPUDevice;
 	#convolution: GPUComputePipeline;
@@ -165,8 +173,8 @@ class StemBuilder {
 
 		const result = this.activation(filters, span);
 		const shape = this.#upload(new Uint32Array([source.channels, skipped, filters, span, size, input, 0, 0]), GPUBufferUsage.UNIFORM);
-		const tile = StemBuilder.#tile;
-		this.#dispatch(this.#convolution, [shape, source.buffer, skip.buffer, this.#upload(weights, GPUBufferUsage.STORAGE), result.buffer], ceil(filters / tile), ceil(span / tile));
+		const lanes = StemBuilder.#lanes;
+		this.#dispatch(this.#convolution, [shape, source.buffer, skip.buffer, this.#upload(weights, GPUBufferUsage.STORAGE), result.buffer], ceil(filters / (lanes * StemBuilder.#rows)), ceil(span / (lanes * StemBuilder.#columns)));
 		return result;
 	}
 
@@ -229,21 +237,26 @@ fn gather(channel: u32, position: u32) -> f32 {
 	return source[channel * span + position];
 }
 
-// One workgroup computes a tile of 32 filters × 32 positions; each of its 8 × 8 threads owns 4 filters × 4 positions.
+// One workgroup of 8 × 8 threads computes a tile of height filters × width positions; each thread owns rows filters × columns positions (at most 4 × 4).
 // Input channels are walked 8 at a time: the input strip and the weights for those channels are staged in workgroup memory once and then reused by every thread, instead of each thread reading them from storage on its own.
-var<workgroup> strip: array<f32, 288>; // chunk × (tile + 5 - 1): the widest kernel is 5
-var<workgroup> slab: array<f32, 1280>; // 5 × chunk × tile
+override rows: u32 = 4u;
+override columns: u32 = 4u;
+override height: u32 = 8u * rows;
+override width: u32 = 8u * columns;
+override strip_size: u32 = 8u * (width + 4u); // chunk × (width + 5 - 1): the widest kernel is 5
+override slab_size: u32 = 5u * 8u * height; // 5 × chunk × height
+
+var<workgroup> strip: array<f32, strip_size>;
+var<workgroup> slab: array<f32, slab_size>;
 
 @compute @workgroup_size(8, 8)
 fn main(@builtin(workgroup_id) group: vec3<u32>, @builtin(local_invocation_id) lane: vec3<u32>, @builtin(local_invocation_index) local: u32) {
-	const tile = 32u;
 	const chunk = 8u;
-	const block = 4u;
 	let channels = shape.inputs + shape.skipped;
-	let first = group.x * tile;
-	let start = group.y * tile;
+	let first = group.x * height;
+	let start = group.y * width;
 	let half = i32(shape.kernel / 2u);
-	let window = tile + shape.kernel - 1u;
+	let window = width + shape.kernel - 1u;
 	let span = i32(shape.span);
 	var sums: array<f32, 16>;
 
@@ -257,10 +270,10 @@ fn main(@builtin(workgroup_id) group: vec3<u32>, @builtin(local_invocation_id) l
 			}
 			strip[index] = value;
 		}
-		for (var index = local; index < shape.kernel * chunk * tile; index += 64u) {
-			let tap = index / (chunk * tile);
-			let channel = base + (index / tile) % chunk;
-			let unit = first + index % tile;
+		for (var index = local; index < shape.kernel * chunk * height; index += 64u) {
+			let tap = index / (chunk * height);
+			let channel = base + (index / height) % chunk;
+			let unit = first + index % height;
 			var value = 0.0;
 			if (channel < channels && unit < shape.filters) {
 				value = weights[(tap * channels + channel) * shape.filters + unit];
@@ -273,13 +286,15 @@ fn main(@builtin(workgroup_id) group: vec3<u32>, @builtin(local_invocation_id) l
 			for (var offset = 0u; offset < chunk; offset++) {
 				var row: array<f32, 4>;
 				var column: array<f32, 4>;
-				for (var step = 0u; step < block; step++) {
-					row[step] = slab[(tap * chunk + offset) * tile + lane.x * block + step];
-					column[step] = strip[offset * window + lane.y * block + step + tap];
+				for (var step = 0u; step < rows; step++) {
+					row[step] = slab[(tap * chunk + offset) * height + lane.x * rows + step];
 				}
-				for (var filter_index = 0u; filter_index < block; filter_index++) {
-					for (var position_index = 0u; position_index < block; position_index++) {
-						sums[filter_index * block + position_index] += row[filter_index] * column[position_index];
+				for (var step = 0u; step < columns; step++) {
+					column[step] = strip[offset * window + lane.y * columns + step + tap];
+				}
+				for (var filter_index = 0u; filter_index < rows; filter_index++) {
+					for (var position_index = 0u; position_index < columns; position_index++) {
+						sums[filter_index * columns + position_index] += row[filter_index] * column[position_index];
 					}
 				}
 			}
@@ -288,18 +303,18 @@ fn main(@builtin(workgroup_id) group: vec3<u32>, @builtin(local_invocation_id) l
 	}
 
 	let count = shape.kernel * channels * shape.filters;
-	for (var filter_index = 0u; filter_index < block; filter_index++) {
-		let unit = first + lane.x * block + filter_index;
+	for (var filter_index = 0u; filter_index < rows; filter_index++) {
+		let unit = first + lane.x * rows + filter_index;
 		if (unit >= shape.filters) {
 			continue;
 		}
 		let bias = weights[count + unit];
 		let scale = weights[count + shape.filters + unit];
 		let shift = weights[count + 2u * shape.filters + unit];
-		for (var position_index = 0u; position_index < block; position_index++) {
-			let position = start + lane.y * block + position_index;
+		for (var position_index = 0u; position_index < columns; position_index++) {
+			let position = start + lane.y * columns + position_index;
 			if (position < shape.span) {
-				result[unit * shape.span + position] = max(sums[filter_index * block + position_index] + bias, 0.0) * scale + shift;
+				result[unit * shape.span + position] = max(sums[filter_index * columns + position_index] + bias, 0.0) * scale + shift;
 			}
 		}
 	}
@@ -353,14 +368,17 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 	#input: StemActivation;
 	#output: StemActivation;
 	#readback: GPUBuffer;
+	#result: Float32Array;
 	#steps: readonly StemStep[];
 
 	constructor(device: GPUDevice, input: StemActivation, output: StemActivation, steps: readonly StemStep[]) {
+		const { size } = output.buffer;
 		this.#device = device;
 		this.#input = input;
 		this.#output = output;
 		this.#steps = steps;
-		this.#readback = device.createBuffer({ size: output.buffer.size, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+		this.#readback = device.createBuffer({ size, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+		this.#result = new Float32Array(size / Float32Array.BYTES_PER_ELEMENT);
 	}
 
 	/** Loads the model at `model` for `frames` input frames of `bins` bins each; throws when WebGPU is unavailable or the weights don't fit the architecture. */
@@ -368,7 +386,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 		const device = await StemNetwork.#connect();
 		const tensors = await StemNetwork.#download(model);
 		device.pushErrorScope("validation");
-		const [convolution, softmax] = await Promise.all([StemNetwork.#compile(device, StemNetwork.#convolution), StemNetwork.#compile(device, StemNetwork.#softmax)]);
+		const [convolution, softmax] = await Promise.all([StemNetwork.#compile(device, StemNetwork.#convolution, StemBuilder.tiling), StemNetwork.#compile(device, StemNetwork.#softmax, {})]);
 		const builder = new StemBuilder(device, convolution, softmax, tensors);
 		const input = builder.activation(frames, bins);
 		const down = builder.convolve(input);
@@ -409,9 +427,9 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 		return await response.blob();
 	}
 
-	static async #compile(device: GPUDevice, code: string): Promise<GPUComputePipeline> {
+	static async #compile(device: GPUDevice, code: string, constants: Record<string, number>): Promise<GPUComputePipeline> {
 		const module = device.createShaderModule({ code });
-		return await device.createComputePipelineAsync({ layout: "auto", compute: { module, entryPoint: "main" } });
+		return await device.createComputePipelineAsync({ layout: "auto", compute: { module, entryPoint: "main", constants } });
 	}
 
 	get stems(): number { return this.#output.channels; }
@@ -426,7 +444,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 	/** Resolves when the GPU device is lost (driver reset, GPU removed); the network can't run after that. */
 	get lost(): Promise<GPUDeviceLostInfo> { return this.#device.lost; }
 
-	/** `input` is channel-major — one row of bins per frame, oldest frame first; the result is the stem shares, bin-major (`stems` per bin). */
+	/** `input` is channel-major — one row of bins per frame, oldest frame first; the result is the stem shares, bin-major (`stems` per bin). The result array is reused by the next call, so read it before inferring again. */
 	async infer(input: Float32Array<ArrayBuffer>): Promise<Float32Array> {
 		const device = this.#device;
 		const readback = this.#readback;
@@ -443,7 +461,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 		queue.submit([encoder.finish()]);
 
 		await readback.mapAsync(GPUMapMode.READ);
-		const result = new Float32Array(readback.getMappedRange().slice(0));
+		const result = this.#result;
+		result.set(new Float32Array(readback.getMappedRange()));
 		readback.unmap();
 		return result;
 	}
