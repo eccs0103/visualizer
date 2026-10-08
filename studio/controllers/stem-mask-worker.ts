@@ -6,19 +6,86 @@ import { SabLayout, Signal, StemMasks } from "../models/audio-features.js";
 import { Command, InitializeMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
 import { StemNetwork } from "../services/stem-network.js";
 
-const { max, trunc } = Math;
+const { max, round, trunc } = Math;
 
+//#region Inference pace
+/**
+ * Keeps the splitter's share of the GPU under a budget (40%: on an Intel UHD 630 even 100% cost one dropped frame in 3 s), because on an integrated GPU the same chip also draws the visuals:
+ * it measures what one inference costs and lets the next one start only after `cost / budget` since the last start, so a weak
+ * GPU slows the AI down instead of the visuals. A strong GPU never hits the budget and keeps the normal pace.
+ * It also measures how many inferences finish per second.
+ */
+class InferencePace {
+	static #budget: number = 0.4;
+	static #tolerance: number = 0.75;
+	static #learning: number = 0.2;
+	static #window: number = 1000;
+	static #gap: number = 2000;
+
+	#cost: number | null = null;
+	#started: number | null = null;
+	#opened: number | null = null;
+	#count: number = 0;
+	#rate: number | null = null;
+
+	/** Inferences finished per second over the last measured window; `null` until the first window closes. */
+	get rate(): number | null { return this.#rate; }
+
+	/** Whether the budget holds the AI clearly below its normal pace (`period` ms between inferences): under `tolerance` of it, so the answer doesn't flicker near the edge. */
+	slowed(period: number): boolean {
+		const cost = this.#cost;
+		if (cost === null) return false;
+		return cost / InferencePace.#budget > period / InferencePace.#tolerance;
+	}
+
+	ready(now: number): boolean {
+		const cost = this.#cost, started = this.#started;
+		if (cost === null || started === null) return true;
+		return now - started >= cost / InferencePace.#budget;
+	}
+
+	start(now: number): void {
+		this.#started = now;
+	}
+
+	/** Records the inference that started last; returns whether that closed a window with a new `rate`. */
+	finish(now: number): boolean {
+		const started = this.#started;
+		if (started === null) throw new ReferenceError("No inference was started");
+		const cost = this.#cost;
+		const spent = now - started;
+		this.#cost = cost === null ? spent : cost + (spent - cost) * InferencePace.#learning;
+
+		const opened = this.#opened;
+		const elapsed = opened === null ? 0 : now - opened;
+		if (opened === null || elapsed > InferencePace.#gap) {
+			this.#opened = now;
+			this.#count = 0;
+			return false;
+		}
+		const count = ++this.#count;
+		if (elapsed < InferencePace.#window) return false;
+		this.#rate = round(count * 1000 / elapsed);
+		this.#opened = now;
+		this.#count = 0;
+		return true;
+	}
+}
+//#endregion
 //#region Stem mask worker
 class StemMaskWorker extends Controller {
 	static #grid: number = 60;
 	static #frames: number = 16;
 	static #divisor: number = 6;
 	static #smoothing: number = 0.5;
+	static #period: number = 1000 * StemMaskWorker.#divisor / StemMaskWorker.#grid;
 
 	#signal: Signal | null = null;
 	#masks: StemMasks | null = null;
 	#network: StemNetwork | null = null;
 	#busy: boolean = false;
+	#pace: InferencePace = new InferencePace();
+	#status: StatusMaskCommand | null = null;
 	#ring: Float32Array = new Float32Array(StemMaskWorker.#frames * SabLayout.bins);
 	#packed: Float32Array<ArrayBuffer> = new Float32Array(StemMaskWorker.#frames * SabLayout.bins);
 	#cursor: number = 0;
@@ -47,7 +114,7 @@ class StemMaskWorker extends Controller {
 		const divisor = StemMaskWorker.#divisor;
 		const infer = trunc(due / divisor) > trunc(steps / divisor);
 		this.#steps = due;
-		if (infer) void this.#infer(network, masks);
+		if (infer && this.#pace.ready(now)) void this.#infer(network, masks);
 	}
 
 	/** Pushes `count` grid steps into the ring, each interpolated from the previous tap toward the current one; steps older than the whole window are skipped. */
@@ -72,12 +139,15 @@ class StemMaskWorker extends Controller {
 	async #infer(network: StemNetwork, masks: StemMasks): Promise<void> {
 		if (this.#busy) return;
 		this.#busy = true;
+		const pace = this.#pace;
 		try {
+			pace.start(performance.now());
 			const predicted = this.#fold(await network.infer(this.#pack()), network.stems);
 			const smoothed = this.#smoothed;
 			const smoothing = StemMaskWorker.#smoothing;
 			for (let index = 0; index < smoothed.length; index++) smoothed[index] += (predicted[index] - smoothed[index]) * smoothing;
 			masks.publish(smoothed, performance.timeOrigin + performance.now());
+			if (pace.finish(performance.now())) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed(StemMaskWorker.#period)));
 		} catch (reason) {
 			this.#disable(reason);
 		} finally {
@@ -137,7 +207,7 @@ class StemMaskWorker extends Controller {
 			const network = await StemNetwork.create(new URL(urlModel), StemMaskWorker.#frames, SabLayout.bins);
 			if (network.stems < SabLayout.stems) throw new TypeError(`The model splits into ${network.stems} stems, the visualizer needs at least ${SabLayout.stems}`);
 			this.#network = network;
-			self.postMessage(Command.export(new StatusMaskCommand(true, null)));
+			this.#report(new StatusMaskCommand(true, null, network.adapter, null, false));
 			const { message } = await network.lost;
 			throw new Error(`The GPU device was lost: ${message}`);
 		} catch (reason) {
@@ -150,7 +220,15 @@ class StemMaskWorker extends Controller {
 		this.#network = null;
 		const smoothed = this.#smoothed.fill(1 / SabLayout.stems);
 		this.#masks?.publish(smoothed, performance.timeOrigin + performance.now());
-		self.postMessage(Command.export(new StatusMaskCommand(false, Error.from(reason).message)));
+		this.#report(new StatusMaskCommand(false, Error.from(reason).message, null, null, false));
+	}
+
+	/** Tells the main thread the splitter's state, only when something the user can see changed. */
+	#report(status: StatusMaskCommand): void {
+		const previous = this.#status;
+		if (previous !== null && previous.equals(status)) return;
+		this.#status = status;
+		self.postMessage(Command.export(status));
 	}
 
 	async run(): Promise<void> {

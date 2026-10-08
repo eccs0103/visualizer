@@ -435,6 +435,13 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
 	get stems(): number { return this.#output.channels; }
 
+	/** The GPU the browser gave the network, e.g. "nvidia ampere"; `null` when the browser doesn't say. */
+	get adapter(): string | null {
+		const { vendor, architecture } = this.#device.adapterInfo;
+		const name = `${vendor} ${architecture}`.trim();
+		return name.length === 0 ? null : name;
+	}
+
 	/** Resolves when the GPU device is lost (driver reset, GPU removed); the network can't run after that. */
 	get lost(): Promise<GPUDeviceLostInfo> { return this.#device.lost; }
 

@@ -115,9 +115,12 @@ export interface StatusMaskCommandScheme extends CommandScheme {
 	$type: keyof StatusMaskCommandDiscriminator;
 	available: boolean;
 	reason: string | null;
+	device: string | null;
+	rate: number | null;
+	slowed: boolean;
 }
 
-/** Mask worker → main thread: whether the splitter runs, and why not when it doesn't. */
+/** Mask worker → main thread: whether the splitter runs (and why not), on which GPU, how many updates per second it manages, and whether it had to slow down for a weak GPU. */
 export class StatusMaskCommand extends Command {
 	@Field(Boolean)
 	available: boolean;
@@ -125,10 +128,19 @@ export class StatusMaskCommand extends Command {
 	@Field(Nullable.Of(String))
 	reason: string | null;
 
+	@Field(Nullable.Of(String))
+	device: string | null;
+
+	@Field(Nullable.Of(Number))
+	rate: number | null;
+
+	@Field(Boolean)
+	slowed: boolean;
+
 	constructor();
-	constructor(available: boolean, reason: string | null);
-	constructor(available?: boolean, reason?: string | null) {
-		if (available === undefined || reason === undefined) {
+	constructor(available: boolean, reason: string | null, device: string | null, rate: number | null, slowed: boolean);
+	constructor(available?: boolean, reason?: string | null, device?: string | null, rate?: number | null, slowed?: boolean) {
+		if (available === undefined || reason === undefined || device === undefined || rate === undefined || slowed === undefined) {
 			super();
 			return;
 		}
@@ -136,6 +148,13 @@ export class StatusMaskCommand extends Command {
 		super();
 		this.available = available;
 		this.reason = reason;
+		this.device = device;
+		this.rate = rate;
+		this.slowed = slowed;
+	}
+
+	equals(other: StatusMaskCommand): boolean {
+		return this.available === other.available && this.reason === other.reason && this.device === other.device && this.rate === other.rate && this.slowed === other.slowed;
 	}
 }
 //#endregion

@@ -21,6 +21,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 	#inputVisualizationTilt: HTMLInputElement;
 	#inputVisualizationPunch: HTMLInputElement;
 	#outputVisualizerSplitter: HTMLOutputElement;
+	#spanVisualizerSplitterHint: HTMLSpanElement;
 
 	#readDirection(code: string): number {
 		switch (code) {
@@ -50,16 +51,22 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 	#refreshSplitter(): void {
 		const splitter = this.#visualizer.splitter;
 		const outputVisualizerSplitter = this.#outputVisualizerSplitter;
+		const spanVisualizerSplitterHint = this.#spanVisualizerSplitterHint;
+		spanVisualizerSplitterHint.hidden = true;
 		if (splitter === null) {
 			outputVisualizerSplitter.value = "Loading…";
 			return;
 		}
-		const { available, reason } = splitter;
-		if (available) {
-			outputVisualizerSplitter.value = "Active (WebGPU)";
+		const { available, reason, device, rate, slowed } = splitter;
+		if (!available) {
+			outputVisualizerSplitter.value = reason === null ? "Unavailable" : `Unavailable: ${reason}`;
 			return;
 		}
-		outputVisualizerSplitter.value = reason === null ? "Unavailable" : `Unavailable: ${reason}`;
+		const parts = ["Active"];
+		if (device !== null) parts.push(device);
+		if (rate !== null) parts.push(`${rate} updates/s`);
+		outputVisualizerSplitter.value = parts.join(" · ");
+		spanVisualizerSplitterHint.hidden = !slowed;
 	}
 
 	#applyVisualization(): void {
@@ -85,6 +92,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		const inputVisualizationTilt = this.#inputVisualizationTilt = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-tilt");
 		const inputVisualizationPunch = this.#inputVisualizationPunch = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-punch");
 		this.#outputVisualizerSplitter = dialogConfigurator.getElement(HTMLOutputElement, "output#visualizer-splitter");
+		this.#spanVisualizerSplitterHint = dialogConfigurator.getElement(HTMLSpanElement, "span#visualizer-splitter-hint");
 
 		const settings = cell.content;
 		const { manager } = visualizer;
