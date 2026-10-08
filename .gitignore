@@ -29,6 +29,8 @@ dist-ssr
 # My personal / temporary files
 .*
 !.gitignore
+!.gitattributes
+!.editorconfig
 !.npmignore
 !.github
 !.node-version
