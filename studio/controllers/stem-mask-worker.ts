@@ -27,6 +27,7 @@ class StemMaskWorker extends Controller {
 	#previous: Float32Array = new Float32Array(SabLayout.bins);
 	#frame: Float32Array = new Float32Array(SabLayout.bins);
 	#smoothed: Float32Array = new Float32Array(SabLayout.bins * SabLayout.stems).fill(1 / SabLayout.stems);
+	#folded: Float32Array = new Float32Array(SabLayout.bins * SabLayout.stems);
 
 	#capture(tap: Float32Array, masks: StemMasks, network: StemNetwork): void {
 		const now = performance.now();
@@ -72,7 +73,7 @@ class StemMaskWorker extends Controller {
 		if (this.#busy) return;
 		this.#busy = true;
 		try {
-			const predicted = await network.infer(this.#pack());
+			const predicted = this.#fold(await network.infer(this.#pack()), network.stems);
 			const smoothed = this.#smoothed;
 			const smoothing = StemMaskWorker.#smoothing;
 			for (let index = 0; index < smoothed.length; index++) smoothed[index] += (predicted[index] - smoothed[index]) * smoothing;
@@ -82,6 +83,22 @@ class StemMaskWorker extends Controller {
 		} finally {
 			this.#busy = false;
 		}
+	}
+
+	/** The network's shares as the visualizer's stems: a model that splits finer (its extra stems come after the visualizer's own) has every extra stem summed into the last one, "other". */
+	#fold(shares: Float32Array, count: number): Float32Array {
+		const stems = SabLayout.stems;
+		const folded = this.#folded;
+		const last = stems - 1;
+		for (let bin = 0; bin < SabLayout.bins; bin++) {
+			const source = bin * count;
+			const target = bin * stems;
+			for (let stem = 0; stem < last; stem++) folded[target + stem] = shares[source + stem];
+			let rest = 0;
+			for (let stem = last; stem < count; stem++) rest += shares[source + stem];
+			folded[target + last] = rest;
+		}
+		return folded;
 	}
 
 	/** The ring as the network reads it: one row of bins per frame, oldest -> newest. */
@@ -118,7 +135,7 @@ class StemMaskWorker extends Controller {
 	async #load(urlModel: string): Promise<void> {
 		try {
 			const network = await StemNetwork.create(new URL(urlModel), StemMaskWorker.#frames, SabLayout.bins);
-			if (network.stems !== SabLayout.stems) throw new TypeError(`The model splits into ${network.stems} stems, the visualizer expects ${SabLayout.stems}`);
+			if (network.stems < SabLayout.stems) throw new TypeError(`The model splits into ${network.stems} stems, the visualizer needs at least ${SabLayout.stems}`);
 			this.#network = network;
 			self.postMessage(Command.export(new StatusMaskCommand(true, null)));
 			const { message } = await network.lost;
