@@ -17,7 +17,7 @@ class VisualizationWorker extends Controller {
 	#width: number = 0;
 	#height: number = 0;
 	#rebuilt: boolean = false;
-	#frame: number = -1;
+	#frame: number | null = null;
 
 	#findScene(name: string): Scene {
 		return ReferenceError.suppress(this.#scenes.get(name), `Visualization with name '${name}' is not attached`);
@@ -66,9 +66,10 @@ class VisualizationWorker extends Controller {
 			return;
 		}
 
+		const stage = this.#stage;
+
 		if (command instanceof TickCommand) {
 			if (!this.#rebuilt) return;
-			const stage = this.#stage;
 			const frame = stage.frame;
 			if (frame === this.#frame) return;
 			this.#frame = frame;
@@ -80,7 +81,7 @@ class VisualizationWorker extends Controller {
 
 		if (command instanceof RebuildRenderCommand) {
 			const { width, height, visualization, hue, saturation, lightness } = command;
-			this.#stage.updateColor(hue, saturation, lightness);
+			stage.updateColor(hue, saturation, lightness);
 			this.#select(visualization);
 			this.#width = width;
 			this.#height = height;
@@ -90,12 +91,12 @@ class VisualizationWorker extends Controller {
 
 		if (command instanceof LyricsRenderCommand) {
 			const { previous, current, next } = command;
-			this.#stage.updateLyrics(previous, current, next);
+			stage.updateLyrics(previous, current, next);
 			return;
 		}
 
 		if (command instanceof ShakeRenderCommand) {
-			this.#stage.updateShake(command.value);
+			stage.updateShake(command.value);
 			return;
 		}
 

@@ -8,10 +8,10 @@ import { LrclibResult } from "../models/lrclib-result.js";
 export class LyricsFinder {
 	static #tolerance = 5;
 	static #cooldown = 5000;
-	static #blockedUntil = 0;
+	static #untilRetry = 0;
 
 	static async find(signature: string, duration: number, signal: AbortSignal): Promise<string | null> {
-		if (Date.now() < LyricsFinder.#blockedUntil) throw new Error("lrclib search is cooling down after a recent failure");
+		if (Date.now() < LyricsFinder.#untilRetry) throw new Error("lrclib search is cooling down after a recent failure");
 
 		try {
 			const url = new URL("https://lrclib.net/api/search");
@@ -30,11 +30,11 @@ export class LyricsFinder {
 				bestGap = gap;
 			}
 
-			LyricsFinder.#blockedUntil = 0;
+			LyricsFinder.#untilRetry = 0;
 			if (best === null || bestGap > LyricsFinder.#tolerance) return null;
 			return best;
 		} catch (reason) {
-			if (!signal.aborted) LyricsFinder.#blockedUntil = Date.now() + LyricsFinder.#cooldown;
+			if (!signal.aborted) LyricsFinder.#untilRetry = Date.now() + LyricsFinder.#cooldown;
 			throw reason;
 		}
 	}

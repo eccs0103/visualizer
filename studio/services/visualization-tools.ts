@@ -8,13 +8,17 @@ import { type Audioset } from "../models/visualization.js";
 const { split, PI, exp, sqrt, asin, min, max, round, trunc } = Math;
 
 //#region Shaper
+export interface Curve {
+	(x: number): number;
+}
+
 export class Shaper {
 	static #arcsinSaturate: Shaper = new Shaper(x => asin(sqrt(x)) * 2 / PI);
 	static #smoothstep: Shaper = new Shaper(x => x * x * (3 - 2 * x));
 
-	#callback: (x: number) => number;
+	#callback: Curve;
 
-	constructor(callback: (x: number) => number) {
+	constructor(callback: Curve) {
 		this.#callback = callback;
 	}
 
@@ -109,7 +113,7 @@ export class SpectrumAnalysis {
 	static #window: number = 63.5 / 60 * 1000;
 	static #gap: number = 3.5 / 60 * 1000;
 
-	#prevFrequency: Float32Array = new Float32Array(SabLayout.maxLength);
+	#previous: Float32Array = new Float32Array(SabLayout.maxLength);
 	#fluxHistory: Float32Array = new Float32Array(SpectrumAnalysis.#capacity);
 	#timeHistory: Float64Array = new Float64Array(SpectrumAnalysis.#capacity);
 	#fluxCursor: number = 0;
@@ -117,7 +121,7 @@ export class SpectrumAnalysis {
 	#bins: [number, number][] | null = null;
 	#cachedLength: number = 0;
 	#cachedSampleRate: number = 0;
-	#time: number = NaN;
+	#time: number | null = null;
 	#values: Float32Array = new Float32Array(12);
 
 	get spectralFlux(): number { return this.#values[0]; }
@@ -163,16 +167,16 @@ export class SpectrumAnalysis {
 	}
 
 	#computeSpectralFlux(frequency: ArrayLike<number>, length: number, time: number): number {
-		const prevFrequency = this.#prevFrequency;
+		const previous = this.#previous;
 		const capacity = SpectrumAnalysis.#capacity;
 		const cursor = this.#fluxCursor;
 		let flux = 0;
 		for (let binIndex = 0; binIndex < length; binIndex++) {
-			const diff = frequency[binIndex] - prevFrequency[binIndex];
+			const diff = frequency[binIndex] - previous[binIndex];
 			if (diff > 0) flux += diff;
 		}
 		flux /= length;
-		prevFrequency.set(frequency);
+		previous.set(frequency);
 		this.#fluxHistory[cursor % capacity] = flux;
 		this.#timeHistory[cursor % capacity] = time;
 		this.#fluxCursor = cursor + 1;
@@ -256,10 +260,7 @@ export class SpectrumAnalysis {
 //#endregion
 //#region Auto range
 /**
- * The quiet-to-loud range of one input in the song that is playing: its 5th and 95th percentiles
- * over the last ~30 seconds, sampled on the clock so the window is the same at any frame rate.
- * Until enough of the song has been heard it leans on a prior range (measured over MUSDB18HQ), and
- * the span never shrinks below a fraction of the prior span, so a quiet passage is not blown up into noise.
+ * The quiet-to-loud range of one input in the song that is playing: its 5th and 95th percentiles over the last ~30 seconds, sampled on the clock so the window is the same at any frame rate. Until enough of the song has been heard it leans on a prior range (measured over MUSDB18HQ), and the span never shrinks below a fraction of the prior span, so a quiet passage is not blown up into noise.
  */
 export class AutoRange {
 	static #capacity: number = 256; // samples, ~32 s

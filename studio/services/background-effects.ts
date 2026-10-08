@@ -86,7 +86,7 @@ export class BackgroundEffects {
 		case BackgroundEffectKind.shake: return new ShakeEffect();
 		case BackgroundEffectKind.pulse: return new PulseEffect();
 		case BackgroundEffectKind.parallax: return new ParallaxEffect();
-		default: throw new Error(`Invalid '${kind}' effect`);
+		default: throw new TypeError(`Invalid '${kind}' effect`);
 		}
 	}
 }

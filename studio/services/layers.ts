@@ -111,7 +111,7 @@ export abstract class PaintedLayer extends Layer {
 		this.#isDirty = true;
 		this.paint(host, stage);
 		output.globalAlpha = this.opacity;
-		output.globalCompositeOperation = this.blend as GlobalCompositeOperation;
+		output.globalCompositeOperation = this.blend;
 		output.drawImage(context.canvas, 0, 0);
 	}
 }

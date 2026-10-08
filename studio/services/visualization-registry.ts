@@ -43,7 +43,7 @@ export class Registry {
 
 	static get default(): string {
 		const key: IteratorResult<string, BuiltinIteratorReturn> = this.#descriptors.keys().next();
-		if (key.done) throw new Error("No visualization is attached to the visualizer");
+		if (key.done) throw new ReferenceError("No visualization is attached to the visualizer");
 		return key.value;
 	}
 
@@ -57,8 +57,7 @@ export class Registry {
 			const visualization = this.create(descriptor);
 			if (Visualization.layers(visualization).length === 0) throw new TypeError("The visualization declared no layers, see CONTRIBUTING.md");
 		} catch (reason) {
-			console.error(`Visualization '${name}' was rejected:
-${Error.from(reason)}`);
+			console.error(`Visualization '${name}' was rejected:\n${Error.from(reason)}`);
 			return;
 		}
 		descriptors.set(name, descriptor);

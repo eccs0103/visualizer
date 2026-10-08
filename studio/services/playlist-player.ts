@@ -85,7 +85,7 @@ export class PlaylistPlayer extends EventTarget {
 		}
 
 		const file = await this.#store.select(track.id);
-		if (!(file instanceof File)) throw new Error(`Missing audio data for track '${track.signature}'`);
+		if (!(file instanceof File)) throw new ReferenceError(`Missing audio data for track '${track.signature}'`);
 		const url = URL.createObjectURL(file);
 		await Promise.withSignal((signal, resolve, reject) => {
 			audioPlayer.addEventListener("canplay", event => resolve(), { signal });

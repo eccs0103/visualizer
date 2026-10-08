@@ -27,9 +27,9 @@ export class Lyrics {
 
 	static parse(text: string): Lyrics {
 		const patternTimestamp = Lyrics.#patternTimestamp;
-		const offsetMatch = Lyrics.#patternOffset.exec(text);
+		const match = Lyrics.#patternOffset.exec(text);
 		let offset = 0;
-		if (offsetMatch !== null) offset = Number(offsetMatch[1]) / 1000;
+		if (match !== null) offset = Number(match[1]) / 1000;
 
 		const lines: LyricLine[] = [];
 		for (const raw of text.split(/\r?\n/)) {
@@ -43,7 +43,7 @@ export class Lyrics {
 			}
 		}
 
-		lines.sort((first, second) => first.time - second.time);
+		lines.sort((line, line2) => line.time - line2.time);
 		return new Lyrics(lines);
 	}
 

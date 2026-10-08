@@ -205,7 +205,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 			if (step === 0) return;
 			if (event.repeat) return;
 			const { activeElement } = document;
-			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;
+			if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLSelectElement || activeElement instanceof HTMLTextAreaElement) return;
 			if (document.querySelector("dialog[open]") !== null) return;
 			event.preventDefault();
 			this.#cycleVisualization(step);

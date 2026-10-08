@@ -25,14 +25,14 @@ export class AudiosetManager {
 
 	#context: AudioContext;
 	#analyser: AnalyserNode;
-	#analyserModel: AnalyserNode;
+	#modelAnalyser: AnalyserNode;
 	#gain: GainNode;
 	#lowShelf: BiquadFilterNode;
 	#highShelf: BiquadFilterNode;
 	#compressor: DynamicsCompressorNode;
 	#signal: Signal = Signal.create();
 	#bytes: Uint8Array<ArrayBuffer>;
-	#bytesModel: Uint8Array<ArrayBuffer>;
+	#modelBytes: Uint8Array<ArrayBuffer>;
 
 	constructor(media: HTMLMediaElement) {
 		const context = this.#context = new AudioContext();
@@ -66,15 +66,15 @@ export class AudiosetManager {
 		highShelf.connect(compressor);
 		compressor.connect(analyser);
 
-		const analyserModel = this.#analyserModel = context.createAnalyser();
-		analyserModel.fftSize = 1024;
-		analyserModel.smoothingTimeConstant = 0.6;
-		analyserModel.minDecibels = -90;
-		analyserModel.maxDecibels = -30;
-		source.connect(analyserModel);
+		const modelAnalyser = this.#modelAnalyser = context.createAnalyser();
+		modelAnalyser.fftSize = 1024;
+		modelAnalyser.smoothingTimeConstant = 0.6;
+		modelAnalyser.minDecibels = -90;
+		modelAnalyser.maxDecibels = -30;
+		source.connect(modelAnalyser);
 
 		this.#bytes = new Uint8Array(analyser.frequencyBinCount);
-		this.#bytesModel = new Uint8Array(analyserModel.frequencyBinCount);
+		this.#modelBytes = new Uint8Array(modelAnalyser.frequencyBinCount);
 	}
 
 	static get minQuality(): number { return AudiosetManager.#minQuality; }
@@ -100,7 +100,7 @@ export class AudiosetManager {
 	}
 
 	set quality(value: number) {
-		if (!Number.isFinite(value)) throw new Error(`The quality ${value} must be a finite number`);
+		if (!Number.isFinite(value)) throw new TypeError(`The quality ${value} must be a finite number`);
 		value = trunc(value).clamp(AudiosetManager.#minQuality, AudiosetManager.#maxQuality);
 		const analyser = this.#analyser;
 		analyser.fftSize = (1 << value);
@@ -112,7 +112,7 @@ export class AudiosetManager {
 	}
 
 	set smoothing(value: number) {
-		if (!Number.isFinite(value)) throw new Error(`The smoothing ${value} must be a finite number`);
+		if (!Number.isFinite(value)) throw new TypeError(`The smoothing ${value} must be a finite number`);
 		this.#analyser.smoothingTimeConstant = value.clamp(AudiosetManager.#minSmoothing, AudiosetManager.#maxSmoothing);
 	}
 
@@ -122,7 +122,7 @@ export class AudiosetManager {
 	}
 
 	set focus(value: number) {
-		if (!Number.isFinite(value)) throw new Error(`The focus ${value} must be a finite number`);
+		if (!Number.isFinite(value)) throw new TypeError(`The focus ${value} must be a finite number`);
 		value = value.clamp(AudiosetManager.#minFocus, AudiosetManager.#maxFocus);
 		const { spread } = this;
 		this.#applyDecibels(round(value - spread), round(value + spread));
@@ -134,7 +134,7 @@ export class AudiosetManager {
 	}
 
 	set spread(value: number) {
-		if (!Number.isFinite(value)) throw new Error(`The spread ${value} must be a finite number`);
+		if (!Number.isFinite(value)) throw new TypeError(`The spread ${value} must be a finite number`);
 		value = value.clamp(AudiosetManager.#minSpread, AudiosetManager.#maxSpread);
 		const { focus } = this;
 		this.#applyDecibels(round(focus - value), round(focus + value));
@@ -156,7 +156,7 @@ export class AudiosetManager {
 	}
 
 	set boost(value: number) {
-		if (!Number.isFinite(value)) throw new Error(`The boost ${value} must be a finite number`);
+		if (!Number.isFinite(value)) throw new TypeError(`The boost ${value} must be a finite number`);
 		this.#gain.gain.value = value.clamp(AudiosetManager.#minBoost, AudiosetManager.#maxBoost);
 	}
 
@@ -165,7 +165,7 @@ export class AudiosetManager {
 	}
 
 	set tilt(value: number) {
-		if (!Number.isFinite(value)) throw new Error(`The tilt ${value} must be a finite number`);
+		if (!Number.isFinite(value)) throw new TypeError(`The tilt ${value} must be a finite number`);
 		value = value.clamp(AudiosetManager.#minTilt, AudiosetManager.#maxTilt);
 		this.#lowShelf.gain.value = -value;
 		this.#highShelf.gain.value = value;
@@ -176,7 +176,7 @@ export class AudiosetManager {
 	}
 
 	set punch(value: number) {
-		if (!Number.isFinite(value)) throw new Error(`The punch ${value} must be a finite number`);
+		if (!Number.isFinite(value)) throw new TypeError(`The punch ${value} must be a finite number`);
 		value = value.clamp(AudiosetManager.#minPunch, AudiosetManager.#maxPunch);
 		const compressor = this.#compressor;
 		compressor.threshold.value = value.lerp(0, 1, 0, -24);
@@ -197,7 +197,7 @@ export class AudiosetManager {
 	capture(): void {
 		const signal = this.#signal;
 		const bytes = this.#bytes;
-		const bytesModel = this.#bytesModel;
+		const modelBytes = this.#modelBytes;
 		const { frequency, temporal, model } = signal;
 		const analyser = this.#analyser;
 		const { length } = bytes;
@@ -213,8 +213,8 @@ export class AudiosetManager {
 			summary += sqpw(datum * 2 - 1);
 		}
 
-		this.#analyserModel.getByteFrequencyData(bytesModel);
-		for (let index = 0; index < bytesModel.length; index++) model[index] = bytesModel[index] / 255;
+		this.#modelAnalyser.getByteFrequencyData(modelBytes);
+		for (let index = 0; index < modelBytes.length; index++) model[index] = modelBytes[index] / 255;
 
 		signal.publish(length, sqrt(summary / length), performance.timeOrigin + performance.now());
 	}

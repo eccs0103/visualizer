@@ -17,10 +17,10 @@ export class PanelController extends Controller<[BufferedCell<typeof Settings>, 
 		if (value) {
 			dialog.showModal();
 			await dialog.animate([{ opacity: "0", easing: "ease-in" }, { opacity: "1" }], { duration, fill }).finished;
-		} else {
-			await dialog.animate([{ opacity: "1", easing: "ease-out" }, { opacity: "0" }], { duration, fill }).finished;
-			dialog.close();
+			return;
 		}
+		await dialog.animate([{ opacity: "1", easing: "ease-out" }, { opacity: "0" }], { duration, fill }).finished;
+		dialog.close();
 	}
 
 	async #activate(next: Panel): Promise<void> {

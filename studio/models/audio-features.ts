@@ -60,24 +60,11 @@ export class Signal {
 //#endregion
 //#region Stem masks
 /**
- * A view over the mask SAB — owns resampling the fixed `bins`-bin mask onto
- * whatever `length` the main analyser is using (linear interpolation: both are
- * linear FFT bins over 0..Nyquist, so this is exact, not an approximation) and
- * multiplying by `dataFrequency` to produce an isolated-stem spectrum. Computed
- * lazily per stem, cached until the blended masks or the requested length change —
- * a visualization using one stem never pays to resample the other three.
+ * A view over the mask SAB — owns resampling the fixed `bins`-bin mask onto whatever `length` the main analyser is using (linear interpolation: both are linear FFT bins over 0..Nyquist, so this is exact, not an approximation) and multiplying by `dataFrequency` to produce an isolated-stem spectrum. Computed lazily per stem, cached until the blended masks or the requested length change — a visualization using one stem never pays to resample the other three.
  *
- * The model publishes a few times per second, so the masks are not read raw: each
- * frame blends the previous publication into the current one over the measured gap
- * between them (`invalidate`), which keeps every stem moving at the render rate.
- * The blend trails the model by one publication interval — it shows the model's own
- * output, smoothed in time, never a prediction of what it will say next.
+ * The model publishes a few times per second, so the masks are not read raw: each frame blends the previous publication into the current one over the measured gap between them (`invalidate`), which keeps every stem moving at the render rate. The blend trails the model by one publication interval — it shows the model's own output, smoothed in time, never a prediction of what it will say next.
  *
- * The blended masks are then squared and renormalised per bin (a Wiener-style power 2):
- * the model's softmax cannot say a stem is absent — on frames with no vocals it still
- * hands vocals ~10% of the spectrum — and squaring roughly halves that floor. Measured on
- * MUSDB18HQ test tracks, powers 2 to 6 cut the false share about the same, and power 2
- * costs the least correlation with the true stems.
+ * The blended masks are then squared and renormalised per bin (a Wiener-style power 2): the model's softmax cannot say a stem is absent — on frames with no vocals it still hands vocals ~10% of the spectrum — and squaring roughly halves that floor. Measured on MUSDB18HQ test tracks, powers 2 to 6 cut the false share about the same, and power 2 costs the least correlation with the true stems.
  */
 export class StemMasks {
 	static #drums: number = 0;
@@ -91,9 +78,9 @@ export class StemMasks {
 	#previous: Float32Array;
 	#current: Float32Array;
 	#blended: Float32Array = new Float32Array(SabLayout.bins * SabLayout.stems);
-	#version: number = -1;
-	#weight: number = -1;
-	#length: number = -1;
+	#version: number | null = null;
+	#weight: number | null = null;
+	#length: number | null = null;
 	#cache: Float32Array[] = [new Float32Array(0), new Float32Array(0), new Float32Array(0), new Float32Array(0)];
 	#fresh: boolean[] = [false, false, false, false];
 
@@ -187,9 +174,9 @@ export class StemMasks {
 		for (let index = 0; index < length; index++) {
 			const position = index * scale;
 			const bin = position | 0;
-			const nextBin = min(bin + 1, bins - 1);
+			const bin2 = min(bin + 1, bins - 1);
 			const weight = position - bin;
-			const mask = masks[bin * stems + stem] * (1 - weight) + masks[nextBin * stems + stem] * weight;
+			const mask = masks[bin * stems + stem] * (1 - weight) + masks[bin2 * stems + stem] * weight;
 			out[index] = whole[index] * mask;
 		}
 	}

@@ -73,9 +73,7 @@ class StemStep {
 //#endregion
 //#region Stem builder
 /**
- * Turns the stored tensors into GPU buffers and dispatches, block by block. Trainable tensors are stored first
- * (per block: kernel, bias, gamma, beta; then the head's kernel and bias), the batch-norm statistics after them
- * (per block: mean, variance) — the order tfjs saved them in.
+ * Turns the stored tensors into GPU buffers and dispatches, block by block. Trainable tensors are stored first (per block: kernel, bias, gamma, beta; then the head's kernel and bias), the batch-norm statistics after them (per block: mean, variance) — the order tfjs saved them in.
  */
 class StemBuilder {
 	static #epsilon: number = 1e-3;
@@ -196,10 +194,7 @@ class StemBuilder {
 //#endregion
 //#region Stem network
 /**
- * The splitter's U-Net (the shipped architecture: 10 convolution blocks and a softmax head), run on the GPU
- * with two WebGPU compute shaders. Max-pooling, upsampling and the skip concatenations are folded into how
- * each convolution reads its input, so one inference is a single command buffer of 11 dispatches and one
- * small readback. Everything is allocated once in `create`; an inference only writes the input.
+ * The splitter's U-Net (the shipped architecture: 10 convolution blocks and a softmax head), run on the GPU with two WebGPU compute shaders. Max-pooling, upsampling and the skip concatenations are folded into how each convolution reads its input, so one inference is a single command buffer of 11 dispatches and one small readback. Everything is allocated once in `create`; an inference only writes the input.
  */
 export class StemNetwork {
 	static #convolution: string = `
@@ -235,8 +230,7 @@ fn gather(channel: u32, position: u32) -> f32 {
 }
 
 // One workgroup computes a tile of 32 filters × 32 positions; each of its 8 × 8 threads owns 4 filters × 4 positions.
-// Input channels are walked 8 at a time: the input strip and the weights for those channels are staged in workgroup
-// memory once and then reused by every thread, instead of each thread reading them from storage on its own.
+// Input channels are walked 8 at a time: the input strip and the weights for those channels are staged in workgroup memory once and then reused by every thread, instead of each thread reading them from storage on its own.
 var<workgroup> strip: array<f32, 288>; // chunk × (tile + 5 - 1): the widest kernel is 5
 var<workgroup> slab: array<f32, 1280>; // 5 × chunk × tile
 
@@ -377,14 +371,14 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 		const [convolution, softmax] = await Promise.all([StemNetwork.#compile(device, StemNetwork.#convolution), StemNetwork.#compile(device, StemNetwork.#softmax)]);
 		const builder = new StemBuilder(device, convolution, softmax, tensors);
 		const input = builder.activation(frames, bins);
-		const e0 = builder.convolve(input);
-		const e1 = builder.convolve(builder.pool(e0));
-		const e2 = builder.convolve(builder.pool(e1));
-		const bottom = builder.convolve(builder.pool(e2));
-		const d2 = builder.join(bottom, e2);
-		const d1 = builder.join(d2, e1);
-		const d0 = builder.join(d1, e0);
-		const output = builder.classify(d0);
+		const down = builder.convolve(input);
+		const down2 = builder.convolve(builder.pool(down));
+		const down3 = builder.convolve(builder.pool(down2));
+		const bottom = builder.convolve(builder.pool(down3));
+		const up3 = builder.join(bottom, down3);
+		const up2 = builder.join(up3, down2);
+		const up = builder.join(up2, down);
+		const output = builder.classify(up);
 		builder.finish();
 		const error = await device.popErrorScope();
 		if (error !== null) throw new TypeError(`WebGPU rejected the network: ${error.message}`);
@@ -400,8 +394,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 	static async #download(model: Readonly<URL>): Promise<StemTensor[]> {
 		const response = await StemNetwork.#fetch(model);
 		const manifest = StemWeights.import(await response.json(), "model");
-		const parts = await Promise.all(manifest.files(model).map(StemNetwork.#bytes));
-		return manifest.tensors(StemNetwork.#concatenate(parts));
+		const parts = await Promise.all(manifest.files(model).map(StemNetwork.#blob));
+		return manifest.tensors(await new Blob(parts).arrayBuffer());
 	}
 
 	static async #fetch(url: Readonly<URL>): Promise<Response> {
@@ -410,22 +404,9 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 		return response;
 	}
 
-	static async #bytes(url: Readonly<URL>): Promise<ArrayBuffer> {
+	static async #blob(url: Readonly<URL>): Promise<Blob> {
 		const response = await StemNetwork.#fetch(url);
-		return await response.arrayBuffer();
-	}
-
-	static #concatenate(parts: readonly ArrayBuffer[]): ArrayBuffer {
-		if (parts.length === 1) return parts[0];
-		let size = 0;
-		for (const part of parts) size += part.byteLength;
-		const whole = new Uint8Array(size);
-		let offset = 0;
-		for (const part of parts) {
-			whole.set(new Uint8Array(part), offset);
-			offset += part.byteLength;
-		}
-		return whole.buffer;
+		return await response.blob();
 	}
 
 	static async #compile(device: GPUDevice, code: string): Promise<GPUComputePipeline> {

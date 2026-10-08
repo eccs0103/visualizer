@@ -170,13 +170,13 @@ export class ClipRecorder extends EventTarget {
 		this.#media = media;
 	}
 
-	addEventListener<K extends keyof ClipRecorderEventMap>(type: K, listener: (this: Document, event: ClipRecorderEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+	addEventListener<K extends keyof ClipRecorderEventMap>(type: K, listener: (this: ClipRecorder, event: ClipRecorderEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
 	addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
 	addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
 		return super.addEventListener(type, listener, options);
-	};
+	}
 
-	removeEventListener<K extends keyof ClipRecorderEventMap>(type: K, listener: (this: Document, event: ClipRecorderEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+	removeEventListener<K extends keyof ClipRecorderEventMap>(type: K, listener: (this: ClipRecorder, event: ClipRecorderEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
 	removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 	removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
 		return super.removeEventListener(type, listener, options);
@@ -187,7 +187,7 @@ export class ClipRecorder extends EventTarget {
 	}
 
 	async start(): Promise<void> {
-		if (this.isRecording) throw new Error("Recording has already started");
+		if (this.isRecording) throw new TypeError("Recording has already started");
 		const session = ClipSession.create(this.#canvas, this.#media);
 		try {
 			session.begin();
@@ -210,7 +210,7 @@ export class ClipRecorder extends EventTarget {
 
 	async stop(): Promise<ClipFile> {
 		const session = this.#session;
-		if (session === null) throw new Error("Recording has not started");
+		if (session === null) throw new TypeError("Recording has not started");
 		this.#session = null;
 		const file = await session.finish();
 		session.dispose();

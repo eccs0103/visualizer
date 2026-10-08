@@ -65,13 +65,13 @@ export class Visualizer extends EventTarget {
 		window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", event => this.#rebuild());
 	}
 
-	addEventListener<K extends keyof VisualizerEventMap>(type: K, listener: (this: Document, ev: VisualizerEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+	addEventListener<K extends keyof VisualizerEventMap>(type: K, listener: (this: Visualizer, event: VisualizerEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
 	addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
 	addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
 		return super.addEventListener(type, listener, options);
 	}
 
-	removeEventListener<K extends keyof VisualizerEventMap>(type: K, listener: (this: Document, ev: VisualizerEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+	removeEventListener<K extends keyof VisualizerEventMap>(type: K, listener: (this: Visualizer, event: VisualizerEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
 	removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 	removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
 		return super.removeEventListener(type, listener, options);
@@ -85,7 +85,7 @@ export class Visualizer extends EventTarget {
 	}
 
 	set rate(value: number) {
-		if (!Number.isFinite(value)) throw new Error(`The rate ${value} must be a finite number`);
+		if (!Number.isFinite(value)) throw new ReferenceError(`The rate ${value} must be a finite number`);
 		value = value.snap(30).clamp(Visualizer.#minRate, Visualizer.#maxRate);
 		this.#engine.limit = value;
 	}
@@ -100,7 +100,7 @@ export class Visualizer extends EventTarget {
 	}
 
 	set visualization(value: string) {
-		if (!Registry.has(value)) throw new Error(`Visualization with name '${value}' is not attached`);
+		if (!Registry.has(value)) throw new ReferenceError(`Visualization with name '${value}' is not attached`);
 		this.#visualization = value;
 		this.#rebuild();
 	}
@@ -144,12 +144,12 @@ export class Visualizer extends EventTarget {
 	}
 
 	arrange(visualization: string, layers: readonly LayerSettings[], background: BackgroundSettings, lyrics: LayerSettings): void {
-		if (!Registry.has(visualization)) throw new Error(`Visualization with name '${visualization}' is not attached`);
+		if (!Registry.has(visualization)) throw new ReferenceError(`Visualization with name '${visualization}' is not attached`);
 		this.#worker.postMessage(Command.export(new LayersRenderCommand(visualization, Array.from(layers), background, lyrics)));
 	}
 
 	setBackground(visualization: string, image: Blob | null): void {
-		if (!Registry.has(visualization)) throw new Error(`Visualization with name '${visualization}' is not attached`);
+		if (!Registry.has(visualization)) throw new ReferenceError(`Visualization with name '${visualization}' is not attached`);
 		this.#worker.postMessage(Command.export(new ImageRenderCommand(visualization, image)));
 	}
 

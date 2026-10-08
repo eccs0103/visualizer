@@ -63,8 +63,7 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 			const found = await LyricsFinder.find(track.signature, track.duration, signal);
 			if (this.#idTrack !== track.id) return;
 
-			let text = String.empty;
-			if (found !== null) text = found;
+			let text = found ?? String.empty;
 			if (String.isEmpty(text) && !String.isEmpty(stored)) text = stored;
 			await this.#player.setLyrics(track, text, Date.now());
 			if (text === stored) return;
@@ -92,8 +91,7 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 			if (this.#idTrack !== track.id) return null;
 			try {
 				const found = await LyricsFinder.find(track.signature, track.duration, signal);
-				let text = String.empty;
-				if (found !== null) text = found;
+				const text = found ?? String.empty;
 				if (this.#idTrack !== track.id) return null;
 				await player.setLyrics(track, text, Date.now());
 				return text;
@@ -126,9 +124,7 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 		const resolved = await this.#resolveLyrics(track, abort.signal);
 		if (this.#idTrack !== track.id) return;
 
-		let content = resolved;
-		if (content === null) content = String.empty;
-		this.#lyrics = Lyrics.parse(content);
+		this.#lyrics = Lyrics.parse(resolved ?? String.empty);
 		this.#render();
 	}
 

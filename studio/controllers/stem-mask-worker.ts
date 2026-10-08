@@ -10,10 +10,7 @@ const { max, round, trunc } = Math;
 
 //#region Inference pace
 /**
- * Keeps the splitter's share of the GPU under a budget (40%: on an Intel UHD 630 even 100% cost one dropped frame in 3 s), because on an integrated GPU the same chip also draws the visuals:
- * it measures what one inference costs and lets the next one start only after `cost / budget` since the last start, so a weak
- * GPU slows the AI down instead of the visuals. A strong GPU never hits the budget and keeps the normal pace.
- * It also measures how many inferences finish per second.
+ * Keeps the splitter's share of the GPU under a budget (40%: on an Intel UHD 630 even 100% cost one dropped frame in 3 s), because on an integrated GPU the same chip also draws the visuals: it measures what one inference costs and lets the next one start only after `cost / budget` since the last start, so a weak GPU slows the AI down instead of the visuals. A strong GPU never hits the budget and keeps the normal pace. It also measures how many inferences finish per second.
  */
 class InferencePace {
 	static #budget: number = 0.4;
@@ -57,18 +54,21 @@ class InferencePace {
 		this.#cost = cost === null ? spent : cost + (spent - cost) * InferencePace.#learning;
 
 		const opened = this.#opened;
-		const elapsed = opened === null ? 0 : now - opened;
-		if (opened === null || elapsed > InferencePace.#gap) {
-			this.#opened = now;
-			this.#count = 0;
+		if (opened === null || now - opened > InferencePace.#gap) {
+			this.#open(now);
 			return false;
 		}
 		const count = ++this.#count;
+		const elapsed = now - opened;
 		if (elapsed < InferencePace.#window) return false;
 		this.#rate = round(count * 1000 / elapsed);
+		this.#open(now);
+		return true;
+	}
+
+	#open(now: number): void {
 		this.#opened = now;
 		this.#count = 0;
-		return true;
 	}
 }
 //#endregion
@@ -202,9 +202,9 @@ class StemMaskWorker extends Controller {
 		}
 	}
 
-	async #load(urlModel: string): Promise<void> {
+	async #load(url: string): Promise<void> {
 		try {
-			const network = await StemNetwork.create(new URL(urlModel), StemMaskWorker.#frames, SabLayout.bins);
+			const network = await StemNetwork.create(new URL(url), StemMaskWorker.#frames, SabLayout.bins);
 			if (network.stems < SabLayout.stems) throw new TypeError(`The model splits into ${network.stems} stems, the visualizer needs at least ${SabLayout.stems}`);
 			this.#network = network;
 			this.#report(new StatusMaskCommand(true, null, network.adapter, null, false));

@@ -8,7 +8,9 @@ import { Reorder } from "../models/playlist.js";
 import { DOMBuilder } from "./dom-builder.js";
 import { TrackDrag } from "./track-drag.js";
 
-type Listener<T> = (value: T) => void;
+interface Listener<T> {
+	(value: T): void;
+}
 
 //#region Layers view
 export interface LayersViewEventMap {

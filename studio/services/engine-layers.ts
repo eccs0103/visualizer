@@ -110,7 +110,7 @@ ${Error.from(reason)}`);
 		case BackgroundFit.contain:
 			scale = min(width / master.width, height / master.height);
 			break;
-		default: throw new Error(`Invalid '${fit}' fit`);
+		default: throw new TypeError(`Invalid '${fit}' fit`);
 		}
 		const placedWidth = master.width * scale;
 		const placedHeight = master.height * scale;
@@ -161,7 +161,7 @@ ${Error.from(reason)}`);
 			this.#isStale = true;
 		}
 		output.globalAlpha = this.opacity;
-		output.globalCompositeOperation = this.blend as GlobalCompositeOperation;
+		output.globalCompositeOperation = this.blend;
 		const master = this.#master;
 		if (master === null) {
 			output.fillStyle = colorText;

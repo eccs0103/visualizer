@@ -12,7 +12,7 @@ export class Stage implements Audioset, Environment {
 	#masks: StemMasks;
 	#sampleRate: number;
 	#analysis: SpectrumAnalysis = new SpectrumAnalysis();
-	#frame: number = -1;
+	#frame: number | null = null;
 	#length: number = 0;
 	#time: number = NaN;
 	#frequency: Float32Array;
@@ -20,7 +20,7 @@ export class Stage implements Audioset, Environment {
 	#camera: DOMMatrix = new DOMMatrix();
 	#width: number = 0;
 	#height: number = 0;
-	#lastTime: number = NaN;
+	#lastTime: number | null = null;
 	#delta: number = NaN;
 	#color: Color = Color.newBlack;
 	#previous: string | null = null;
@@ -112,7 +112,7 @@ export class Stage implements Audioset, Environment {
 		const now = performance.now() / 1000;
 		const lastTime = this.#lastTime;
 		this.#delta = NaN;
-		if (Number.isFinite(lastTime)) this.#delta = now - lastTime;
+		if (lastTime !== null) this.#delta = now - lastTime;
 		this.#lastTime = now;
 	}
 
