@@ -43,7 +43,7 @@ class OffscreenCanvasPortable {
 //#endregion
 
 //#region Command
-export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
 }
 
 export interface CommandScheme {
@@ -51,6 +51,7 @@ export interface CommandScheme {
 }
 
 @Descendant(Deferred(_ => InitializeMaskCommand))
+@Descendant(Deferred(_ => StatusMaskCommand))
 @Descendant(Deferred(_ => InitializeRenderCommand))
 @Descendant(Deferred(_ => TickCommand))
 @Descendant(Deferred(_ => RebuildRenderCommand))
@@ -78,7 +79,6 @@ export interface InitializeMaskCommandScheme extends CommandScheme {
 	sabSignal: SharedArrayBuffer;
 	sabMask: SharedArrayBuffer;
 	urlModel: string;
-	urlWasm: string;
 }
 
 export class InitializeMaskCommand extends Command {
@@ -91,13 +91,10 @@ export class InitializeMaskCommand extends Command {
 	@Field(String)
 	urlModel: string;
 
-	@Field(String)
-	urlWasm: string;
-
 	constructor();
-	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, urlModel: string, urlWasm: string);
-	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, urlModel?: string, urlWasm?: string) {
-		if (sabSignal === undefined || sabMask === undefined || urlModel === undefined || urlWasm === undefined) {
+	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, urlModel: string);
+	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, urlModel?: string) {
+		if (sabSignal === undefined || sabMask === undefined || urlModel === undefined) {
 			super();
 			return;
 		}
@@ -106,7 +103,39 @@ export class InitializeMaskCommand extends Command {
 		this.sabSignal = sabSignal;
 		this.sabMask = sabMask;
 		this.urlModel = urlModel;
-		this.urlWasm = urlWasm;
+	}
+}
+//#endregion
+//#region Status mask command
+export interface StatusMaskCommandDiscriminator {
+	"StatusMaskCommand": StatusMaskCommand;
+}
+
+export interface StatusMaskCommandScheme extends CommandScheme {
+	$type: keyof StatusMaskCommandDiscriminator;
+	available: boolean;
+	reason: string | null;
+}
+
+/** Mask worker → main thread: whether the splitter runs, and why not when it doesn't. */
+export class StatusMaskCommand extends Command {
+	@Field(Boolean)
+	available: boolean;
+
+	@Field(Nullable.Of(String))
+	reason: string | null;
+
+	constructor();
+	constructor(available: boolean, reason: string | null);
+	constructor(available?: boolean, reason?: string | null) {
+		if (available === undefined || reason === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.available = available;
+		this.reason = reason;
 	}
 }
 //#endregion

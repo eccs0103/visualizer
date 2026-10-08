@@ -95,6 +95,11 @@
 				<input id="visualizer-rate" type="number" class="value rounded depth with-padding">
 			</section>
 			<section class="option">
+				<h4 class="title">Stem separation (AI)</h4>
+				<span class="definition">An AI splits the music into drums, bass, vocals and other, so visualizations can follow each instrument. It runs on the graphics card through WebGPU; without WebGPU every stem stays an equal share of the mix.</span>
+				<output id="visualizer-splitter" class="value with-padding"></output>
+			</section>
+			<section class="option">
 				<h4 class="title">Lyrics</h4>
 				<span class="definition">Sends synced lyrics to the active visualization when the current track has an attached .lrc file. Each visualization decides how to display them. Attach one by adding a .lrc file named like the song to the playlist.</span>
 				<input id="lyrics-toggle" type="checkbox" hidden>

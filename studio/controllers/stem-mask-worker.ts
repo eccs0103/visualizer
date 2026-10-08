@@ -2,11 +2,9 @@
 
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
-import * as tf from "@tensorflow/tfjs-core";
-import { LayersModel, loadLayersModel } from "@tensorflow/tfjs-layers";
-import { setWasmPaths } from "@tensorflow/tfjs-backend-wasm";
 import { SabLayout, Signal, StemMasks } from "../models/audio-features.js";
-import { Command, InitializeMaskCommand, TickCommand } from "../models/commands.js";
+import { Command, InitializeMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
+import { StemNetwork } from "../services/stem-network.js";
 
 const { max, trunc } = Math;
 
@@ -19,8 +17,10 @@ class StemMaskWorker extends Controller {
 
 	#signal: Signal | null = null;
 	#masks: StemMasks | null = null;
-	#model: LayersModel | null = null;
+	#network: StemNetwork | null = null;
+	#busy: boolean = false;
 	#ring: Float32Array = new Float32Array(StemMaskWorker.#frames * SabLayout.bins);
+	#packed: Float32Array<ArrayBuffer> = new Float32Array(StemMaskWorker.#frames * SabLayout.bins);
 	#cursor: number = 0;
 	#origin: number | null = null;
 	#steps: number = 0;
@@ -28,7 +28,7 @@ class StemMaskWorker extends Controller {
 	#frame: Float32Array = new Float32Array(SabLayout.bins);
 	#smoothed: Float32Array = new Float32Array(SabLayout.bins * SabLayout.stems).fill(1 / SabLayout.stems);
 
-	#capture(tap: Float32Array, masks: StemMasks, model: LayersModel): void {
+	#capture(tap: Float32Array, masks: StemMasks, network: StemNetwork): void {
 		const now = performance.now();
 		const origin = this.#origin;
 		if (origin === null) {
@@ -46,7 +46,7 @@ class StemMaskWorker extends Controller {
 		const divisor = StemMaskWorker.#divisor;
 		const infer = trunc(due / divisor) > trunc(steps / divisor);
 		this.#steps = due;
-		if (infer) this.#infer(model, masks);
+		if (infer) void this.#infer(network, masks);
 	}
 
 	/** Pushes `count` grid steps into the ring, each interpolated from the previous tap toward the current one; steps older than the whole window are skipped. */
@@ -67,25 +67,35 @@ class StemMaskWorker extends Controller {
 		previous.set(tap);
 	}
 
-	#infer(model: LayersModel, masks: StemMasks): void {
+	/** Runs one inference unless the previous one is still on the GPU — a skipped step is dropped, never queued. */
+	async #infer(network: StemNetwork, masks: StemMasks): Promise<void> {
+		if (this.#busy) return;
+		this.#busy = true;
+		try {
+			const predicted = await network.infer(this.#pack());
+			const smoothed = this.#smoothed;
+			const smoothing = StemMaskWorker.#smoothing;
+			for (let index = 0; index < smoothed.length; index++) smoothed[index] += (predicted[index] - smoothed[index]) * smoothing;
+			masks.publish(smoothed, performance.timeOrigin + performance.now());
+		} catch (reason) {
+			this.#disable(reason);
+		} finally {
+			this.#busy = false;
+		}
+	}
+
+	/** The ring as the network reads it: one row of bins per frame, oldest -> newest. */
+	#pack(): Float32Array<ArrayBuffer> {
 		const bins = SabLayout.bins;
 		const frames = StemMaskWorker.#frames;
 		const ring = this.#ring;
 		const cursor = this.#cursor;
-
-		// Bin-major/time-minor, oldest -> newest — the layout the model was trained on: tensor3d(x, [bins, frames]).
-		const packed = new Float32Array(bins * frames);
+		const packed = this.#packed;
 		for (let offset = 0; offset < frames; offset++) {
 			const base = ((cursor + offset) % frames) * bins;
-			for (let bin = 0; bin < bins; bin++) packed[bin * frames + offset] = ring[base + bin];
+			packed.set(ring.subarray(base, base + bins), offset * bins);
 		}
-
-		const predicted = tf.tidy(() => (model.predict(tf.tensor3d(packed, [1, bins, frames])) as tf.Tensor).dataSync() as Float32Array);
-
-		const smoothed = this.#smoothed;
-		const smoothing = StemMaskWorker.#smoothing;
-		for (let index = 0; index < smoothed.length; index++) smoothed[index] += (predicted[index] - smoothed[index]) * smoothing;
-		masks.publish(smoothed, performance.timeOrigin + performance.now());
+		return packed;
 	}
 
 	#onMessage(event: MessageEvent): void {
@@ -94,26 +104,36 @@ class StemMaskWorker extends Controller {
 		if (command instanceof InitializeMaskCommand) {
 			this.#signal = new Signal(command.sabSignal);
 			this.#masks = new StemMasks(command.sabMask);
-			void this.#load(command.urlModel, command.urlWasm);
+			void this.#load(command.urlModel);
 			return;
 		}
 
 		if (command instanceof TickCommand) {
-			const signal = this.#signal, masks = this.#masks, model = this.#model;
-			if (signal === null || masks === null || model === null) return;
-			this.#capture(signal.model, masks, model);
+			const signal = this.#signal, masks = this.#masks, network = this.#network;
+			if (signal === null || masks === null || network === null) return;
+			this.#capture(signal.model, masks, network);
 		}
 	}
 
-	async #load(urlModel: string, urlWasm: string): Promise<void> {
-		setWasmPaths(urlWasm);
-		// The threaded-simd variant spawns its own sub-workers, which breaks when tfjs itself already
-		// runs inside a worker ("u is not defined" from WasmBackendModuleThreadedSimd) — plain SIMD
-		// is still fast and avoids nested workers.
-		tf.env().set("WASM_HAS_MULTITHREAD_SUPPORT", false);
-		await tf.setBackend("wasm");
-		await tf.ready();
-		this.#model = await loadLayersModel(urlModel);
+	async #load(urlModel: string): Promise<void> {
+		try {
+			const network = await StemNetwork.create(new URL(urlModel), StemMaskWorker.#frames, SabLayout.bins);
+			if (network.stems !== SabLayout.stems) throw new TypeError(`The model splits into ${network.stems} stems, the visualizer expects ${SabLayout.stems}`);
+			this.#network = network;
+			self.postMessage(Command.export(new StatusMaskCommand(true, null)));
+			const { message } = await network.lost;
+			throw new Error(`The GPU device was lost: ${message}`);
+		} catch (reason) {
+			this.#disable(reason);
+		}
+	}
+
+	/** Stops the splitter for good: the stems fall back to the uniform prior (an honest "no separation"), and the main thread learns why. */
+	#disable(reason: unknown): void {
+		this.#network = null;
+		const smoothed = this.#smoothed.fill(1 / SabLayout.stems);
+		this.#masks?.publish(smoothed, performance.timeOrigin + performance.now());
+		self.postMessage(Command.export(new StatusMaskCommand(false, Error.from(reason).message)));
 	}
 
 	async run(): Promise<void> {

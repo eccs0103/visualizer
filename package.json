@@ -25,9 +25,6 @@
 		"wrangler": "^4.147.0"
 	},
 	"dependencies": {
-		"@tensorflow/tfjs-backend-wasm": "^4.22.0",
-		"@tensorflow/tfjs-core": "^4.22.0",
-		"@tensorflow/tfjs-layers": "^4.22.0",
 		"adaptive-extender": "^1.1.1"
 	},
 	"allowScripts": {

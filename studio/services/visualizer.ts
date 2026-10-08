@@ -5,7 +5,7 @@ import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
 import { AudiosetManager } from "./audioset-manager.js";
 import { StemMasks } from "../models/audio-features.js";
 import { Registry } from "./visualization-registry.js";
-import { Command, InitializeMaskCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
+import { Command, InitializeMaskCommand, StatusMaskCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { type BackgroundSettings } from "../models/background-settings.js";
 
@@ -16,6 +16,7 @@ const { baseURI } = document;
 export interface VisualizerEventMap {
 	"update": Event;
 	"rebuild": Event;
+	"splitter": Event;
 }
 
 export class Visualizer extends EventTarget {
@@ -29,6 +30,7 @@ export class Visualizer extends EventTarget {
 	#shake: number = 0.2;
 	#canvas: HTMLCanvasElement;
 	#manager: AudiosetManager;
+	#splitter: StatusMaskCommand | null = null;
 
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement) {
 		super();
@@ -46,8 +48,9 @@ export class Visualizer extends EventTarget {
 		const { sab } = manager.signal;
 		const sabMask = StemMasks.createBuffer();
 		const urlModel = new URL("../data/stem-mask/model.json", baseURI).toString();
-		const urlWasm = new URL("../wasm/", baseURI).toString();
-		this.#maskWorker.postMessage(Command.export(new InitializeMaskCommand(sab, sabMask, urlModel, urlWasm)));
+		const maskWorker = this.#maskWorker;
+		maskWorker.addEventListener("message", event => this.#onMaskMessage(event));
+		maskWorker.postMessage(Command.export(new InitializeMaskCommand(sab, sabMask, urlModel)));
 
 		const offscreen = canvas.transferControlToOffscreen();
 		this.#worker.postMessage(Command.export(new InitializeRenderCommand(sab, sabMask, manager.sampleRate, offscreen)), [offscreen]);
@@ -89,6 +92,9 @@ export class Visualizer extends EventTarget {
 
 	get manager(): AudiosetManager { return this.#manager; }
 
+	/** The splitter's last reported state; `null` while its model is still loading. */
+	get splitter(): StatusMaskCommand | null { return this.#splitter; }
+
 	get visualization(): string {
 		return this.#visualization;
 	}
@@ -120,6 +126,13 @@ export class Visualizer extends EventTarget {
 		if (width === 0 || height === 0) return;
 		this.#worker.postMessage(Command.export(new RebuildRenderCommand(width, height, this.#visualization, color.hue, color.saturation, color.lightness)));
 		this.dispatchEvent(new Event("rebuild"));
+	}
+
+	#onMaskMessage(event: MessageEvent): void {
+		const command = Command.import(event.data, "command");
+		if (!(command instanceof StatusMaskCommand)) return;
+		this.#splitter = command;
+		this.dispatchEvent(new Event("splitter"));
 	}
 
 	#update(): void {

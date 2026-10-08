@@ -20,6 +20,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 	#inputVisualizationBoost: HTMLInputElement;
 	#inputVisualizationTilt: HTMLInputElement;
 	#inputVisualizationPunch: HTMLInputElement;
+	#outputVisualizerSplitter: HTMLOutputElement;
 
 	#readDirection(code: string): number {
 		switch (code) {
@@ -46,6 +47,21 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		this.#inputVisualizationPunch.value = String(manager.punch);
 	}
 
+	#refreshSplitter(): void {
+		const splitter = this.#visualizer.splitter;
+		const outputVisualizerSplitter = this.#outputVisualizerSplitter;
+		if (splitter === null) {
+			outputVisualizerSplitter.value = "Loading…";
+			return;
+		}
+		const { available, reason } = splitter;
+		if (available) {
+			outputVisualizerSplitter.value = "Active (WebGPU)";
+			return;
+		}
+		outputVisualizerSplitter.value = reason === null ? "Unavailable" : `Unavailable: ${reason}`;
+	}
+
 	#applyVisualization(): void {
 		const settings = this.#cell.content;
 		const visualizer = this.#visualizer;
@@ -68,6 +84,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		const inputVisualizationBoost = this.#inputVisualizationBoost = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-boost");
 		const inputVisualizationTilt = this.#inputVisualizationTilt = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-tilt");
 		const inputVisualizationPunch = this.#inputVisualizationPunch = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-punch");
+		this.#outputVisualizerSplitter = dialogConfigurator.getElement(HTMLOutputElement, "output#visualizer-splitter");
 
 		const settings = cell.content;
 		const { manager } = visualizer;
@@ -171,6 +188,9 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		});
 
 		this.#refreshKnobs();
+
+		this.#refreshSplitter();
+		visualizer.addEventListener("splitter", event => this.#refreshSplitter());
 
 		window.addEventListener("keydown", (event) => {
 			const step = this.#readDirection(event.code);
