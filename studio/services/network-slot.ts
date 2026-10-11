@@ -4,16 +4,13 @@ import "adaptive-extender/worker";
 import { StemNetwork } from "./stem-network.js";
 
 //#region Network slot
-/** The network the splitter runs. Loads may overlap (the user switches models faster than they load): the newest load always wins, and whatever an older one does afterwards — finishing, failing, losing its GPU — is ignored. */
 export class NetworkSlot {
 	#network: StemNetwork | null = null;
 	#loads: number = 0;
 	#tickets: WeakMap<StemNetwork, number> = new WeakMap();
 
-	/** The running network; `null` before the first load and after `clear`. */
 	get network(): StemNetwork | null { return this.#network; }
 
-	/** Loads the model at `url` (with the shaders from the folder `shaders`) and swaps it in for the running one, which is destroyed. Resolves `null` when a newer load was started meanwhile; rejects when this, the newest load, fails. */
 	async load(url: string, shaders: string, frames: number, bins: number, stems: number): Promise<StemNetwork | null> {
 		const ticket = ++this.#loads;
 		try {
@@ -33,7 +30,6 @@ export class NetworkSlot {
 		}
 	}
 
-	/** Resolves when `network` stops running: with why, when its GPU device was lost while it was still the newest load; `null` when it was replaced or a newer load superseded it. */
 	async watch(network: StemNetwork): Promise<Error | null> {
 		const { reason, message } = await network.lost;
 		if (reason === "destroyed") return null;
@@ -41,7 +37,6 @@ export class NetworkSlot {
 		return new Error(`The GPU device was lost: ${message}`);
 	}
 
-	/** Stops the splitter: no network runs until the next load. */
 	clear(): void {
 		this.#network = null;
 	}

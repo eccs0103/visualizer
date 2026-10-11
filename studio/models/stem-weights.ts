@@ -15,7 +15,6 @@ export class StemTensor {
 
 	get shape(): readonly number[] { return this.#shape; }
 
-	/** The values, after checking that the tensor has exactly the shape the network expects. */
 	expect(...shape: number[]): Float32Array {
 		const actual = this.#shape;
 		if (actual.length !== shape.length || actual.some((size, index) => size !== shape[index])) throw new TypeError(`Expected a weight of shape [${shape}], got [${actual}]`);
@@ -24,7 +23,6 @@ export class StemTensor {
 }
 //#endregion
 //#region Stem tensors
-/** The model's tensors by name. Each one is taken once by the layer that uses it; `finish` then proves the network used every one. */
 export class StemTensors {
 	#tensors: Map<string, StemTensor>;
 	#taken: Set<string> = new Set();
@@ -44,7 +42,6 @@ export class StemTensors {
 		return tensor;
 	}
 
-	/** Throws when the model holds weights the network didn't use. */
 	finish(): void {
 		const taken = this.#taken;
 		const unused: string[] = [];
@@ -116,7 +113,6 @@ export class StemWeightGroup extends Model {
 }
 //#endregion
 //#region Stem weights
-/** The weights manifest of the splitter's `model.json`: which binary files hold the weights, and the name and shape of every tensor in the order they are stored. */
 export class StemWeights extends Model {
 	@Field(Array.Of(StemWeightGroup), { name: "weightsManifest" })
 	groups: StemWeightGroup[];
@@ -141,7 +137,6 @@ export class StemWeights extends Model {
 		return files;
 	}
 
-	/** Cuts the concatenated weight files into tensors, by name. */
 	tensors(buffer: ArrayBuffer): StemTensors {
 		const tensors: Map<string, StemTensor> = new Map();
 		let offset = 0;

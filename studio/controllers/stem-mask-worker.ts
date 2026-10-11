@@ -35,7 +35,6 @@ class StemMaskWorker extends Controller {
 		if (this.#pace.ready(now)) void this.#infer(network, masks);
 	}
 
-	/** Runs one inference unless the previous one is still on the GPU — a skipped step is dropped, never queued. */
 	async #infer(network: StemNetwork, masks: MaskChannel): Promise<void> {
 		if (this.#busy) return;
 		this.#busy = true;
@@ -47,7 +46,7 @@ class StemMaskWorker extends Controller {
 			masks.publish(this.#smoother.smooth(predicted, now), performance.timeOrigin + now);
 			if (pace.finish(now)) this.#reporter.report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed(StemMaskWorker.#acceptable)));
 		} catch (reason) {
-			if (this.#slot.network !== network) return; // the network was swapped for another model while this inference ran
+			if (this.#slot.network !== network) return;
 			this.#disable(reason);
 		} finally {
 			this.#busy = false;
@@ -77,7 +76,6 @@ class StemMaskWorker extends Controller {
 		}
 	}
 
-	/** Loads the model at `url` and runs it until it is replaced or stops; tells the main thread whether the splitter runs. */
 	async #load(url: string): Promise<void> {
 		const slot = this.#slot;
 		try {
@@ -94,7 +92,6 @@ class StemMaskWorker extends Controller {
 		}
 	}
 
-	/** Stops the splitter for good: the stems fall back to the uniform prior (an honest "no separation"), and the main thread learns why. */
 	#disable(reason: unknown): void {
 		this.#slot.clear();
 		this.#masks?.publish(this.#smoother.reset(), performance.timeOrigin + performance.now());

@@ -9,8 +9,9 @@ import { type HeadPass } from "./head-pass.js";
 import { PresencePass } from "./presence-pass.js";
 
 //#region Stem U-Net
-/** The splitter's architecture: 10 convolution blocks in a U (down three levels, up three levels, each up block joined with the down block of its level), then the head; a gated model also judges each stem's presence from the bottom block. */
 export class StemUNet {
+	static #blocks: number = 10;
+
 	#input: GpuActivation;
 	#output: GpuActivation;
 
@@ -19,7 +20,6 @@ export class StemUNet {
 		this.#output = output;
 	}
 
-	/** Records the network for windows of `frames` frames of `bins` bins into `graph`, taking every weight it needs from `tensors`. */
 	static record(graph: GpuGraph, convolution: ConvolutionPass, softmax: HeadPass, presence: PresencePass, tensors: StemTensors, frames: number, bins: number): StemUNet {
 		const layer = (number: number): ConvolutionLayer => ConvolutionLayer.read(tensors, number);
 		const input = graph.activation(frames, bins);
@@ -30,7 +30,7 @@ export class StemUNet {
 		const up3 = convolution.join(graph, layer(8), bottom, down3);
 		const up2 = convolution.join(graph, layer(9), up3, down2);
 		const up = convolution.join(graph, layer(10), up2, down);
-		const head = HeadLayer.read(tensors, 11); // the head is the file's 11th convolution
+		const head = HeadLayer.read(tensors, StemUNet.#blocks + 1);
 		const gate = PresenceLayer.read(tensors);
 		const shares = gate === null ? PresencePass.open(graph, head.stems) : presence.record(graph, gate, bottom, head.stems);
 		const output = softmax.record(graph, head, up, shares);
@@ -38,10 +38,8 @@ export class StemUNet {
 		return new StemUNet(input, output);
 	}
 
-	/** Where an inference writes its window: one row of bins per frame, oldest frame first. */
 	get input(): GpuActivation { return this.#input; }
 
-	/** Where an inference leaves the stem shares, bin-major. */
 	get output(): GpuActivation { return this.#output; }
 }
 //#endregion

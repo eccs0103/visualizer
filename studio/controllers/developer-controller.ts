@@ -8,11 +8,10 @@ import { Stem } from "../models/stem.js";
 import { StemGains } from "../models/stem-gains.js";
 
 //#region Developer controller
-/** Tools for the developer only, shown when the page is opened with `?developer` and never saved: which splitter model runs, and a gain per stem array the visualizations receive. */
 export class DeveloperController extends Controller<[Visualizer, HTMLDialogElement]> {
 	static #parameter: string = "developer";
 	static #models: readonly (readonly [string, SplitterModel])[] = [["Current", SplitterModel.current], ["Presence (test)", SplitterModel.presence]];
-	static #stems: readonly Stem[] = [Stem.drums, Stem.bass, Stem.vocals, Stem.guitar, Stem.keys, Stem.other]; // the sliders in index.html, ids `developer-<stem>`
+	static #stems: readonly Stem[] = [Stem.drums, Stem.bass, Stem.vocals, Stem.guitar, Stem.keys, Stem.other];
 
 	#visualizer: Visualizer;
 	#inputs: Map<Stem, HTMLInputElement> = new Map();

@@ -9,9 +9,6 @@ import { HeadPass } from "./head-pass.js";
 import { PresencePass } from "./presence-pass.js";
 
 //#region Stem network
-/**
- * The splitter's U-Net (`StemUNet`), run on the GPU with WebGPU compute shaders fetched from the server (`resources/shaders/`). One inference is a single command buffer of the recorded dispatches and one small readback. Everything is allocated once in `create`; an inference only writes the input.
- */
 export class StemNetwork {
 	#device: GPUDevice;
 	#graph: GpuGraph;
@@ -28,7 +25,6 @@ export class StemNetwork {
 		this.#result = new Float32Array(size / Float32Array.BYTES_PER_ELEMENT);
 	}
 
-	/** Loads the model at `model`, with the shaders from the folder `shaders`, for `frames` input frames of `bins` bins each; throws when WebGPU is unavailable or the weights don't fit the architecture. */
 	static async create(model: Readonly<URL>, shaders: Readonly<URL>, frames: number, bins: number): Promise<StemNetwork> {
 		const device = await StemNetwork.#connect();
 		const tensors = await StemNetwork.#download(model);
@@ -73,22 +69,18 @@ export class StemNetwork {
 
 	get stems(): number { return this.#unet.output.channels; }
 
-	/** The GPU the browser gave the network, e.g. "nvidia ampere"; `null` when the browser doesn't say. */
 	get adapter(): string | null {
 		const { vendor, architecture } = this.#device.adapterInfo;
 		const name = `${vendor} ${architecture}`.trim();
 		return name.length === 0 ? null : name;
 	}
 
-	/** Resolves when the GPU device is lost (driver reset, GPU removed); the network can't run after that. */
 	get lost(): Promise<GPUDeviceLostInfo> { return this.#device.lost; }
 
-	/** Releases the GPU device; `lost` then resolves with the reason "destroyed". */
 	destroy(): void {
 		this.#device.destroy();
 	}
 
-	/** `input` is channel-major — one row of bins per frame, oldest frame first; the result is the stem shares, bin-major (`stems` per bin). The result array is reused by the next call, so read it before inferring again. */
 	async infer(input: Float32Array<ArrayBuffer>): Promise<Float32Array> {
 		const device = this.#device;
 		const readback = this.#readback;

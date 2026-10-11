@@ -9,7 +9,7 @@ struct Shape {
 @group(0) @binding(1) var<storage, read> source: array<f32>;
 @group(0) @binding(2) var<storage, read> weights: array<f32>;
 @group(0) @binding(3) var<storage, read_write> result: array<f32>;
-@group(0) @binding(4) var<storage, read> presence: array<f32>; // per stem; 1 for an ungated model, which leaves the softmax exactly as it is
+@group(0) @binding(4) var<storage, read> presence: array<f32>;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {

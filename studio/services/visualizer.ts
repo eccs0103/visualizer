@@ -88,7 +88,6 @@ export class Visualizer extends EventTarget {
 	get manager(): AudiosetManager { return this.#manager; }
 	get splitter(): Splitter { return this.#splitter; }
 
-	/** Each stem array the plugins get is multiplied by its gain. */
 	weigh(gains: StemGains): void {
 		this.#worker.postMessage(Command.export(new GainsRenderCommand(gains)));
 	}

@@ -13,14 +13,15 @@ struct Shape {
 @group(0) @binding(3) var<storage, read> weights: array<f32>;
 @group(0) @binding(4) var<storage, read_write> result: array<f32>;
 
-// mode 0: the source as it is; 1: the source max-pooled by 2; 2: the source upsampled by 2, then the skip's channels.
 fn gather(channel: u32, position: u32) -> f32 {
+	const pooled = 1u;
+	const joined = 2u;
 	let span = shape.span;
-	if (shape.mode == 1u) {
+	if (shape.mode == pooled) {
 		let base = channel * span * 2u + position * 2u;
 		return max(source[base], source[base + 1u]);
 	}
-	if (shape.mode == 2u) {
+	if (shape.mode == joined) {
 		if (channel < shape.inputs) {
 			return source[channel * (span / 2u) + position / 2u];
 		}
@@ -29,14 +30,13 @@ fn gather(channel: u32, position: u32) -> f32 {
 	return source[channel * span + position];
 }
 
-// One workgroup of 8 × 8 threads computes a tile of height filters × width positions; each thread owns rows filters × columns positions (at most 4 × 4).
-// Input channels are walked 8 at a time: the input strip and the weights for those channels are staged in workgroup memory once and then reused by every thread, instead of each thread reading them from storage on its own.
 override rows: u32 = 4u;
 override columns: u32 = 4u;
+override reach: u32 = 5u;
 override height: u32 = 8u * rows;
 override width: u32 = 8u * columns;
-override strip_size: u32 = 8u * (width + 4u); // chunk × (width + 5 - 1): the widest kernel is 5
-override slab_size: u32 = 5u * 8u * height; // 5 × chunk × height
+override strip_size: u32 = 8u * (width + reach - 1u);
+override slab_size: u32 = reach * 8u * height;
 
 var<workgroup> strip: array<f32, strip_size>;
 var<workgroup> slab: array<f32, slab_size>;

@@ -9,7 +9,6 @@ import { type MaskBlend } from "./mask-blend.js";
 const { max } = Math;
 
 //#region Stem mixdown
-/** The whole spectrum as the sum of the six stems at their gains, and how much of the whole it keeps. Built on first read and kept until `forget`. */
 export class StemMixdown {
 	#values: Float32Array = new Float32Array(0);
 	#level: number = 1;
@@ -19,7 +18,6 @@ export class StemMixdown {
 		this.#fresh = false;
 	}
 
-	/** Per bin `whole × Σ(gain × mask) / Σ mask`. At every gain 1 the quotient is exactly 1, so it is `whole` bit for bit. */
 	read(blend: MaskBlend, gains: StemGains, length: number, whole: Float32Array): Float32Array {
 		let values = this.#values;
 		if (this.#fresh && values.length === length) return values;
@@ -41,12 +39,11 @@ export class StemMixdown {
 			sum += value;
 			sum2 += whole[index];
 		}
-		this.#level = sum2 > 0 ? sum / sum2 : 1; // a silent spectrum has nothing to weigh
+		this.#level = sum2 > 0 ? sum / sum2 : 1;
 		this.#fresh = true;
 		return values;
 	}
 
-	/** How much of the whole spectrum the gains keep: `Σ mixdown / Σ whole` (1 at every gain 1, 0 at every gain 0); for the signals the masks can't split, like the waveform. */
 	level(blend: MaskBlend, gains: StemGains, length: number, whole: Float32Array): number {
 		this.read(blend, gains, length, whole);
 		return this.#level;

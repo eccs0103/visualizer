@@ -5,7 +5,6 @@ import { Field, Model } from "adaptive-extender/core";
 import { Stem } from "./stem.js";
 
 //#region Stem gains
-/** One gain per stem: each stem's array is multiplied by its gain, and 1 leaves it exactly as the model split it. */
 export class StemGains extends Model {
 	@Field(Number)
 	drums: number;
@@ -42,7 +41,6 @@ export class StemGains extends Model {
 		this.other = other;
 	}
 
-	/** Every stem as the model split it. */
 	static get unit(): StemGains { return new StemGains(1, 1, 1, 1, 1, 1); }
 
 	of(stem: Stem): number {

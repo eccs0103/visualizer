@@ -4,7 +4,6 @@ import "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
 
 //#region Stem fold
-/** The network's shares as the visualizer's stems: a model that splits finer than the visualizer (its extra stems come after the visualizer's own) has every extra stem summed into the visualizer's last column. Every shipped model splits into exactly the visualizer's stems, so this is a plain copy. */
 export class StemFold {
 	#folded: Float32Array = new Float32Array(SabLayout.bins * SabLayout.stems);
 

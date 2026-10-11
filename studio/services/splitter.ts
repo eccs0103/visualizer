@@ -7,7 +7,6 @@ import { MaskChannel } from "./mask-channel.js";
 const { baseURI } = document;
 
 //#region Splitter
-/** Which trained model the splitter runs: the shipped one, or the presence-gated test model. */
 export enum SplitterModel {
 	current,
 	presence,
@@ -17,7 +16,6 @@ export interface SplitterEventMap {
 	"status": Event;
 }
 
-/** The AI stem splitter, seen from the main thread: its worker (which reads the audio from the signal buffer and publishes masks into `sab`), the trained model it runs, and the state it last reported. */
 export class Splitter extends EventTarget {
 	static #tick = Command.export(new TickCommand());
 	#worker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
@@ -44,10 +42,8 @@ export class Splitter extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
-	/** The masks the splitter publishes, for the render worker. */
 	get sab(): SharedArrayBuffer { return this.#sab; }
 
-	/** The state the splitter last reported; `null` while its first model is still loading. */
 	get status(): StatusMaskCommand | null { return this.#status; }
 
 	get model(): SplitterModel { return this.#model; }
@@ -58,7 +54,6 @@ export class Splitter extends EventTarget {
 		this.#worker.postMessage(Command.export(new ModelMaskCommand(Splitter.#locate(value))));
 	}
 
-	/** Lets the splitter take the audio of this frame. */
 	tick(): void {
 		this.#worker.postMessage(Splitter.#tick);
 	}

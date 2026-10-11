@@ -6,7 +6,6 @@ import { SabLayout } from "../models/audio-features.js";
 const { max, trunc } = Math;
 
 //#region Tap history
-/** The last `frames` frames of the AI's analyser tap on a steady 60 Hz grid, whatever rate the page actually renders at: every grid step since the last capture is interpolated from the previous tap toward the new one. */
 export class TapHistory {
 	static #grid: number = 60;
 
@@ -25,7 +24,6 @@ export class TapHistory {
 		this.#packed = new Float32Array(frames * SabLayout.bins);
 	}
 
-	/** Takes the tap at `now` (ms); returns whether any grid step became due since the last capture. The first capture only sets the grid's origin. */
 	capture(tap: Float32Array, now: number): boolean {
 		const origin = this.#origin;
 		if (origin === null) {
@@ -41,7 +39,6 @@ export class TapHistory {
 		return true;
 	}
 
-	/** The window as the network reads it: one row of bins per frame, oldest → newest. */
 	pack(): Float32Array<ArrayBuffer> {
 		const bins = SabLayout.bins;
 		const frames = this.#frames;
@@ -55,7 +52,6 @@ export class TapHistory {
 		return packed;
 	}
 
-	/** Pushes `count` grid steps into the ring, each interpolated from the previous tap toward the current one; steps older than the whole window are skipped. */
 	#advance(tap: Float32Array, count: number): void {
 		const bins = SabLayout.bins;
 		const frames = this.#frames;

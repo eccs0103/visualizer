@@ -95,7 +95,6 @@ export class InitializeMaskCommand extends Command {
 	@Field(String)
 	urlModel: string;
 
-	/** The folder the splitter fetches its WebGPU shaders from. */
 	@Field(String)
 	urlShaders: string;
 
@@ -125,7 +124,6 @@ export interface ModelMaskCommandScheme extends CommandScheme {
 	urlModel: string;
 }
 
-/** Main thread → mask worker: switch the splitter to the model at `urlModel`. */
 export class ModelMaskCommand extends Command {
 	@Field(String)
 	urlModel: string;
@@ -157,7 +155,6 @@ export interface StatusMaskCommandScheme extends CommandScheme {
 	slowed: boolean;
 }
 
-/** Mask worker → main thread: whether the splitter runs (and why not), on which GPU, how many updates per second it manages, and whether it had to slow down for a weak GPU. */
 export class StatusMaskCommand extends Command {
 	@Field(Boolean)
 	available: boolean;
@@ -375,7 +372,6 @@ export interface GainsRenderCommandScheme extends CommandScheme {
 	gains: StemGains;
 }
 
-/** Main thread → render worker: one gain per stem; each stem array is multiplied by its gain. */
 export class GainsRenderCommand extends Command {
 	@Field(StemGains)
 	gains: StemGains;

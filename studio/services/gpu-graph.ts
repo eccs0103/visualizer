@@ -21,7 +21,6 @@ declare global {
 }
 
 //#region GPU activation
-/** One GPU-resident activation, channel-major: `channels` rows of `span` positions. */
 export class GpuActivation {
 	#buffer: GPUBuffer;
 	#channels: number;
@@ -39,7 +38,6 @@ export class GpuActivation {
 }
 //#endregion
 //#region GPU step
-/** One compute dispatch with everything it binds, encoded the same way on every run. */
 class GpuStep {
 	#pipeline: GPUComputePipeline;
 	#group: GPUBindGroup;
@@ -61,7 +59,6 @@ class GpuStep {
 }
 //#endregion
 //#region GPU graph
-/** A fixed sequence of compute dispatches over buffers allocated once: recorded step by step, then encoded whole on every run. */
 export class GpuGraph {
 	#device: GPUDevice;
 	#steps: GpuStep[] = [];
@@ -70,7 +67,6 @@ export class GpuGraph {
 		this.#device = device;
 	}
 
-	/** Compiles the compute shader `code` (entry point `main`) with its pipeline constants. */
 	static async compile(device: GPUDevice, code: string, constants: Record<string, number>): Promise<GPUComputePipeline> {
 		const module = device.createShaderModule({ code });
 		return await device.createComputePipelineAsync({ layout: "auto", compute: { module, entryPoint: "main", constants } });
@@ -87,7 +83,6 @@ export class GpuGraph {
 		return buffer;
 	}
 
-	/** Records a dispatch of `pipeline` over `columns` × `rows` workgroups, with `buffers` bound to bindings 0, 1, 2… in order. */
 	dispatch(pipeline: GPUComputePipeline, buffers: readonly GPUBuffer[], columns: number, rows: number): void {
 		const entries: GPUBindGroupEntry[] = [];
 		for (let index = 0; index < buffers.length; index++) entries.push({ binding: index, resource: { buffer: buffers[index] } });

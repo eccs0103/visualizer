@@ -3,7 +3,6 @@
 import "adaptive-extender/core";
 
 //#region Stems
-/** The six instruments the splitter separates. Each value is the stem's column in a row of masks: the order the model's head writes them in. */
 export enum Stem {
 	drums,
 	bass,
@@ -13,7 +12,6 @@ export enum Stem {
 	keys,
 }
 
-/** Every stem, in column order. */
 export class Stems {
 	static #all: readonly Stem[] = Object.freeze([Stem.drums, Stem.bass, Stem.vocals, Stem.other, Stem.guitar, Stem.keys]);
 

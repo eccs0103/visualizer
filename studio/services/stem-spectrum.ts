@@ -9,7 +9,6 @@ import { type MaskBlend } from "./mask-blend.js";
 const { max } = Math;
 
 //#region Stem spectrum
-/** One stem's spectrum: the whole spectrum × the stem's mask (resampled from the model's bins onto the analyser's length: both are linear FFT bins over 0..Nyquist, so linear interpolation is exact) × the stem's gain. Built on first read and kept until `forget`. */
 export class StemSpectrum {
 	#stem: Stem;
 	#values: Float32Array = new Float32Array(0);
