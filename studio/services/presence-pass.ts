@@ -1,8 +1,8 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { type PresenceLayer } from "../../models/stem-layers.js";
-import { GpuGraph, type GpuActivation } from "../gpu-graph.js";
+import { type PresenceLayer } from "../models/stem-layers.js";
+import { GpuGraph, type GpuActivation } from "./gpu-graph.js";
 
 //#region Presence pass
 /** The presence shader (`presence.wgsl`): judges per stem from the whole window whether that instrument plays at all (mean of the bottom block over positions → dense → sigmoid). */

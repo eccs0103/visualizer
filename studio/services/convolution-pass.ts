@@ -1,8 +1,8 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { type ConvolutionLayer } from "../../models/stem-layers.js";
-import { GpuGraph, type GpuActivation } from "../gpu-graph.js";
+import { type ConvolutionLayer } from "../models/stem-layers.js";
+import { GpuGraph, type GpuActivation } from "./gpu-graph.js";
 
 const { ceil } = Math;
 

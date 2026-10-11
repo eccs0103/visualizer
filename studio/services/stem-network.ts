@@ -4,9 +4,9 @@ import "adaptive-extender/worker";
 import { StemWeights, type StemTensors } from "../models/stem-weights.js";
 import { GpuGraph } from "./gpu-graph.js";
 import { StemUNet } from "./stem-unet.js";
-import { ConvolutionPass } from "./shaders/convolution-pass.js";
-import { HeadPass } from "./shaders/head-pass.js";
-import { PresencePass } from "./shaders/presence-pass.js";
+import { ConvolutionPass } from "./convolution-pass.js";
+import { HeadPass } from "./head-pass.js";
+import { PresencePass } from "./presence-pass.js";
 
 //#region Stem network
 /**

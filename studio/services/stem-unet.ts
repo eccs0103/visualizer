@@ -4,9 +4,9 @@ import "adaptive-extender/worker";
 import { ConvolutionLayer, HeadLayer, PresenceLayer } from "../models/stem-layers.js";
 import { type StemTensors } from "../models/stem-weights.js";
 import { type GpuActivation, type GpuGraph } from "./gpu-graph.js";
-import { type ConvolutionPass } from "./shaders/convolution-pass.js";
-import { type HeadPass } from "./shaders/head-pass.js";
-import { PresencePass } from "./shaders/presence-pass.js";
+import { type ConvolutionPass } from "./convolution-pass.js";
+import { type HeadPass } from "./head-pass.js";
+import { PresencePass } from "./presence-pass.js";
 
 //#region Stem U-Net
 /** The splitter's architecture: 10 convolution blocks in a U (down three levels, up three levels, each up block joined with the down block of its level), then the head; a gated model also judges each stem's presence from the bottom block. */
