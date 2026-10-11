@@ -3,17 +3,15 @@
 import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
 import { SabLayout, Signal } from "../models/audio-features.js";
-import { Stem } from "../models/stem.js";
-import { type StemGains } from "../models/stem-gains.js";
+import { Stem, type StemGains } from "../models/stem.js";
 import { type Audioset, type Environment, type LyricsWindow } from "../models/visualization.js";
 import { SpectrumAnalysis } from "./visualization-tools.js";
-import { StemSpectra } from "./stem-spectra.js";
-import { ScaledWaveform } from "./scaled-waveform.js";
+import { StemFrame } from "./stem-frame.js";
 
 //#region Stage
 export class Stage implements Audioset, Environment {
 	#signal: Signal;
-	#stems: StemSpectra;
+	#stems: StemFrame;
 	#sampleRate: number;
 	#analysis: SpectrumAnalysis = new SpectrumAnalysis();
 	#frame: number | null = null;
@@ -21,7 +19,6 @@ export class Stage implements Audioset, Environment {
 	#time: number = NaN;
 	#frequency: Float32Array;
 	#temporal: Float32Array;
-	#waveform: ScaledWaveform = new ScaledWaveform();
 	#camera: DOMMatrix = new DOMMatrix();
 	#width: number = 0;
 	#height: number = 0;
@@ -36,7 +33,7 @@ export class Stage implements Audioset, Environment {
 
 	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, sampleRate: number) {
 		const signal = this.#signal = new Signal(sabSignal);
-		this.#stems = new StemSpectra(sabMask);
+		this.#stems = new StemFrame(sabMask);
 		this.#sampleRate = sampleRate;
 		this.#frequency = signal.frequency.subarray(0, 0);
 		this.#temporal = signal.temporal.subarray(0, 0);
@@ -46,15 +43,15 @@ export class Stage implements Audioset, Environment {
 	get length(): number { return this.#length; }
 	get sampleRate(): number { return this.#sampleRate; }
 	get time(): number { return this.#time; }
-	get volume(): number { return this.#signal.volume * this.#stems.level(this.#length, this.#frequency); }
-	get dataFrequency(): Float32Array { return this.#stems.mix(this.#length, this.#frequency); }
-	get dataTemporal(): Float32Array { return this.#waveform.shape(this.#temporal, this.#stems.level(this.#length, this.#frequency), this.#frame); }
-	get dataDrums(): Float32Array { return this.#stems.spectrum(Stem.drums, this.#length, this.#frequency); }
-	get dataBass(): Float32Array { return this.#stems.spectrum(Stem.bass, this.#length, this.#frequency); }
-	get dataVocals(): Float32Array { return this.#stems.spectrum(Stem.vocals, this.#length, this.#frequency); }
-	get dataGuitar(): Float32Array { return this.#stems.spectrum(Stem.guitar, this.#length, this.#frequency); }
-	get dataKeys(): Float32Array { return this.#stems.spectrum(Stem.keys, this.#length, this.#frequency); }
-	get dataOther(): Float32Array { return this.#stems.spectrum(Stem.other, this.#length, this.#frequency); }
+	get volume(): number { return this.#signal.volume * this.#stems.level; }
+	get dataFrequency(): Float32Array { return this.#stems.mix; }
+	get dataTemporal(): Float32Array { return this.#stems.waveform; }
+	get dataDrums(): Float32Array { return this.#stems.spectrum(Stem.drums); }
+	get dataBass(): Float32Array { return this.#stems.spectrum(Stem.bass); }
+	get dataVocals(): Float32Array { return this.#stems.spectrum(Stem.vocals); }
+	get dataGuitar(): Float32Array { return this.#stems.spectrum(Stem.guitar); }
+	get dataKeys(): Float32Array { return this.#stems.spectrum(Stem.keys); }
+	get dataOther(): Float32Array { return this.#stems.spectrum(Stem.other); }
 	get spectralFlux(): number { return this.#analysis.spectralFlux; }
 	get subBass(): number { return this.#analysis.subBass; }
 	get bass(): number { return this.#analysis.bass; }
@@ -106,7 +103,7 @@ export class Stage implements Audioset, Environment {
 			this.#temporal = signal.temporal.subarray(0, length);
 		}
 		this.#time = signal.time;
-		stems.forget();
+		stems.load(this.#frequency, this.#temporal);
 		this.#analysis.analyze(this.dataFrequency, this);
 	}
 

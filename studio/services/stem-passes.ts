@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { type ConvolutionLayer } from "../models/stem-layers.js";
+import { type ConvolutionLayer, type HeadLayer, type PresenceLayer } from "../models/stem-layers.js";
 import { GpuGraph, type GpuActivation } from "./gpu-graph.js";
 
 const { ceil } = Math;
@@ -58,6 +58,64 @@ export class ConvolutionPass {
 		const lanes = ConvolutionPass.#lanes;
 		graph.dispatch(this.#pipeline, [shape, source.buffer, skip.buffer, graph.upload(weights, GPUBufferUsage.STORAGE), result.buffer], ceil(filters / (lanes * ConvolutionPass.#rows)), ceil(span / (lanes * ConvolutionPass.#columns)));
 		return result;
+	}
+}
+//#endregion
+//#region Head pass
+export class HeadPass {
+	static #file: string = "softmax.wgsl";
+	static #workgroup: number = 64;
+
+	#pipeline: GPUComputePipeline;
+
+	constructor(pipeline: GPUComputePipeline) {
+		this.#pipeline = pipeline;
+	}
+
+	static get file(): string { return HeadPass.#file; }
+
+	static async compile(device: GPUDevice, code: string): Promise<HeadPass> {
+		return new HeadPass(await GpuGraph.compile(device, code, {}));
+	}
+
+	record(graph: GpuGraph, layer: HeadLayer, source: GpuActivation, presence: GPUBuffer): GpuActivation {
+		const { channels, span } = source;
+		const { stems } = layer;
+		const weights = layer.pack(channels);
+		const result = graph.activation(stems, span);
+		const shape = graph.upload(new Uint32Array([channels, stems, span, 0]), GPUBufferUsage.UNIFORM);
+		graph.dispatch(this.#pipeline, [shape, source.buffer, graph.upload(weights, GPUBufferUsage.STORAGE), result.buffer, presence], ceil(span / HeadPass.#workgroup), 1);
+		return result;
+	}
+}
+//#endregion
+//#region Presence pass
+export class PresencePass {
+	static #file: string = "presence.wgsl";
+
+	#pipeline: GPUComputePipeline;
+
+	constructor(pipeline: GPUComputePipeline) {
+		this.#pipeline = pipeline;
+	}
+
+	static get file(): string { return PresencePass.#file; }
+
+	static async compile(device: GPUDevice, code: string): Promise<PresencePass> {
+		return new PresencePass(await GpuGraph.compile(device, code, {}));
+	}
+
+	static open(graph: GpuGraph, stems: number): GPUBuffer {
+		return graph.upload(new Float32Array(stems).fill(1), GPUBufferUsage.STORAGE);
+	}
+
+	record(graph: GpuGraph, layer: PresenceLayer, bottom: GpuActivation, stems: number): GPUBuffer {
+		const { channels, span } = bottom;
+		const weights = layer.pack(channels, stems);
+		const result = graph.activation(stems, 1);
+		const shape = graph.upload(new Uint32Array([channels, stems, span, 0]), GPUBufferUsage.UNIFORM);
+		graph.dispatch(this.#pipeline, [shape, bottom.buffer, graph.upload(weights, GPUBufferUsage.STORAGE), result.buffer], 1, 1);
+		return result.buffer;
 	}
 }
 //#endregion

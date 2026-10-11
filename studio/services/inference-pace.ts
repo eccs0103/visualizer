@@ -7,6 +7,7 @@ const { round } = Math;
 //#region Inference pace
 export class InferencePace {
 	static #budget: number = 0.4;
+	static #acceptable: number = 100;
 	static #tolerance: number = 0.75;
 	static #learning: number = 0.2;
 	static #window: number = 1000;
@@ -20,10 +21,10 @@ export class InferencePace {
 
 	get rate(): number | null { return this.#rate; }
 
-	slowed(period: number): boolean {
+	get slowed(): boolean {
 		const cost = this.#cost;
 		if (cost === null) return false;
-		return cost / InferencePace.#budget > period / InferencePace.#tolerance;
+		return cost / InferencePace.#budget > InferencePace.#acceptable / InferencePace.#tolerance;
 	}
 
 	ready(now: number): boolean {

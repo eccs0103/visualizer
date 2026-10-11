@@ -110,6 +110,10 @@ export class StemWeightGroup extends Model {
 		this.paths = paths;
 		this.weights = weights;
 	}
+
+	files(base: Readonly<URL>): URL[] {
+		return this.paths.map(path => new URL(path, base));
+	}
 }
 //#endregion
 //#region Stem weights
@@ -130,11 +134,7 @@ export class StemWeights extends Model {
 	}
 
 	files(base: Readonly<URL>): URL[] {
-		const files: URL[] = [];
-		for (const group of this.groups) {
-			for (const path of group.paths) files.push(new URL(path, base));
-		}
-		return files;
+		return this.groups.flatMap(group => group.files(base));
 	}
 
 	tensors(buffer: ArrayBuffer): StemTensors {

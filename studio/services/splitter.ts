@@ -1,8 +1,8 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { MaskChannel } from "../models/audio-features.js";
 import { Command, InitializeMaskCommand, ModelMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
-import { MaskChannel } from "./mask-channel.js";
 
 const { baseURI } = document;
 
@@ -19,7 +19,7 @@ export interface SplitterEventMap {
 export class Splitter extends EventTarget {
 	static #tick = Command.export(new TickCommand());
 	#worker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
-	#sab: SharedArrayBuffer = MaskChannel.createBuffer();
+	#masks: MaskChannel = MaskChannel.create();
 	#status: StatusMaskCommand | null = null;
 	#model: SplitterModel = SplitterModel.current;
 
@@ -27,7 +27,7 @@ export class Splitter extends EventTarget {
 		super();
 		const worker = this.#worker;
 		worker.addEventListener("message", event => this.#onMessage(event));
-		worker.postMessage(Command.export(new InitializeMaskCommand(sabSignal, this.#sab, Splitter.#locate(this.#model), new URL("../shaders/", baseURI).toString())));
+		worker.postMessage(Command.export(new InitializeMaskCommand(sabSignal, this.#masks.sab, Splitter.#locate(this.#model), new URL("../shaders/", baseURI).toString())));
 	}
 
 	addEventListener<K extends keyof SplitterEventMap>(type: K, listener: (this: Splitter, event: SplitterEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -42,10 +42,8 @@ export class Splitter extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
-	get sab(): SharedArrayBuffer { return this.#sab; }
-
+	get masks(): MaskChannel { return this.#masks; }
 	get status(): StatusMaskCommand | null { return this.#status; }
-
 	get model(): SplitterModel { return this.#model; }
 
 	set model(value: SplitterModel) {

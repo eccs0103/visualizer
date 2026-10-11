@@ -14,12 +14,11 @@ export class NetworkSlot {
 	async load(url: string, shaders: string, frames: number, bins: number, stems: number): Promise<StemNetwork | null> {
 		const ticket = ++this.#loads;
 		try {
-			const network = await StemNetwork.create(new URL(url), new URL(shaders), frames, bins);
+			const network = await StemNetwork.create(new URL(url), new URL(shaders), frames, bins, stems);
 			if (ticket !== this.#loads) {
 				network.destroy();
 				return null;
 			}
-			if (network.stems < stems) throw new TypeError(`The model splits into ${network.stems} stems, the visualizer needs at least ${stems}`);
 			this.#network?.destroy();
 			this.#network = network;
 			this.#tickets.set(network, ticket);

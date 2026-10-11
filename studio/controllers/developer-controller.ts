@@ -4,8 +4,7 @@ import "adaptive-extender/web";
 import { Controller } from "adaptive-extender/web";
 import { type Visualizer } from "../services/visualizer.js";
 import { SplitterModel } from "../services/splitter.js";
-import { Stem } from "../models/stem.js";
-import { StemGains } from "../models/stem-gains.js";
+import { Stem, StemGains } from "../models/stem.js";
 
 //#region Developer controller
 export class DeveloperController extends Controller<[Visualizer, HTMLDialogElement]> {

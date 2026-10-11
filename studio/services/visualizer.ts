@@ -6,7 +6,7 @@ import { AudiosetManager } from "./audioset-manager.js";
 import { Splitter } from "./splitter.js";
 import { Registry } from "./visualization-registry.js";
 import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, GainsRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
-import { type StemGains } from "../models/stem-gains.js";
+import { type StemGains } from "../models/stem.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { type BackgroundSettings } from "../models/background-settings.js";
 
@@ -48,7 +48,7 @@ export class Visualizer extends EventTarget {
 		const splitter = this.#splitter = new Splitter(sab);
 
 		const offscreen = canvas.transferControlToOffscreen();
-		this.#worker.postMessage(Command.export(new InitializeRenderCommand(sab, splitter.sab, manager.sampleRate, offscreen)), [offscreen]);
+		this.#worker.postMessage(Command.export(new InitializeRenderCommand(sab, splitter.masks.sab, manager.sampleRate, offscreen)), [offscreen]);
 
 		this.#rebuild();
 		window.addEventListener("resize", event => this.#rebuild());
