@@ -1,0 +1,113 @@
+struct Shape {
+	inputs: u32,
+	skipped: u32,
+	filters: u32,
+	span: u32,
+	kernel: u32,
+	mode: u32,
+}
+
+@group(0) @binding(0) var<uniform> shape: Shape;
+@group(0) @binding(1) var<storage, read> source: array<f32>;
+@group(0) @binding(2) var<storage, read> skip: array<f32>;
+@group(0) @binding(3) var<storage, read> weights: array<f32>;
+@group(0) @binding(4) var<storage, read_write> result: array<f32>;
+
+// mode 0: the source as it is; 1: the source max-pooled by 2; 2: the source upsampled by 2, then the skip's channels.
+fn gather(channel: u32, position: u32) -> f32 {
+	let span = shape.span;
+	if (shape.mode == 1u) {
+		let base = channel * span * 2u + position * 2u;
+		return max(source[base], source[base + 1u]);
+	}
+	if (shape.mode == 2u) {
+		if (channel < shape.inputs) {
+			return source[channel * (span / 2u) + position / 2u];
+		}
+		return skip[(channel - shape.inputs) * span + position];
+	}
+	return source[channel * span + position];
+}
+
+// One workgroup of 8 × 8 threads computes a tile of height filters × width positions; each thread owns rows filters × columns positions (at most 4 × 4).
+// Input channels are walked 8 at a time: the input strip and the weights for those channels are staged in workgroup memory once and then reused by every thread, instead of each thread reading them from storage on its own.
+override rows: u32 = 4u;
+override columns: u32 = 4u;
+override height: u32 = 8u * rows;
+override width: u32 = 8u * columns;
+override strip_size: u32 = 8u * (width + 4u); // chunk × (width + 5 - 1): the widest kernel is 5
+override slab_size: u32 = 5u * 8u * height; // 5 × chunk × height
+
+var<workgroup> strip: array<f32, strip_size>;
+var<workgroup> slab: array<f32, slab_size>;
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(workgroup_id) group: vec3<u32>, @builtin(local_invocation_id) lane: vec3<u32>, @builtin(local_invocation_index) local: u32) {
+	const chunk = 8u;
+	let channels = shape.inputs + shape.skipped;
+	let first = group.x * height;
+	let start = group.y * width;
+	let half = i32(shape.kernel / 2u);
+	let window = width + shape.kernel - 1u;
+	let span = i32(shape.span);
+	var sums: array<f32, 16>;
+
+	for (var base = 0u; base < channels; base += chunk) {
+		for (var index = local; index < chunk * window; index += 64u) {
+			let channel = base + index / window;
+			let at = i32(start + index % window) - half;
+			var value = 0.0;
+			if (channel < channels && at >= 0 && at < span) {
+				value = gather(channel, u32(at));
+			}
+			strip[index] = value;
+		}
+		for (var index = local; index < shape.kernel * chunk * height; index += 64u) {
+			let tap = index / (chunk * height);
+			let channel = base + (index / height) % chunk;
+			let unit = first + index % height;
+			var value = 0.0;
+			if (channel < channels && unit < shape.filters) {
+				value = weights[(tap * channels + channel) * shape.filters + unit];
+			}
+			slab[index] = value;
+		}
+		workgroupBarrier();
+
+		for (var tap = 0u; tap < shape.kernel; tap++) {
+			for (var offset = 0u; offset < chunk; offset++) {
+				var row: array<f32, 4>;
+				var column: array<f32, 4>;
+				for (var step = 0u; step < rows; step++) {
+					row[step] = slab[(tap * chunk + offset) * height + lane.x * rows + step];
+				}
+				for (var step = 0u; step < columns; step++) {
+					column[step] = strip[offset * window + lane.y * columns + step + tap];
+				}
+				for (var filter_index = 0u; filter_index < rows; filter_index++) {
+					for (var position_index = 0u; position_index < columns; position_index++) {
+						sums[filter_index * columns + position_index] += row[filter_index] * column[position_index];
+					}
+				}
+			}
+		}
+		workgroupBarrier();
+	}
+
+	let count = shape.kernel * channels * shape.filters;
+	for (var filter_index = 0u; filter_index < rows; filter_index++) {
+		let unit = first + lane.x * rows + filter_index;
+		if (unit >= shape.filters) {
+			continue;
+		}
+		let bias = weights[count + unit];
+		let scale = weights[count + shape.filters + unit];
+		let shift = weights[count + 2u * shape.filters + unit];
+		for (var position_index = 0u; position_index < columns; position_index++) {
+			let position = start + lane.y * columns + position_index;
+			if (position < shape.span) {
+				result[unit * shape.span + position] = max(sums[filter_index * columns + position_index] + bias, 0.0) * scale + shift;
+			}
+		}
+	}
+}

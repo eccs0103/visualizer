@@ -3,6 +3,7 @@
 import "adaptive-extender/web";
 import { Signal } from "../models/audio-features.js";
 import { type VisualizationSettings } from "../models/settings.js";
+import { ModelTap } from "./model-tap.js";
 
 const { trunc, sqrt, sqpw, log2, round } = Math;
 
@@ -25,14 +26,13 @@ export class AudiosetManager {
 
 	#context: AudioContext;
 	#analyser: AnalyserNode;
-	#modelAnalyser: AnalyserNode;
+	#tap: ModelTap;
 	#gain: GainNode;
 	#lowShelf: BiquadFilterNode;
 	#highShelf: BiquadFilterNode;
 	#compressor: DynamicsCompressorNode;
 	#signal: Signal = Signal.create();
 	#bytes: Uint8Array<ArrayBuffer>;
-	#modelBytes: Uint8Array<ArrayBuffer>;
 
 	constructor(media: HTMLMediaElement) {
 		const context = this.#context = new AudioContext();
@@ -66,15 +66,9 @@ export class AudiosetManager {
 		highShelf.connect(compressor);
 		compressor.connect(analyser);
 
-		const modelAnalyser = this.#modelAnalyser = context.createAnalyser();
-		modelAnalyser.fftSize = 1024;
-		modelAnalyser.smoothingTimeConstant = 0.6;
-		modelAnalyser.minDecibels = -90;
-		modelAnalyser.maxDecibels = -30;
-		source.connect(modelAnalyser);
+		this.#tap = new ModelTap(context, source);
 
 		this.#bytes = new Uint8Array(analyser.frequencyBinCount);
-		this.#modelBytes = new Uint8Array(modelAnalyser.frequencyBinCount);
 	}
 
 	static get minQuality(): number { return AudiosetManager.#minQuality; }
@@ -197,7 +191,6 @@ export class AudiosetManager {
 	capture(): void {
 		const signal = this.#signal;
 		const bytes = this.#bytes;
-		const modelBytes = this.#modelBytes;
 		const { frequency, temporal, model } = signal;
 		const analyser = this.#analyser;
 		const { length } = bytes;
@@ -213,8 +206,7 @@ export class AudiosetManager {
 			summary += sqpw(datum * 2 - 1);
 		}
 
-		this.#modelAnalyser.getByteFrequencyData(modelBytes);
-		for (let index = 0; index < modelBytes.length; index++) model[index] = modelBytes[index] / 255;
+		this.#tap.capture(model);
 
 		signal.publish(length, sqrt(summary / length), performance.timeOrigin + performance.now());
 	}

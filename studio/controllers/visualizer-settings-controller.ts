@@ -49,7 +49,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 	}
 
 	#refreshSplitter(): void {
-		const splitter = this.#visualizer.splitter;
+		const splitter = this.#visualizer.splitter.status;
 		const outputVisualizerSplitter = this.#outputVisualizerSplitter;
 		const spanVisualizerSplitterHint = this.#spanVisualizerSplitterHint;
 		spanVisualizerSplitterHint.hidden = true;
@@ -198,7 +198,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		this.#refreshKnobs();
 
 		this.#refreshSplitter();
-		visualizer.addEventListener("splitter", event => this.#refreshSplitter());
+		visualizer.splitter.addEventListener("status", event => this.#refreshSplitter());
 
 		window.addEventListener("keydown", (event) => {
 			const step = this.#readDirection(event.code);

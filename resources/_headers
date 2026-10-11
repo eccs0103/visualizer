@@ -12,6 +12,8 @@
   Cache-Control: public, max-age=0, must-revalidate
 /coi-worker.js
   Cache-Control: public, max-age=0, must-revalidate
+/shaders/*
+  Cache-Control: public, max-age=0, must-revalidate
 /data/*
   Cache-Control: public, max-age=300, must-revalidate
 /icons/*

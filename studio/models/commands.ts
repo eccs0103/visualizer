@@ -4,6 +4,7 @@ import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/core";
 import { LayerSettings } from "./layer-settings.js";
 import { BackgroundSettings } from "./background-settings.js";
+import { StemGains } from "./stem-gains.js";
 
 //#region Shared array buffer portable
 class SharedArrayBufferPortable {
@@ -43,7 +44,7 @@ class OffscreenCanvasPortable {
 //#endregion
 
 //#region Command
-export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, RatiosRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, GainsRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
 }
 
 export interface CommandScheme {
@@ -58,7 +59,7 @@ export interface CommandScheme {
 @Descendant(Deferred(_ => RebuildRenderCommand))
 @Descendant(Deferred(_ => LyricsRenderCommand))
 @Descendant(Deferred(_ => ShakeRenderCommand))
-@Descendant(Deferred(_ => RatiosRenderCommand))
+@Descendant(Deferred(_ => GainsRenderCommand))
 @Descendant(Deferred(_ => LayersRenderCommand))
 @Descendant(Deferred(_ => ImageRenderCommand))
 @Descendant(Deferred(_ => ChunkCommand))
@@ -81,6 +82,7 @@ export interface InitializeMaskCommandScheme extends CommandScheme {
 	sabSignal: SharedArrayBuffer;
 	sabMask: SharedArrayBuffer;
 	urlModel: string;
+	urlShaders: string;
 }
 
 export class InitializeMaskCommand extends Command {
@@ -93,10 +95,14 @@ export class InitializeMaskCommand extends Command {
 	@Field(String)
 	urlModel: string;
 
+	/** The folder the splitter fetches its WebGPU shaders from. */
+	@Field(String)
+	urlShaders: string;
+
 	constructor();
-	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, urlModel: string);
-	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, urlModel?: string) {
-		if (sabSignal === undefined || sabMask === undefined || urlModel === undefined) {
+	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, urlModel: string, urlShaders: string);
+	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, urlModel?: string, urlShaders?: string) {
+		if (sabSignal === undefined || sabMask === undefined || urlModel === undefined || urlShaders === undefined) {
 			super();
 			return;
 		}
@@ -105,6 +111,7 @@ export class InitializeMaskCommand extends Command {
 		this.sabSignal = sabSignal;
 		this.sabMask = sabMask;
 		this.urlModel = urlModel;
+		this.urlShaders = urlShaders;
 	}
 }
 //#endregion
@@ -358,31 +365,31 @@ export class ShakeRenderCommand extends Command {
 	}
 }
 //#endregion
-//#region Ratios render command
-export interface RatiosRenderCommandDiscriminator {
-	"RatiosRenderCommand": RatiosRenderCommand;
+//#region Gains render command
+export interface GainsRenderCommandDiscriminator {
+	"GainsRenderCommand": GainsRenderCommand;
 }
 
-export interface RatiosRenderCommandScheme extends CommandScheme {
-	$type: keyof RatiosRenderCommandDiscriminator;
-	ratios: number[];
+export interface GainsRenderCommandScheme extends CommandScheme {
+	$type: keyof GainsRenderCommandDiscriminator;
+	gains: StemGains;
 }
 
-/** Main thread → render worker: one gain per stem, in the Audioset order (drums, bass, vocals, guitar, keys, other); each stem array is multiplied by its gain. */
-export class RatiosRenderCommand extends Command {
-	@Field(Array.Of(Number))
-	ratios: number[];
+/** Main thread → render worker: one gain per stem; each stem array is multiplied by its gain. */
+export class GainsRenderCommand extends Command {
+	@Field(StemGains)
+	gains: StemGains;
 
 	constructor();
-	constructor(ratios: number[]);
-	constructor(ratios?: number[]) {
-		if (ratios === undefined) {
+	constructor(gains: StemGains);
+	constructor(gains?: StemGains) {
+		if (gains === undefined) {
 			super();
 			return;
 		}
 
 		super();
-		this.ratios = ratios;
+		this.gains = gains;
 	}
 }
 //#endregion

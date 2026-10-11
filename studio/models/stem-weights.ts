@@ -23,8 +23,43 @@ export class StemTensor {
 	}
 }
 //#endregion
+//#region Stem tensors
+/** The model's tensors by name. Each one is taken once by the layer that uses it; `finish` then proves the network used every one. */
+export class StemTensors {
+	#tensors: Map<string, StemTensor>;
+	#taken: Set<string> = new Set();
+
+	constructor(tensors: Map<string, StemTensor>) {
+		this.#tensors = tensors;
+	}
+
+	has(name: string): boolean {
+		return this.#tensors.has(name);
+	}
+
+	take(name: string): StemTensor {
+		const tensor = this.#tensors.get(name);
+		if (tensor === undefined) throw new ReferenceError(`The model has no weight '${name}' the network needs`);
+		this.#taken.add(name);
+		return tensor;
+	}
+
+	/** Throws when the model holds weights the network didn't use. */
+	finish(): void {
+		const taken = this.#taken;
+		const unused: string[] = [];
+		for (const name of this.#tensors.keys()) {
+			if (!taken.has(name)) unused.push(name);
+		}
+		if (unused.length > 0) throw new TypeError(`The model has weights the network doesn't use: ${unused.join(", ")}`);
+	}
+}
+//#endregion
 //#region Stem weight
 export class StemWeight extends Model {
+	@Field(String, { name: "name" })
+	name: string;
+
 	@Field(Array.Of(Number), { name: "shape" })
 	shape: number[];
 
@@ -32,14 +67,15 @@ export class StemWeight extends Model {
 	dtype: string;
 
 	constructor();
-	constructor(shape: number[], dtype: string);
-	constructor(shape?: number[], dtype?: string) {
-		if (shape === undefined || dtype === undefined) {
+	constructor(name: string, shape: number[], dtype: string);
+	constructor(name?: string, shape?: number[], dtype?: string) {
+		if (name === undefined || shape === undefined || dtype === undefined) {
 			super();
 			return;
 		}
 
 		super();
+		this.name = name;
 		this.shape = shape;
 		this.dtype = dtype;
 	}
@@ -80,7 +116,7 @@ export class StemWeightGroup extends Model {
 }
 //#endregion
 //#region Stem weights
-/** The weights manifest of the splitter's `model.json`: which binary files hold the weights, and the shape of every tensor in the order they are stored. */
+/** The weights manifest of the splitter's `model.json`: which binary files hold the weights, and the name and shape of every tensor in the order they are stored. */
 export class StemWeights extends Model {
 	@Field(Array.Of(StemWeightGroup), { name: "weightsManifest" })
 	groups: StemWeightGroup[];
@@ -105,18 +141,20 @@ export class StemWeights extends Model {
 		return files;
 	}
 
-	/** Cuts the concatenated weight files into tensors, in manifest order. */
-	tensors(buffer: ArrayBuffer): StemTensor[] {
-		const tensors: StemTensor[] = [];
+	/** Cuts the concatenated weight files into tensors, by name. */
+	tensors(buffer: ArrayBuffer): StemTensors {
+		const tensors: Map<string, StemTensor> = new Map();
 		let offset = 0;
 		for (const group of this.groups) {
 			for (const weight of group.weights) {
-				tensors.push(weight.read(buffer, offset));
+				const { name } = weight;
+				if (tensors.has(name)) throw new TypeError(`The manifest names the weight '${name}' twice`);
+				tensors.set(name, weight.read(buffer, offset));
 				offset += weight.length * Float32Array.BYTES_PER_ELEMENT;
 			}
 		}
 		if (offset !== buffer.byteLength) throw new TypeError(`The manifest describes ${offset} bytes of weights, but the files hold ${buffer.byteLength}`);
-		return tensors;
+		return new StemTensors(tensors);
 	}
 }
 //#endregion
