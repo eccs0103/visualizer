@@ -3,7 +3,7 @@
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 import { SabLayout, Signal, StemMasks } from "../models/audio-features.js";
-import { Command, InitializeMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
+import { Command, InitializeMaskCommand, ModelMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
 import { StemNetwork } from "../services/stem-network.js";
 
 const { max, round, trunc } = Math;
@@ -83,6 +83,7 @@ class StemMaskWorker extends Controller {
 	#signal: Signal | null = null;
 	#masks: StemMasks | null = null;
 	#network: StemNetwork | null = null;
+	#loads: number = 0;
 	#busy: boolean = false;
 	#pace: InferencePace = new InferencePace();
 	#status: StatusMaskCommand | null = null;
@@ -151,6 +152,7 @@ class StemMaskWorker extends Controller {
 			masks.publish(smoothed, performance.timeOrigin + now);
 			if (pace.finish(now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed(StemMaskWorker.#acceptable)));
 		} catch (reason) {
+			if (this.#network !== network) return; // the network was swapped for another model while this inference ran
 			this.#disable(reason);
 		} finally {
 			this.#busy = false;
@@ -205,6 +207,11 @@ class StemMaskWorker extends Controller {
 			return;
 		}
 
+		if (command instanceof ModelMaskCommand) {
+			void this.#load(command.urlModel);
+			return;
+		}
+
 		if (command instanceof TickCommand) {
 			const signal = this.#signal, masks = this.#masks, network = this.#network;
 			if (signal === null || masks === null || network === null) return;
@@ -212,15 +219,21 @@ class StemMaskWorker extends Controller {
 		}
 	}
 
+	/** Loads the model at `url` and swaps it in for the running one; when another load was started meanwhile, the newer one wins and this one is dropped. */
 	async #load(url: string): Promise<void> {
+		const ticket = ++this.#loads;
 		try {
 			const network = await StemNetwork.create(new URL(url), StemMaskWorker.#frames, SabLayout.bins);
+			if (ticket !== this.#loads) return network.destroy();
 			if (network.stems < SabLayout.stems) throw new TypeError(`The model splits into ${network.stems} stems, the visualizer needs at least ${SabLayout.stems}`);
+			this.#network?.destroy();
 			this.#network = network;
 			this.#report(new StatusMaskCommand(true, null, network.adapter, null, false));
-			const { message } = await network.lost;
+			const { reason, message } = await network.lost;
+			if (reason === "destroyed") return;
 			throw new Error(`The GPU device was lost: ${message}`);
 		} catch (reason) {
+			if (ticket !== this.#loads) return;
 			this.#disable(reason);
 		}
 	}

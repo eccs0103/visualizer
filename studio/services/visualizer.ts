@@ -5,13 +5,20 @@ import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
 import { AudiosetManager } from "./audioset-manager.js";
 import { StemMasks } from "../models/audio-features.js";
 import { Registry } from "./visualization-registry.js";
-import { Command, InitializeMaskCommand, StatusMaskCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
+import { Command, InitializeMaskCommand, ModelMaskCommand, StatusMaskCommand, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, RatiosRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { type LayerSettings } from "../models/layer-settings.js";
 import { type BackgroundSettings } from "../models/background-settings.js";
 
 const { round } = Math;
 const { baseURI } = document;
 
+//#region Splitter model
+/** Which trained model the splitter runs: the shipped one, or the presence-gated test model. */
+export enum SplitterModel {
+	current,
+	presence,
+}
+//#endregion
 //#region Visualizer
 export interface VisualizerEventMap {
 	"update": Event;
@@ -31,6 +38,7 @@ export class Visualizer extends EventTarget {
 	#canvas: HTMLCanvasElement;
 	#manager: AudiosetManager;
 	#splitter: StatusMaskCommand | null = null;
+	#model: SplitterModel = SplitterModel.current;
 
 	constructor(canvas: HTMLCanvasElement, media: HTMLMediaElement) {
 		super();
@@ -47,10 +55,9 @@ export class Visualizer extends EventTarget {
 		const manager = this.#manager = new AudiosetManager(media);
 		const { sab } = manager.signal;
 		const sabMask = StemMasks.createBuffer();
-		const urlModel = new URL("../data/stem-mask/model.json", baseURI).toString();
 		const maskWorker = this.#maskWorker;
 		maskWorker.addEventListener("message", event => this.#onMaskMessage(event));
-		maskWorker.postMessage(Command.export(new InitializeMaskCommand(sab, sabMask, urlModel)));
+		maskWorker.postMessage(Command.export(new InitializeMaskCommand(sab, sabMask, Visualizer.#locate(this.#model))));
 
 		const offscreen = canvas.transferControlToOffscreen();
 		this.#worker.postMessage(Command.export(new InitializeRenderCommand(sab, sabMask, manager.sampleRate, offscreen)), [offscreen]);
@@ -94,6 +101,27 @@ export class Visualizer extends EventTarget {
 
 	/** The splitter's last reported state; `null` while its model is still loading. */
 	get splitter(): StatusMaskCommand | null { return this.#splitter; }
+
+	get model(): SplitterModel { return this.#model; }
+
+	set model(value: SplitterModel) {
+		if (value === this.#model) return;
+		this.#model = value;
+		this.#maskWorker.postMessage(Command.export(new ModelMaskCommand(Visualizer.#locate(value))));
+	}
+
+	static #locate(model: SplitterModel): string {
+		switch (model) {
+		case SplitterModel.current: return new URL("../data/stem-mask/model.json", baseURI).toString();
+		case SplitterModel.presence: return new URL("../data/stem-mask-presence/model.json", baseURI).toString();
+		default: throw new TypeError(`Invalid '${model}' splitter model`);
+		}
+	}
+
+	/** One gain per stem, in the Audioset order (drums, bass, vocals, guitar, keys, other): each stem array the plugins get is multiplied by its gain. */
+	weigh(ratios: readonly number[]): void {
+		this.#worker.postMessage(Command.export(new RatiosRenderCommand(Array.from(ratios))));
+	}
 
 	get visualization(): string {
 		return this.#visualization;

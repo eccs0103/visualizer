@@ -43,7 +43,7 @@ class OffscreenCanvasPortable {
 //#endregion
 
 //#region Command
-export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, RatiosRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
 }
 
 export interface CommandScheme {
@@ -51,12 +51,14 @@ export interface CommandScheme {
 }
 
 @Descendant(Deferred(_ => InitializeMaskCommand))
+@Descendant(Deferred(_ => ModelMaskCommand))
 @Descendant(Deferred(_ => StatusMaskCommand))
 @Descendant(Deferred(_ => InitializeRenderCommand))
 @Descendant(Deferred(_ => TickCommand))
 @Descendant(Deferred(_ => RebuildRenderCommand))
 @Descendant(Deferred(_ => LyricsRenderCommand))
 @Descendant(Deferred(_ => ShakeRenderCommand))
+@Descendant(Deferred(_ => RatiosRenderCommand))
 @Descendant(Deferred(_ => LayersRenderCommand))
 @Descendant(Deferred(_ => ImageRenderCommand))
 @Descendant(Deferred(_ => ChunkCommand))
@@ -102,6 +104,34 @@ export class InitializeMaskCommand extends Command {
 		super();
 		this.sabSignal = sabSignal;
 		this.sabMask = sabMask;
+		this.urlModel = urlModel;
+	}
+}
+//#endregion
+//#region Model mask command
+export interface ModelMaskCommandDiscriminator {
+	"ModelMaskCommand": ModelMaskCommand;
+}
+
+export interface ModelMaskCommandScheme extends CommandScheme {
+	$type: keyof ModelMaskCommandDiscriminator;
+	urlModel: string;
+}
+
+/** Main thread → mask worker: switch the splitter to the model at `urlModel`. */
+export class ModelMaskCommand extends Command {
+	@Field(String)
+	urlModel: string;
+
+	constructor();
+	constructor(urlModel: string);
+	constructor(urlModel?: string) {
+		if (urlModel === undefined) {
+			super();
+			return;
+		}
+
+		super();
 		this.urlModel = urlModel;
 	}
 }
@@ -325,6 +355,34 @@ export class ShakeRenderCommand extends Command {
 
 		super();
 		this.value = value;
+	}
+}
+//#endregion
+//#region Ratios render command
+export interface RatiosRenderCommandDiscriminator {
+	"RatiosRenderCommand": RatiosRenderCommand;
+}
+
+export interface RatiosRenderCommandScheme extends CommandScheme {
+	$type: keyof RatiosRenderCommandDiscriminator;
+	ratios: number[];
+}
+
+/** Main thread → render worker: one gain per stem, in the Audioset order (drums, bass, vocals, guitar, keys, other); each stem array is multiplied by its gain. */
+export class RatiosRenderCommand extends Command {
+	@Field(Array.Of(Number))
+	ratios: number[];
+
+	constructor();
+	constructor(ratios: number[]);
+	constructor(ratios?: number[]) {
+		if (ratios === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.ratios = ratios;
 	}
 }
 //#endregion

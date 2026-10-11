@@ -3,7 +3,7 @@
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 import { Registry } from "../services/visualization-registry.js";
-import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
+import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, RatiosRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { Stage } from "../services/stage.js";
 import { Scene } from "../services/scene.js";
 import "../view/visualizations.js";
@@ -97,6 +97,11 @@ class VisualizationWorker extends Controller {
 
 		if (command instanceof ShakeRenderCommand) {
 			stage.updateShake(command.value);
+			return;
+		}
+
+		if (command instanceof RatiosRenderCommand) {
+			stage.updateRatios(command.ratios);
 			return;
 		}
 

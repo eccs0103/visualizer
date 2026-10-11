@@ -17,6 +17,9 @@ export class Stage implements Audioset, Environment {
 	#time: number = NaN;
 	#frequency: Float32Array;
 	#temporal: Float32Array;
+	#waveform: Float32Array = new Float32Array(0);
+	#levelWaveform: number | null = null;
+	#frameWaveform: number | null = null;
 	#camera: DOMMatrix = new DOMMatrix();
 	#width: number = 0;
 	#height: number = 0;
@@ -41,9 +44,9 @@ export class Stage implements Audioset, Environment {
 	get length(): number { return this.#length; }
 	get sampleRate(): number { return this.#sampleRate; }
 	get time(): number { return this.#time; }
-	get volume(): number { return this.#signal.volume; }
-	get dataFrequency(): Float32Array { return this.#frequency; }
-	get dataTemporal(): Float32Array { return this.#temporal; }
+	get volume(): number { return this.#signal.volume * this.#masks.level(this.#length, this.#frequency); }
+	get dataFrequency(): Float32Array { return this.#masks.mix(this.#length, this.#frequency); }
+	get dataTemporal(): Float32Array { return this.#shapeWaveform(); }
 	get dataDrums(): Float32Array { return this.#masks.drums(this.#length, this.#frequency); }
 	get dataBass(): Float32Array { return this.#masks.bass(this.#length, this.#frequency); }
 	get dataVocals(): Float32Array { return this.#masks.vocals(this.#length, this.#frequency); }
@@ -75,6 +78,22 @@ export class Stage implements Audioset, Environment {
 	get camera(): DOMMatrix { return this.#camera; }
 	get color(): Color { return this.#color; }
 
+	/** The waveform scaled around its 0.5 centre by the share of the spectrum the stem gains keep: the masks can't split a waveform, so only its size follows them. `t × 1 + 0.5 × 0` is `t` exactly, so at every gain 1 it is the analyser's own waveform. */
+	#shapeWaveform(): Float32Array {
+		const level = this.#masks.level(this.#length, this.#frequency);
+		const frame = this.#frame;
+		if (level === this.#levelWaveform && frame === this.#frameWaveform) return this.#waveform;
+		this.#levelWaveform = level;
+		this.#frameWaveform = frame;
+		const temporal = this.#temporal;
+		const { length } = temporal;
+		let waveform = this.#waveform;
+		if (waveform.length !== length) waveform = this.#waveform = new Float32Array(length);
+		const center = 0.5 * (1 - level);
+		for (let index = 0; index < length; index++) waveform[index] = temporal[index] * level + center;
+		return waveform;
+	}
+
 	#refreshLyrics(): void {
 		const previous = this.#previous;
 		const current = this.#current;
@@ -100,7 +119,8 @@ export class Stage implements Audioset, Environment {
 			this.#temporal = signal.temporal.subarray(0, length);
 		}
 		this.#time = signal.time;
-		this.#analysis.analyze(this.#frequency, this);
+		this.#masks.forget();
+		this.#analysis.analyze(this.dataFrequency, this);
 	}
 
 	resize(width: number, height: number): void {
@@ -136,6 +156,12 @@ export class Stage implements Audioset, Environment {
 	updateShake(value: number): void {
 		this.#shake = value;
 		this.#refreshLyrics();
+	}
+
+	/** One gain per stem, in the Audioset order: drums, bass, vocals, guitar, keys, other. */
+	updateRatios(ratios: readonly number[]): void {
+		const [drums, bass, vocals, guitar, keys, other] = ratios;
+		this.#masks.weigh(drums, bass, vocals, guitar, keys, other);
 	}
 	//#endregion
 }

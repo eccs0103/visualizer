@@ -85,6 +85,10 @@ export class StemMasks {
 	#length: number | null = null;
 	#cache: Float32Array[] = Array.from({ length: SabLayout.stems }, () => new Float32Array(0));
 	#fresh: boolean[] = new Array<boolean>(SabLayout.stems).fill(false);
+	#ratios: number[] = new Array<number>(SabLayout.stems).fill(1);
+	#mixed: Float32Array = new Float32Array(0);
+	#mixFresh: boolean = false;
+	#level: number = 1;
 
 	constructor(sabMask: SharedArrayBuffer) {
 		const size = SabLayout.bins * SabLayout.stems;
@@ -124,7 +128,13 @@ export class StemMasks {
 		this.#version = version;
 		this.#weight = weight;
 		this.#blend(weight);
+		this.forget();
+	}
+
+	/** Drops every cached array; call it whenever `whole` changed (a new audio frame), or the arrays keep the old spectrum. */
+	forget(): void {
 		this.#fresh.fill(false);
+		this.#mixFresh = false;
 	}
 
 	#weightAt(now: number): number {
@@ -148,6 +158,52 @@ export class StemMasks {
 		}
 	}
 
+	/** One gain per stem: each stem array is multiplied by its gain (1 leaves it exactly as the model split it). */
+	weigh(drums: number, bass: number, vocals: number, guitar: number, keys: number, other: number): void {
+		const ratios = this.#ratios;
+		ratios[StemMasks.#drums] = drums;
+		ratios[StemMasks.#bass] = bass;
+		ratios[StemMasks.#vocals] = vocals;
+		ratios[StemMasks.#guitar] = guitar;
+		ratios[StemMasks.#keys] = keys;
+		ratios[StemMasks.#other] = other;
+		this.forget();
+	}
+
+	/** The whole spectrum as the sum of the six stems at their gains: per bin `whole × Σ(ratio × mask) / Σ mask`. At every gain 1 the quotient is exactly 1, so it is `whole` bit for bit. */
+	mix(length: number, whole: Float32Array): Float32Array {
+		this.#resize(length);
+		if (this.#mixFresh) return this.#mixed;
+		let target = this.#mixed;
+		if (target.length !== length) target = this.#mixed = new Float32Array(length);
+		const ratios = this.#ratios;
+		const stems = SabLayout.stems;
+		const scale = (SabLayout.bins - 1) / max(1, length - 1);
+		let sum = 0, sum2 = 0;
+		for (let index = 0; index < length; index++) {
+			const position = index * scale;
+			let weighted = 0, total = 0;
+			for (let stem = 0; stem < stems; stem++) {
+				const mask = this.#sample(stem, position);
+				weighted += ratios[stem] * mask;
+				total += mask;
+			}
+			const value = total > 0 ? whole[index] * (weighted / total) : 0;
+			target[index] = value;
+			sum += value;
+			sum2 += whole[index];
+		}
+		this.#level = sum2 > 0 ? sum / sum2 : 1; // a silent spectrum has nothing to weigh
+		this.#mixFresh = true;
+		return target;
+	}
+
+	/** How much of the whole spectrum the gains keep: `Σ mix / Σ whole` (1 at every gain 1, 0 at every gain 0); for the signals the masks can't split, like the waveform. */
+	level(length: number, whole: Float32Array): number {
+		this.mix(length, whole);
+		return this.#level;
+	}
+
 	drums(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#drums, length, whole); }
 	bass(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#bass, length, whole); }
 	vocals(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#vocals, length, whole); }
@@ -155,13 +211,16 @@ export class StemMasks {
 	guitar(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#guitar, length, whole); }
 	keys(length: number, whole: Float32Array): Float32Array { return this.#spectrum(StemMasks.#keys, length, whole); }
 
+	#resize(length: number): void {
+		if (this.#length === length) return;
+		this.#length = length;
+		this.forget();
+	}
+
 	#spectrum(stem: number, length: number, whole: Float32Array): Float32Array {
 		const fresh = this.#fresh;
 		const cache = this.#cache;
-		if (this.#length !== length) {
-			this.#length = length;
-			fresh.fill(false);
-		}
+		this.#resize(length);
 		if (fresh[stem]) return cache[stem];
 		let target = cache[stem];
 		if (target.length !== length) target = cache[stem] = new Float32Array(length);
@@ -171,18 +230,19 @@ export class StemMasks {
 	}
 
 	#interpolate(stem: number, length: number, whole: Float32Array, out: Float32Array): void {
+		const scale = (SabLayout.bins - 1) / max(1, length - 1);
+		const ratio = this.#ratios[stem];
+		for (let index = 0; index < length; index++) out[index] = whole[index] * this.#sample(stem, index * scale) * ratio;
+	}
+
+	/** The blended mask of `stem` at a fractional bin `position`, linearly interpolated between its two neighbours. */
+	#sample(stem: number, position: number): number {
 		const masks = this.#blended;
 		const stems = SabLayout.stems;
-		const bins = SabLayout.bins;
-		const scale = (bins - 1) / max(1, length - 1);
-		for (let index = 0; index < length; index++) {
-			const position = index * scale;
-			const bin = position | 0;
-			const bin2 = min(bin + 1, bins - 1);
-			const weight = position - bin;
-			const mask = masks[bin * stems + stem] * (1 - weight) + masks[bin2 * stems + stem] * weight;
-			out[index] = whole[index] * mask;
-		}
+		const bin = position | 0;
+		const bin2 = min(bin + 1, SabLayout.bins - 1);
+		const weight = position - bin;
+		return masks[bin * stems + stem] * (1 - weight) + masks[bin2 * stems + stem] * weight;
 	}
 }
 //#endregion

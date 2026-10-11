@@ -73,7 +73,7 @@ class StemStep {
 //#endregion
 //#region Stem builder
 /**
- * Turns the stored tensors into GPU buffers and dispatches, block by block. Trainable tensors are stored first (per block: kernel, bias, gamma, beta; then the head's kernel and bias), the batch-norm statistics after them (per block: mean, variance) — the order tfjs saved them in.
+ * Turns the stored tensors into GPU buffers and dispatches, block by block. Trainable tensors are stored first (per block: kernel, bias, gamma, beta; then the head's kernel and bias; then, in a gated model, the presence gate's kernel and bias), the batch-norm statistics after them (per block: mean, variance) — the order tfjs saved them in.
  */
 class StemBuilder {
 	static #epsilon: number = 1e-3;
@@ -92,17 +92,24 @@ class StemBuilder {
 	#device: GPUDevice;
 	#convolution: GPUComputePipeline;
 	#softmax: GPUComputePipeline;
+	#presence: GPUComputePipeline;
+	#gated: boolean;
 	#trainables: Iterator<StemTensor>;
 	#statistics: Iterator<StemTensor>;
 	#steps: StemStep[] = [];
 
-	constructor(device: GPUDevice, convolution: GPUComputePipeline, softmax: GPUComputePipeline, tensors: readonly StemTensor[]) {
-		const blocks = (tensors.length - 2) / 6;
+	constructor(device: GPUDevice, convolution: GPUComputePipeline, softmax: GPUComputePipeline, presence: GPUComputePipeline, tensors: readonly StemTensor[]) {
+		// Per block 6 tensors, plus the head's 2, plus the gate's 2 in a gated model.
+		const gated = (tensors.length - 2) % 6 !== 0;
+		const head = gated ? 4 : 2;
+		const blocks = (tensors.length - head) / 6;
 		this.#device = device;
 		this.#convolution = convolution;
 		this.#softmax = softmax;
-		this.#trainables = tensors.slice(0, blocks * 4 + 2).values();
-		this.#statistics = tensors.slice(blocks * 4 + 2).values();
+		this.#presence = presence;
+		this.#gated = gated;
+		this.#trainables = tensors.slice(0, blocks * 4 + head).values();
+		this.#statistics = tensors.slice(blocks * 4 + head).values();
 	}
 
 	get steps(): readonly StemStep[] { return this.#steps; }
@@ -125,8 +132,8 @@ class StemBuilder {
 		return this.#block(StemInput.joined, source, skip, span);
 	}
 
-	/** The head: a 1×1 convolution and a softmax over the stems, written bin-major (`span` rows of `stems`). */
-	classify(source: StemActivation): StemActivation {
+	/** The head: a 1×1 convolution and a softmax over the stems, written bin-major (`span` rows of `stems`), each stem's share weighted by its presence (judged from `bottom` in a gated model, 1 otherwise). */
+	classify(source: StemActivation, bottom: StemActivation): StemActivation {
 		const trainables = this.#trainables;
 		const kernel = this.#next(trainables);
 		const [, , stems] = kernel.shape;
@@ -134,10 +141,11 @@ class StemBuilder {
 		const weights = new Float32Array(channels * stems + stems);
 		weights.set(kernel.expect(1, channels, stems));
 		weights.set(this.#next(trainables).expect(stems), channels * stems);
+		const presence = this.#gate(bottom, stems);
 
 		const result = this.activation(stems, span);
 		const shape = this.#upload(new Uint32Array([channels, stems, span, 0]), GPUBufferUsage.UNIFORM);
-		this.#dispatch(this.#softmax, [shape, source.buffer, this.#upload(weights, GPUBufferUsage.STORAGE), result.buffer], ceil(span / StemBuilder.#workgroup), 1);
+		this.#dispatch(this.#softmax, [shape, source.buffer, this.#upload(weights, GPUBufferUsage.STORAGE), result.buffer, presence], ceil(span / StemBuilder.#workgroup), 1);
 		return result;
 	}
 
@@ -176,6 +184,20 @@ class StemBuilder {
 		const lanes = StemBuilder.#lanes;
 		this.#dispatch(this.#convolution, [shape, source.buffer, skip.buffer, this.#upload(weights, GPUBufferUsage.STORAGE), result.buffer], ceil(filters / (lanes * StemBuilder.#rows)), ceil(span / (lanes * StemBuilder.#columns)));
 		return result;
+	}
+
+	/** The presence of every stem: in a gated model a dispatch that judges it from the whole window (mean of `bottom` over positions → dense → sigmoid), otherwise a constant 1 per stem. */
+	#gate(bottom: StemActivation, stems: number): GPUBuffer {
+		if (!this.#gated) return this.#upload(new Float32Array(stems).fill(1), GPUBufferUsage.STORAGE);
+		const trainables = this.#trainables;
+		const { channels, span } = bottom;
+		const weights = new Float32Array(channels * stems + stems);
+		weights.set(this.#next(trainables).expect(channels, stems));
+		weights.set(this.#next(trainables).expect(stems), channels * stems);
+		const result = this.activation(stems, 1);
+		const shape = this.#upload(new Uint32Array([channels, stems, span, 0]), GPUBufferUsage.UNIFORM);
+		this.#dispatch(this.#presence, [shape, bottom.buffer, this.#upload(weights, GPUBufferUsage.STORAGE), result.buffer], 1, 1);
+		return result.buffer;
 	}
 
 	#next(tensors: Iterator<StemTensor>): StemTensor {
@@ -333,6 +355,7 @@ struct Shape {
 @group(0) @binding(1) var<storage, read> source: array<f32>;
 @group(0) @binding(2) var<storage, read> weights: array<f32>;
 @group(0) @binding(3) var<storage, read_write> result: array<f32>;
+@group(0) @binding(4) var<storage, read> presence: array<f32>; // per stem; 1 for an ungated model, which leaves the softmax exactly as it is
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -354,13 +377,44 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 	}
 	var total = 0.0;
 	for (var stem = 0u; stem < stems; stem++) {
-		let power = exp(result[base + stem] - peak);
+		let power = exp(result[base + stem] - peak) * presence[stem];
 		result[base + stem] = power;
 		total += power;
 	}
 	for (var stem = 0u; stem < stems; stem++) {
 		result[base + stem] /= total;
 	}
+}
+`;
+
+	static #presence: string = `
+struct Shape {
+	inputs: u32,
+	stems: u32,
+	span: u32,
+	padding: u32,
+}
+
+@group(0) @binding(0) var<uniform> shape: Shape;
+@group(0) @binding(1) var<storage, read> source: array<f32>; // the bottom block, inputs rows of span positions
+@group(0) @binding(2) var<storage, read> weights: array<f32>; // dense kernel inputs × stems, then the bias per stem
+@group(0) @binding(3) var<storage, read_write> result: array<f32>; // presence per stem
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+	let stem = id.x;
+	if (stem >= shape.stems) {
+		return;
+	}
+	var logit = weights[shape.inputs * shape.stems + stem];
+	for (var channel = 0u; channel < shape.inputs; channel++) {
+		var sum = 0.0;
+		for (var position = 0u; position < shape.span; position++) {
+			sum += source[channel * shape.span + position];
+		}
+		logit += weights[channel * shape.stems + stem] * (sum / f32(shape.span));
+	}
+	result[stem] = 1.0 / (1.0 + exp(-logit));
 }
 `;
 
@@ -386,8 +440,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 		const device = await StemNetwork.#connect();
 		const tensors = await StemNetwork.#download(model);
 		device.pushErrorScope("validation");
-		const [convolution, softmax] = await Promise.all([StemNetwork.#compile(device, StemNetwork.#convolution, StemBuilder.tiling), StemNetwork.#compile(device, StemNetwork.#softmax, {})]);
-		const builder = new StemBuilder(device, convolution, softmax, tensors);
+		const [convolution, softmax, presence] = await Promise.all([StemNetwork.#compile(device, StemNetwork.#convolution, StemBuilder.tiling), StemNetwork.#compile(device, StemNetwork.#softmax, {}), StemNetwork.#compile(device, StemNetwork.#presence, {})]);
+		const builder = new StemBuilder(device, convolution, softmax, presence, tensors);
 		const input = builder.activation(frames, bins);
 		const down = builder.convolve(input);
 		const down2 = builder.convolve(builder.pool(down));
@@ -396,7 +450,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 		const up3 = builder.join(bottom, down3);
 		const up2 = builder.join(up3, down2);
 		const up = builder.join(up2, down);
-		const output = builder.classify(up);
+		const output = builder.classify(up, bottom);
 		builder.finish();
 		const error = await device.popErrorScope();
 		if (error !== null) throw new TypeError(`WebGPU rejected the network: ${error.message}`);
@@ -443,6 +497,11 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
 	/** Resolves when the GPU device is lost (driver reset, GPU removed); the network can't run after that. */
 	get lost(): Promise<GPUDeviceLostInfo> { return this.#device.lost; }
+
+	/** Releases the GPU device; `lost` then resolves with the reason "destroyed". */
+	destroy(): void {
+		this.#device.destroy();
+	}
 
 	/** `input` is channel-major — one row of bins per frame, oldest frame first; the result is the stem shares, bin-major (`stems` per bin). The result array is reused by the next call, so read it before inferring again. */
 	async infer(input: Float32Array<ArrayBuffer>): Promise<Float32Array> {
