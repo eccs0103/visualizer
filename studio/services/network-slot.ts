@@ -11,10 +11,10 @@ export class NetworkSlot {
 
 	get network(): StemNetwork | null { return this.#network; }
 
-	async load(url: string, shaders: string, frames: number, bins: number, stems: number): Promise<StemNetwork | null> {
+	async load(url: string, shaders: string, bins: number, stems: number): Promise<StemNetwork | null> {
 		const ticket = ++this.#loads;
 		try {
-			const network = await StemNetwork.create(new URL(url), new URL(shaders), frames, bins, stems);
+			const network = await StemNetwork.create(new URL(url), new URL(shaders), bins, stems);
 			if (ticket !== this.#loads) {
 				network.destroy();
 				return null;

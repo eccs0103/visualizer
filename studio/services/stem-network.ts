@@ -20,11 +20,12 @@ class StemUNet {
 		this.#output = output;
 	}
 
-	static record(device: GPUDevice, convolution: ConvolutionPass, softmax: HeadPass, presence: PresencePass, tensors: StemTensors, frames: number, bins: number): StemUNet {
+	static record(device: GPUDevice, convolution: ConvolutionPass, softmax: HeadPass, presence: PresencePass, tensors: StemTensors, bins: number): StemUNet {
 		const graph = new GpuGraph(device);
 		const layer = ConvolutionLayer.read.bind(ConvolutionLayer, tensors);
-		const input = graph.activation(frames, bins);
-		const down = convolution.convolve(graph, layer(1), input);
+		const first = layer(1);
+		const input = graph.activation(first.channels, bins);
+		const down = convolution.convolve(graph, first, input);
 		const down2 = convolution.convolve(graph, layer(3), convolution.pool(graph, layer(2), down));
 		const down3 = convolution.convolve(graph, layer(5), convolution.pool(graph, layer(4), down2));
 		const bottom = convolution.convolve(graph, layer(7), convolution.pool(graph, layer(6), down3));
@@ -64,13 +65,13 @@ export class StemNetwork {
 		this.#result = new Float32Array(span * stems);
 	}
 
-	static async create(model: Readonly<URL>, shaders: Readonly<URL>, frames: number, bins: number, stems: number): Promise<StemNetwork> {
+	static async create(model: Readonly<URL>, shaders: Readonly<URL>, bins: number, stems: number): Promise<StemNetwork> {
 		const device = await StemNetwork.#connect();
 		const tensors = await StemNetwork.#download(model);
 		const [code, code2, code3] = await Promise.all([ConvolutionPass.file, HeadPass.file, PresencePass.file].map(file => StemNetwork.#text(new URL(file, shaders))));
 		device.pushErrorScope("validation");
 		const [convolution, softmax, presence] = await Promise.all([ConvolutionPass.compile(device, code), HeadPass.compile(device, code2), PresencePass.compile(device, code3)]);
-		const unet = StemUNet.record(device, convolution, softmax, presence, tensors, frames, bins);
+		const unet = StemUNet.record(device, convolution, softmax, presence, tensors, bins);
 		const error = await device.popErrorScope();
 		if (error !== null) throw new TypeError(`WebGPU rejected the network: ${error.message}`);
 		const { channels } = unet.output;
@@ -113,6 +114,7 @@ export class StemNetwork {
 		return name.length === 0 ? null : name;
 	}
 
+	get frames(): number { return this.#unet.input.channels; }
 	get lost(): Promise<GPUDeviceLostInfo> { return this.#device.lost; }
 
 	destroy(): void {

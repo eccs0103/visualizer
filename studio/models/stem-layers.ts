@@ -32,6 +32,7 @@ export class ConvolutionLayer {
 	}
 
 	get size(): number { return this.#kernel.shape[0]; }
+	get channels(): number { return this.#kernel.shape[1]; }
 	get filters(): number { return this.#kernel.shape[2]; }
 
 	pack(channels: number): Float32Array<ArrayBuffer> {

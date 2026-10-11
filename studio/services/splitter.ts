@@ -10,6 +10,7 @@ const { baseURI } = document;
 export enum SplitterModel {
 	current,
 	presence,
+	c64,
 }
 
 export interface SplitterEventMap {
@@ -60,6 +61,7 @@ export class Splitter extends EventTarget {
 		switch (model) {
 		case SplitterModel.current: return new URL("../data/stem-mask/model.json", baseURI).toString();
 		case SplitterModel.presence: return new URL("../data/stem-mask-presence/model.json", baseURI).toString();
+		case SplitterModel.c64: return new URL("../data/stem-mask-c64/model.json", baseURI).toString();
 		default: throw new TypeError(`Invalid '${model}' splitter model`);
 		}
 	}

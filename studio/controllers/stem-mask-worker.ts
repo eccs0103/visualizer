@@ -12,31 +12,29 @@ import { InferencePace } from "../services/inference-pace.js";
 
 //#region Stem mask worker
 class StemMaskWorker extends Controller {
-	static #frames: number = 16;
-
 	#signal: Signal | null = null;
 	#masks: MaskChannel | null = null;
 	#shaders: string | null = null;
 	#slot: NetworkSlot = new NetworkSlot();
-	#history: TapHistory = new TapHistory(StemMaskWorker.#frames);
+	#history: TapHistory | null = null;
 	#smoother: MaskSmoother = new MaskSmoother();
 	#pace: InferencePace = new InferencePace();
 	#status: StatusMaskCommand | null = null;
 	#busy: boolean = false;
 
-	#capture(tap: Float32Array, masks: MaskChannel, network: StemNetwork): void {
+	#capture(tap: Float32Array, masks: MaskChannel, network: StemNetwork, history: TapHistory): void {
 		const now = performance.now();
-		if (!this.#history.capture(tap, now)) return;
-		if (this.#pace.ready(now)) void this.#infer(network, masks);
+		if (!history.capture(tap, now)) return;
+		if (this.#pace.ready(now)) void this.#infer(network, history, masks);
 	}
 
-	async #infer(network: StemNetwork, masks: MaskChannel): Promise<void> {
+	async #infer(network: StemNetwork, history: TapHistory, masks: MaskChannel): Promise<void> {
 		if (this.#busy) return;
 		this.#busy = true;
 		const pace = this.#pace;
 		try {
 			pace.start(performance.now());
-			const predicted = await network.infer(this.#history.pack());
+			const predicted = await network.infer(history.pack());
 			const now = performance.now();
 			masks.publish(this.#smoother.smooth(predicted, now), performance.timeOrigin + now);
 			if (pace.finish(now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed));
@@ -65,9 +63,9 @@ class StemMaskWorker extends Controller {
 		}
 
 		if (command instanceof TickCommand) {
-			const signal = this.#signal, masks = this.#masks, network = this.#slot.network;
-			if (signal === null || masks === null || network === null) return;
-			this.#capture(signal.model, masks, network);
+			const signal = this.#signal, masks = this.#masks, network = this.#slot.network, history = this.#history;
+			if (signal === null || masks === null || network === null || history === null) return;
+			this.#capture(signal.model, masks, network, history);
 		}
 	}
 
@@ -76,8 +74,9 @@ class StemMaskWorker extends Controller {
 		try {
 			const shaders = this.#shaders;
 			if (shaders === null) throw new ReferenceError("The splitter has no shaders before it is initialized");
-			const network = await slot.load(url, shaders, StemMaskWorker.#frames, SabLayout.bins, SabLayout.stems);
+			const network = await slot.load(url, shaders, SabLayout.bins, SabLayout.stems);
 			if (network === null) return;
+			if (this.#history?.frames !== network.frames) this.#history = new TapHistory(network.frames);
 			this.#report(new StatusMaskCommand(true, null, network.adapter, null, false));
 			const loss = await slot.watch(network);
 			if (loss === null) return;

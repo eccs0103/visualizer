@@ -9,7 +9,7 @@ import { Stem, StemGains } from "../models/stem.js";
 //#region Developer controller
 export class DeveloperController extends Controller<[Visualizer, HTMLDialogElement]> {
 	static #parameter: string = "developer";
-	static #models: readonly (readonly [string, SplitterModel])[] = [["Current", SplitterModel.current], ["Presence (test)", SplitterModel.presence]];
+	static #models: readonly (readonly [string, SplitterModel])[] = [["Current", SplitterModel.current], ["Presence (test)", SplitterModel.presence], ["c64 (test)", SplitterModel.c64]];
 	static #stems: readonly Stem[] = [Stem.drums, Stem.bass, Stem.vocals, Stem.guitar, Stem.keys, Stem.other];
 
 	#visualizer: Visualizer;
@@ -23,6 +23,19 @@ export class DeveloperController extends Controller<[Visualizer, HTMLDialogEleme
 
 	#weigh(): void {
 		this.#visualizer.weigh(new StemGains(this.#gain(Stem.drums), this.#gain(Stem.bass), this.#gain(Stem.vocals), this.#gain(Stem.guitar), this.#gain(Stem.keys), this.#gain(Stem.other)));
+	}
+
+	#direction(code: string): number {
+		switch (code) {
+		case "ArrowUp": return -1;
+		case "ArrowDown": return 1;
+		default: return 0;
+		}
+	}
+
+	#cycle(select: HTMLSelectElement, step: number): void {
+		select.selectedIndex = (select.selectedIndex + step).mod(select.length);
+		select.dispatchEvent(new Event("change"));
 	}
 
 	async run(visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
@@ -41,6 +54,17 @@ export class DeveloperController extends Controller<[Visualizer, HTMLDialogEleme
 		const { splitter } = visualizer;
 		selectDeveloperModel.value = String(splitter.model);
 		selectDeveloperModel.addEventListener("change", event => splitter.model = Number(selectDeveloperModel.value));
+		window.addEventListener("keydown", (event) => {
+			if (!event.shiftKey) return;
+			const step = this.#direction(event.code);
+			if (step === 0) return;
+			const { activeElement } = document;
+			if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLSelectElement || activeElement instanceof HTMLTextAreaElement) return;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			if (event.repeat) return;
+			this.#cycle(selectDeveloperModel, step);
+		}, { capture: true });
 
 		const inputs = this.#inputs;
 		for (const stem of DeveloperController.#stems) {

@@ -24,6 +24,8 @@ export class TapHistory {
 		this.#packed = new Float32Array(frames * SabLayout.bins);
 	}
 
+	get frames(): number { return this.#frames; }
+
 	capture(tap: Float32Array, now: number): boolean {
 		const origin = this.#origin;
 		if (origin === null) {
