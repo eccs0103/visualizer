@@ -4,10 +4,10 @@ import "adaptive-extender/core";
 import { Model, Field, Enum, Optional } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
 import { type Layer } from "../services/layers.js";
-import { LayerSettings } from "./layer-settings.js";
-import { BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "./background-settings.js";
+import { LayerSettings, BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "./layer-settings.js";
 import { Blend } from "./blend.js";
-import { Playlist, type Reorder } from "./playlist.js";
+import { Playlist } from "./playlist.js";
+import { type Reorder } from "./reorder.js";
 
 //#region Visualization settings
 export class VisualizationSettings extends Model {
@@ -56,12 +56,7 @@ export class VisualizationSettings extends Model {
 	}
 
 	move(reorder: Reorder): boolean {
-		const { layers } = this;
-		const { from, to } = reorder;
-		if (from < 0 || from >= layers.length || to < 0 || to >= layers.length || from === to) return false;
-		const [entry] = layers.splice(from, 1);
-		layers.splice(to, 0, entry);
-		return true;
+		return reorder.apply(this.layers);
 	}
 }
 //#endregion

@@ -5,7 +5,7 @@ import { Controller } from "adaptive-extender/web";
 import { PlaylistPlayer } from "../services/playlist-player.js";
 import { FileDrop } from "../services/file-drop.js";
 import { PlaylistView } from "../view/playlist-view.js";
-import { type Reorder } from "../models/playlist.js";
+import { type Reorder } from "../models/reorder.js";
 
 //#region Playlist controller
 export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogElement]> {
@@ -34,8 +34,7 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 	}
 
 	#onReorder(event: CustomEvent<Reorder>): void {
-		const { from, to } = event.detail;
-		this.#player.move(from, to);
+		this.#player.move(event.detail);
 	}
 
 	async #onFiles(files: Iterable<File>): Promise<void> {

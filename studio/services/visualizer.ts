@@ -7,8 +7,7 @@ import { Splitter } from "./splitter.js";
 import { Registry } from "./visualization-registry.js";
 import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, GainsRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { type StemGains } from "../models/stem.js";
-import { type LayerSettings } from "../models/layer-settings.js";
-import { type BackgroundSettings } from "../models/background-settings.js";
+import { type LayerSettings, type BackgroundSettings } from "../models/layer-settings.js";
 
 const { round } = Math;
 const { baseURI } = document;

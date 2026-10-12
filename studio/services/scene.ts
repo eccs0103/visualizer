@@ -1,8 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { type LayerSettings } from "../models/layer-settings.js";
-import { type BackgroundSettings } from "../models/background-settings.js";
+import { type LayerSettings, type BackgroundSettings } from "../models/layer-settings.js";
 import { type Layer } from "./layers.js";
 import { type Stage } from "./stage.js";
 import { type Host } from "../models/visualization.js";

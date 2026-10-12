@@ -5,6 +5,7 @@ import { Controller } from "adaptive-extender/web";
 import { type Visualizer } from "../services/visualizer.js";
 import { SplitterModel } from "../services/splitter.js";
 import { Stem, StemGains } from "../models/stem.js";
+import { ArrowKeys } from "../view/arrow-keys.js";
 
 //#region Developer controller
 export class DeveloperController extends Controller<[Visualizer, HTMLDialogElement]> {
@@ -23,14 +24,6 @@ export class DeveloperController extends Controller<[Visualizer, HTMLDialogEleme
 
 	#weigh(): void {
 		this.#visualizer.weigh(new StemGains(this.#gain(Stem.drums), this.#gain(Stem.bass), this.#gain(Stem.vocals), this.#gain(Stem.guitar), this.#gain(Stem.keys), this.#gain(Stem.other)));
-	}
-
-	#direction(code: string): number {
-		switch (code) {
-		case "ArrowUp": return -1;
-		case "ArrowDown": return 1;
-		default: return 0;
-		}
 	}
 
 	#cycle(select: HTMLSelectElement, step: number): void {
@@ -57,7 +50,7 @@ export class DeveloperController extends Controller<[Visualizer, HTMLDialogEleme
 		selectDeveloperModel.addEventListener("change", event => splitter.model = Number(selectDeveloperModel.value));
 		window.addEventListener("keydown", (event) => {
 			if (!event.shiftKey) return;
-			const step = this.#direction(event.code);
+			const step = ArrowKeys.vertical(event.code);
 			if (step === 0) return;
 			const { activeElement } = document;
 			if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLSelectElement || activeElement instanceof HTMLTextAreaElement) return;

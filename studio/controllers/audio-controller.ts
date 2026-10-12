@@ -6,6 +6,7 @@ import { PlaylistPlayer } from "../services/playlist-player.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { Track } from "../models/playlist.js";
 import { TextExpert } from "../services/text-expert.js";
+import { ArrowKeys } from "../view/arrow-keys.js";
 
 //#region Audio controller
 export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTMLAudioElement, HTMLDivElement, HTMLButtonElement, HTMLButtonElement, HTMLElement, HTMLElement, HTMLInputElement]> {
@@ -113,14 +114,6 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		this.#spanPlaybackToggle.ariaDisabled = String(isEmpty);
 	}
 
-	#readDirection(code: string): number {
-		switch (code) {
-		case "ArrowLeft": return -1;
-		case "ArrowRight": return 1;
-		default: return 0;
-		}
-	}
-
 	async run(guard: WakeGuard, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, divInterface: HTMLDivElement, buttonPlaybackPrevious: HTMLButtonElement, buttonPlaybackNext: HTMLButtonElement, bPlaybackTitle: HTMLElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
 		this.#audioPlayer = audioPlayer;
 		this.#player = player;
@@ -216,7 +209,7 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		});
 
 		window.addEventListener("keydown", async (event) => {
-			const step = this.#readDirection(event.code);
+			const step = ArrowKeys.horizontal(event.code);
 			if (step === 0) return;
 			const { activeElement } = document;
 			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;

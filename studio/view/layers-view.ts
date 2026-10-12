@@ -2,11 +2,10 @@
 
 import "adaptive-extender/web";
 import { Blend } from "../models/blend.js";
-import { BackgroundEffectKind, BackgroundFit, type BackgroundSettings } from "../models/background-settings.js";
-import { type LayerSettings } from "../models/layer-settings.js";
-import { Reorder } from "../models/playlist.js";
+import { BackgroundEffectKind, BackgroundFit, type BackgroundSettings, type LayerSettings } from "../models/layer-settings.js";
+import { Reorder } from "../models/reorder.js";
 import { DOMBuilder } from "./dom-builder.js";
-import { TrackDrag } from "./track-drag.js";
+import { RowDrag } from "./row-drag.js";
 
 interface Listener<T> {
 	(value: T): void;
@@ -22,17 +21,14 @@ export interface LayersViewEventMap {
 
 export class LayersView extends EventTarget {
 	#olVisualizationLayers: HTMLOListElement;
-	#drag: TrackDrag | null = null;
+	#drag: RowDrag;
 	#rows: WeakMap<LayerSettings, HTMLLIElement> = new WeakMap();
 
 	constructor(olVisualizationLayers: HTMLOListElement) {
 		super();
 		this.#olVisualizationLayers = olVisualizationLayers;
-		olVisualizationLayers.addEventListener("pointerdown", this.#onPointerDown.bind(this));
-		olVisualizationLayers.addEventListener("pointermove", this.#onPointerMove.bind(this));
-		olVisualizationLayers.addEventListener("pointerup", this.#onPointerUp.bind(this));
-		olVisualizationLayers.addEventListener("pointercancel", this.#onPointerCancel.bind(this));
-		olVisualizationLayers.addEventListener("keydown", this.#onKeyDown.bind(this));
+		const drag = this.#drag = new RowDrag(olVisualizationLayers, ":scope > li:not([data-pinned])");
+		drag.addEventListener("reorder", event => this.dispatchEvent(new CustomEvent("reorder", { detail: this.#toStorage(event.detail, drag.rows.length) })));
 	}
 
 	addEventListener<K extends keyof LayersViewEventMap>(type: K, listener: (this: LayersView, event: LayersViewEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -45,26 +41,6 @@ export class LayersView extends EventTarget {
 	removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 	removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
 		return super.removeEventListener(type, listener, options);
-	}
-
-	#findRow(event: Event): HTMLLIElement | undefined {
-		return event.composedPath().find(node => node instanceof HTMLLIElement);
-	}
-
-	#findHandle(event: Event): HTMLElement | undefined {
-		return event.composedPath().find((node): node is HTMLElement => node instanceof HTMLElement && node.classList.contains("handle"));
-	}
-
-	#readDirection(code: string): number {
-		switch (code) {
-		case "ArrowUp": return -1;
-		case "ArrowDown": return 1;
-		default: return 0;
-		}
-	}
-
-	#readRows(): HTMLLIElement[] {
-		return Array.from(this.#olVisualizationLayers.getElements(HTMLLIElement, ":scope > li:not([data-pinned])"));
 	}
 
 	#readFocusedName(): string | null {
@@ -222,53 +198,6 @@ export class LayersView extends EventTarget {
 		return row;
 	}
 
-	#onPointerDown(event: PointerEvent): void {
-		const handle = this.#findHandle(event);
-		if (handle === undefined) return;
-		const row = this.#findRow(event);
-		if (row === undefined) return;
-		event.stopPropagation();
-		handle.setPointerCapture(event.pointerId);
-		this.#drag = new TrackDrag(row, this.#readRows(), event.clientY);
-	}
-
-	#onPointerMove(event: PointerEvent): void {
-		const drag = this.#drag;
-		if (drag === null) return;
-		drag.track(event.clientY);
-	}
-
-	#onPointerUp(event: PointerEvent): void {
-		const drag = this.#drag;
-		if (drag === null) return;
-		const reorder = drag.commit();
-		this.#drag = null;
-		if (!reorder.isEffective) return;
-		this.dispatchEvent(new CustomEvent("reorder", { detail: this.#toStorage(reorder, this.#readRows().length) }));
-	}
-
-	#onPointerCancel(event: PointerEvent): void {
-		const drag = this.#drag;
-		if (drag === null) return;
-		drag.cancel();
-		this.#drag = null;
-	}
-
-	#onKeyDown(event: KeyboardEvent): void {
-		const step = this.#readDirection(event.code);
-		if (step === 0) return;
-		if (this.#findHandle(event) === undefined) return;
-		const row = this.#findRow(event);
-		if (row === undefined) return;
-		const rows = this.#readRows();
-		const from = rows.indexOf(row);
-		const to = (from + step).clamp(0, rows.length - 1);
-		event.preventDefault();
-		const reorder = new Reorder(from, to);
-		if (!reorder.isEffective) return;
-		this.dispatchEvent(new CustomEvent("reorder", { detail: this.#toStorage(reorder, rows.length) }));
-	}
-
 	showMessage(text: string): void {
 		const spanMessage = this.#olVisualizationLayers.getElement(HTMLElement, "li[data-name=\"Background\"] span.message");
 		spanMessage.innerText = text;
@@ -298,7 +227,7 @@ export class LayersView extends EventTarget {
 		}
 
 		if (focused === null) return;
-		const row = this.#readRows().find(candidate => candidate.dataset["name"] === focused);
+		const row = this.#drag.rows.find(candidate => candidate.dataset["name"] === focused);
 		if (row === undefined) return;
 		row.getElement(HTMLElement, "span.handle").focus({ preventScroll: true });
 	}

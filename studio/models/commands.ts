@@ -2,8 +2,7 @@
 
 import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/core";
-import { LayerSettings } from "./layer-settings.js";
-import { BackgroundSettings } from "./background-settings.js";
+import { LayerSettings, BackgroundSettings } from "./layer-settings.js";
 import { StemGains } from "./stem.js";
 
 //#region Shared array buffer portable

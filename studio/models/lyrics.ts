@@ -54,5 +54,11 @@ export class Lyrics {
 	at(seconds: number): number {
 		return this.lines.findLastIndex(line => line.time <= seconds);
 	}
+
+	line(index: number): string | null {
+		const line = this.lines[index];
+		if (line === undefined) return null;
+		return line.text;
+	}
 }
 //#endregion

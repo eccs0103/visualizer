@@ -2,10 +2,11 @@
 
 import "adaptive-extender/web";
 import { Timespan } from "adaptive-extender/web";
-import { type Track, PlaybackMode, Reorder } from "../models/playlist.js";
+import { type Track, PlaybackMode } from "../models/playlist.js";
+import { type Reorder } from "../models/reorder.js";
 import { TextExpert } from "../services/text-expert.js";
 import { DOMBuilder } from "./dom-builder.js";
-import { TrackDrag } from "./track-drag.js";
+import { RowDrag } from "./row-drag.js";
 
 //#region Playlist view
 export interface PlaylistViewEventMap {
@@ -28,7 +29,6 @@ export class PlaylistView extends EventTarget {
 	#spanPlaylistModeLabel: HTMLSpanElement;
 	#rows: Map<string, HTMLLIElement> = new Map();
 	#order: string[] = [];
-	#drag: TrackDrag | null = null;
 
 	constructor(olPlaylistTracks: HTMLOListElement, spanPlaylistEmpty: HTMLElement, buttonPlaylistMode: HTMLButtonElement) {
 		super();
@@ -37,11 +37,8 @@ export class PlaylistView extends EventTarget {
 		this.#buttonPlaylistMode = buttonPlaylistMode;
 		this.#spanPlaylistModeLabel = buttonPlaylistMode.getElement(HTMLSpanElement, "span#playlist-mode-label");
 		olPlaylistTracks.addEventListener("click", this.#onClick.bind(this));
-		olPlaylistTracks.addEventListener("pointerdown", this.#onPointerDown.bind(this));
-		olPlaylistTracks.addEventListener("pointermove", this.#onPointerMove.bind(this));
-		olPlaylistTracks.addEventListener("pointerup", this.#onPointerUp.bind(this));
-		olPlaylistTracks.addEventListener("pointercancel", this.#onPointerCancel.bind(this));
-		olPlaylistTracks.addEventListener("keydown", this.#onKeyDown.bind(this));
+		const drag = new RowDrag(olPlaylistTracks, ":scope > li");
+		drag.addEventListener("reorder", event => this.dispatchEvent(new CustomEvent("reorder", { detail: event.detail })));
 	}
 
 	addEventListener<K extends keyof PlaylistViewEventMap>(type: K, listener: (this: PlaylistView, event: PlaylistViewEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -62,14 +59,6 @@ export class PlaylistView extends EventTarget {
 
 	#findClassAncestor(event: Event, name: string): HTMLElement | undefined {
 		return event.composedPath().find((node): node is HTMLElement => node instanceof HTMLElement && node.classList.contains(name));
-	}
-
-	#readDirection(code: string): number {
-		switch (code) {
-		case "ArrowUp": return -1;
-		case "ArrowDown": return 1;
-		default: return 0;
-		}
 	}
 
 	#buildTrackRow(track: Track): HTMLLIElement {
@@ -116,57 +105,6 @@ export class PlaylistView extends EventTarget {
 		const index = this.#order.indexOf(id);
 		if (index < 0) return;
 		this.dispatchEvent(new CustomEvent("activate", { detail: index }));
-	}
-
-	#onPointerDown(event: PointerEvent): void {
-		const handle = this.#findClassAncestor(event, "handle");
-		if (handle === undefined) return;
-		const row = this.#findTrackRow(event);
-		if (row === undefined) return;
-		event.stopPropagation();
-		handle.setPointerCapture(event.pointerId);
-		const rows = Array.from(this.#olPlaylistTracks.getElements(HTMLLIElement, ":scope > li"));
-		this.#drag = new TrackDrag(row, rows, event.clientY);
-	}
-
-	#onPointerMove(event: PointerEvent): void {
-		const drag = this.#drag;
-		if (drag === null) return;
-		drag.track(event.clientY);
-	}
-
-	#onPointerUp(event: PointerEvent): void {
-		const drag = this.#drag;
-		if (drag === null) return;
-		const reorder = drag.commit();
-		this.#drag = null;
-		if (!reorder.isEffective) return;
-		this.dispatchEvent(new CustomEvent("reorder", { detail: reorder }));
-	}
-
-	#onPointerCancel(event: PointerEvent): void {
-		const drag = this.#drag;
-		if (drag === null) return;
-		drag.cancel();
-		this.#drag = null;
-	}
-
-	#onKeyDown(event: KeyboardEvent): void {
-		const step = this.#readDirection(event.code);
-		if (step === 0) return;
-		const handle = this.#findClassAncestor(event, "handle");
-		if (handle === undefined) return;
-		const row = this.#findTrackRow(event);
-		if (row === undefined) return;
-		const id = ReferenceError.suppress(row.dataset["id"], "Playlist row missing id");
-		const order = this.#order;
-		const from = order.indexOf(id);
-		if (from < 0) return;
-		const to = (from + step).clamp(0, order.length - 1);
-		event.preventDefault();
-		const reorder = new Reorder(from, to);
-		if (!reorder.isEffective) return;
-		this.dispatchEvent(new CustomEvent("reorder", { detail: reorder }));
 	}
 
 	render(tracks: readonly Track[], activeIndex: number, mode: PlaybackMode): void {

@@ -6,6 +6,7 @@ import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { AudiosetManager } from "../services/audioset-manager.js";
 import { Registry } from "../services/visualization-registry.js";
+import { ArrowKeys } from "../view/arrow-keys.js";
 
 //#region Visualizer settings controller
 export class VisualizerSettingsController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement, HTMLSelectElement]> {
@@ -22,14 +23,6 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 	#inputVisualizationPunch: HTMLInputElement;
 	#outputVisualizerSplitter: HTMLOutputElement;
 	#spanVisualizerSplitterHint: HTMLSpanElement;
-
-	#readDirection(code: string): number {
-		switch (code) {
-		case "ArrowUp": return -1;
-		case "ArrowDown": return 1;
-		default: return 0;
-		}
-	}
 
 	#cycleVisualization(step: number): void {
 		const select = this.#selectVisualizerVisualization;
@@ -202,7 +195,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		visualizer.splitter.addEventListener("status", event => this.#refreshSplitter());
 
 		window.addEventListener("keydown", (event) => {
-			const step = this.#readDirection(event.code);
+			const step = ArrowKeys.vertical(event.code);
 			if (step === 0) return;
 			if (event.repeat) return;
 			const { activeElement } = document;

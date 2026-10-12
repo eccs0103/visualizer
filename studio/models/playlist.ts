@@ -2,6 +2,7 @@
 
 import "adaptive-extender/core";
 import { Model, Field, Enum, Random, Nullable } from "adaptive-extender/core";
+import { type Reorder } from "./reorder.js";
 
 //#region Track
 export class Track extends Model {
@@ -57,21 +58,6 @@ export class Track extends Model {
 	resolve(duration: number): void {
 		this.duration = duration;
 		this.#isPending = false;
-	}
-}
-//#endregion
-//#region Reorder
-export class Reorder {
-	from: number;
-	to: number;
-
-	constructor(from: number, to: number) {
-		this.from = from;
-		this.to = to;
-	}
-
-	get isEffective(): boolean {
-		return this.from !== this.to;
 	}
 }
 //#endregion
@@ -147,12 +133,9 @@ export class Playlist extends Model {
 		return true;
 	}
 
-	move(from: number, to: number): boolean {
-		const { tracks } = this;
-		if (from < 0 || from >= tracks.length || to < 0 || to >= tracks.length || from === to) return false;
-		const [track] = tracks.splice(from, 1);
-		tracks.splice(to, 0, track);
-		this.#fixIndexAfterMove(from, to);
+	move(reorder: Reorder): boolean {
+		if (!reorder.apply(this.tracks)) return false;
+		this.#fixIndexAfterMove(reorder.from, reorder.to);
 		return true;
 	}
 

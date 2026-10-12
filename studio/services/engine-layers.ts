@@ -2,12 +2,11 @@
 
 import "adaptive-extender/core";
 import { Color } from "adaptive-extender/core";
-import { BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "../models/background-settings.js";
+import { BackgroundEffectKind, BackgroundFit, BackgroundSettings, type LayerSettings } from "../models/layer-settings.js";
 import { type Stage } from "./stage.js";
 import { type Host } from "../models/visualization.js";
-import { type LayerSettings } from "../models/layer-settings.js";
 import { Layer, PaintedLayer } from "./layers.js";
-import { BackgroundEffect, BackgroundEffects, Placement } from "./background-effects.js";
+import { BackgroundEffect, Placement } from "./background-effects.js";
 
 const { min, max, round } = Math;
 
@@ -19,7 +18,7 @@ export class BackgroundLayer extends Layer {
 	#ticket: number = 0;
 	#fit: BackgroundFit = BackgroundFit.cover;
 	#kind: BackgroundEffectKind = BackgroundEffectKind.none;
-	#effect: BackgroundEffect = BackgroundEffects.create(BackgroundEffectKind.none);
+	#effect: BackgroundEffect = BackgroundEffect.create(BackgroundEffectKind.none);
 	#intensity: number = 0;
 	#placement: Placement = new Placement();
 	#width: number = 0;
@@ -56,7 +55,7 @@ export class BackgroundLayer extends Layer {
 		this.#intensity = settings.intensity.clamp(0, 1);
 		if (settings.effect === this.#kind) return;
 		this.#kind = settings.effect;
-		this.#effect = BackgroundEffects.create(settings.effect);
+		this.#effect = BackgroundEffect.create(settings.effect);
 	}
 
 	async setImage(blob: Blob | null): Promise<void> {

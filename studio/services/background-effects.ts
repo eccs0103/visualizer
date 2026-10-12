@@ -2,7 +2,7 @@
 
 import "adaptive-extender/core";
 import { Random, Vector2D } from "adaptive-extender/core";
-import { BackgroundEffectKind } from "../models/background-settings.js";
+import { BackgroundEffectKind } from "../models/layer-settings.js";
 import { type Stage } from "./stage.js";
 
 const { min, sqrt, sin, cos, PI } = Math;
@@ -36,6 +36,16 @@ export abstract class BackgroundEffect {
 	static elapsed(delta: number): number {
 		if (!Number.isFinite(delta)) return 0;
 		return delta.clamp(0, BackgroundEffect.#limit);
+	}
+
+	static create(kind: BackgroundEffectKind): BackgroundEffect {
+		switch (kind) {
+		case BackgroundEffectKind.none: return new NoEffect();
+		case BackgroundEffectKind.shake: return new ShakeEffect();
+		case BackgroundEffectKind.pulse: return new PulseEffect();
+		case BackgroundEffectKind.parallax: return new ParallaxEffect();
+		default: throw new TypeError(`Invalid '${kind}' effect`);
+		}
 	}
 
 	abstract place(stage: Stage, intensity: number, placement: Placement): void;
@@ -140,19 +150,6 @@ class ParallaxEffect extends BackgroundEffect {
 		placement.x = sin(phase) * reach * width;
 		placement.y = sin(phase * ParallaxEffect.#ratio + ParallaxEffect.#shift) * reach * height;
 		placement.scale = 1 + intensity * level * ParallaxEffect.#depth;
-	}
-}
-//#endregion
-//#region Background effects
-export class BackgroundEffects {
-	static create(kind: BackgroundEffectKind): BackgroundEffect {
-		switch (kind) {
-		case BackgroundEffectKind.none: return new NoEffect();
-		case BackgroundEffectKind.shake: return new ShakeEffect();
-		case BackgroundEffectKind.pulse: return new PulseEffect();
-		case BackgroundEffectKind.parallax: return new ParallaxEffect();
-		default: throw new TypeError(`Invalid '${kind}' effect`);
-		}
 	}
 }
 //#endregion

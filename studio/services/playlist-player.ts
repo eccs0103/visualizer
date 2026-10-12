@@ -3,6 +3,7 @@
 import "adaptive-extender/web";
 import { BufferedCell, type Store } from "adaptive-extender/web";
 import { Playlist, PlaybackMode, Track } from "../models/playlist.js";
+import { type Reorder } from "../models/reorder.js";
 
 //#region Playlist player
 export interface PlaylistPlayerEventMap {
@@ -257,8 +258,8 @@ export class PlaylistPlayer extends EventTarget {
 		void this.#persist();
 	}
 
-	move(from: number, to: number): void {
-		if (!this.#playlist.move(from, to)) return;
+	move(reorder: Reorder): void {
+		if (!this.#playlist.move(reorder)) return;
 		this.#notify();
 	}
 

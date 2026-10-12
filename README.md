@@ -3,7 +3,7 @@ A flexible framework for creating and managing custom visualizations.
 
 [Changelog](./CHANGELOG.md) · [Contributing](./CONTRIBUTING.md)
 
-![Preview](https://repository-images.githubusercontent.com/605233361/ff4e6308-2b43-4ac4-9efb-b1f97760242a)
+![Preview](https://repository-images.githubusercontent.com/605233361/c592a85c-64f0-4646-b745-a0a28f4f7f36)
 
 ## Guide
 Add one or more songs to visualize them. Reorder, drop new files onto the page, or remove tracks from the playlist panel (<kbd>Shift</kbd> + <kbd>Tab</kbd>), and switch between repeat-one, once, loop-all, and shuffle playback modes. Drop a `.lrc` file alongside a track to show synced lyrics, or let the configurator look them up online.
