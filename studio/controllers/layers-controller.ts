@@ -5,6 +5,7 @@ import { Controller, BufferedCell, type Store } from "adaptive-extender/web";
 import { Settings, type VisualizationSettings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { LayersView } from "../view/layers-view.js";
+import { LegacyBackgrounds } from "../services/legacy-stores.js";
 
 //#region Layers controller
 export class LayersController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement, HTMLSelectElement]> {
@@ -12,11 +13,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 	#cell: BufferedCell<typeof Settings>;
 	#visualizer: Visualizer;
 	#view: LayersView;
-	#store: Store<string> = indexedDB.openStore("Visualizer\\Backgrounds", "Images");
-
-	static #keyOf(visualization: string): string {
-		return `background:${visualization}`;
-	}
+	#store: Store<string> = indexedDB.openStore("Visualizer", "Backgrounds");
 
 	#arrange(visualization: string, configuration: VisualizationSettings): void {
 		const { layers, background, lyrics } = configuration;
@@ -30,12 +27,14 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 
 	async #restore(): Promise<void> {
 		const cell = this.#cell;
+		const store = this.#store;
 		const settings = cell.content;
+		await LegacyBackgrounds.migrate(store);
 		let isReset = false;
 		for (const [name, configuration] of settings.attachments) {
 			const { background } = configuration;
 			if (!background.hasImage) continue;
-			const image = await this.#store.select(LayersController.#keyOf(name));
+			const image = await store.select(name);
 			if (image instanceof Blob) {
 				this.#visualizer.setBackground(name, image);
 				continue;
@@ -77,7 +76,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		const problem = await this.#validate(file);
 		if (problem !== null) return view.showMessage(problem);
 		try {
-			await this.#save(LayersController.#keyOf(visualization), file);
+			await this.#save(visualization, file);
 		} catch (reason) {
 			console.error(`Failed to store the background image:\n${Error.from(reason)}`);
 			return view.showMessage("The image could not be stored, the browser storage may be full");
@@ -91,7 +90,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 	async #remove(): Promise<void> {
 		const cell = this.#cell;
 		const { visualization, configuration } = cell.content;
-		await this.#store.delete(LayersController.#keyOf(visualization));
+		await this.#store.delete(visualization);
 		configuration.background.image = null;
 		this.#visualizer.setBackground(visualization, null);
 		this.#render();
