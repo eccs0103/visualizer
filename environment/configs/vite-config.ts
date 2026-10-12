@@ -104,19 +104,11 @@ export class ViteConfig {
 		return { outDir, emptyOutDir, target, rollupOptions };
 	}
 
-	#buildOpen(): ServerOptions["open"] {
-		const [entry] = Object.keys(this.#normalizeInputs());
-		if (entry === undefined) return true;
-		if (entry === "main") return "/";
-		return `/${entry}/`;
-	}
-
 	#buildServer(): ServerOptions {
-		const open: ServerOptions["open"] = this.#buildOpen();
 		const strictPort: boolean = true;
 		const headers: Readonly<OutgoingHttpHeaders> = this.#headers;
 		const preTransformRequests: boolean = false;
-		return { open, strictPort, headers, preTransformRequests };
+		return { strictPort, headers, preTransformRequests };
 	}
 
 	#buildESBuild(): ESBuildOptions {

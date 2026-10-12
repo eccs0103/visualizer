@@ -16,20 +16,17 @@
 		"deploy": "vite build && wrangler deploy"
 	},
 	"devDependencies": {
-		"@cloudflare/vite-plugin": "^1.62.5",
+		"@cloudflare/vite-plugin": "^1.63.1",
 		"@cloudflare/workers-types": "^5.20261003.1",
 		"@types/node": "^24.19.1",
 		"typescript": "^7.0.2",
 		"vite": "^7.3.6",
-		"wrangler": "^4.147.0"
+		"wrangler": "^4.149.0"
 	},
 	"dependencies": {
-		"adaptive-extender": "^1.1.1"
+		"adaptive-extender": "^1.1.2"
 	},
 	"allowScripts": {
 		"esbuild": true
-	},
-	"overrides": {
-		"sharp": "^0.35.5"
 	}
 }
