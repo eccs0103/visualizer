@@ -98,7 +98,9 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		let signature = "Open the playlist or drop music here";
 		if (track !== null) signature = track.signature;
 		const inputPlaybackTrack = this.#inputPlaybackTrack;
-		this.#bPlaybackTitle.innerText = signature;
+		const bPlaybackTitle = this.#bPlaybackTitle;
+		bPlaybackTitle.translate = track === null;
+		bPlaybackTitle.innerText = signature;
 		inputPlaybackTrack.value = "0";
 		inputPlaybackTrack.style.setProperty("--track-value", "0%");
 		this.#bPlaybackTime.innerText = this.#toPlaytimeInfo(0);

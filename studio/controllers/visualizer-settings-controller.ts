@@ -99,6 +99,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 
 		for (const name of Registry.names()) {
 			const option = selectVisualizerVisualization.appendChild(document.createElement("option"));
+			option.translate = false;
 			option.value = name;
 			option.innerText = name;
 		}

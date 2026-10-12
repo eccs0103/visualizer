@@ -75,12 +75,14 @@ export class PlaylistView extends EventTarget {
 	#buildTrackRow(track: Track): HTMLLIElement {
 		const row = document.createElement("li");
 		row.classList.add("rounded", "depth", "flex");
+		row.translate = true;
 		row.dataset["id"] = track.id;
 
 		DOMBuilder.newHandle(row);
 
 		const content = row.appendChild(document.createElement("span"));
 		content.classList.add("content", "flex", "alt-center", "with-gap");
+		content.translate = true;
 		DOMBuilder.newTitle(content, track.signature);
 		DOMBuilder.newLyricsMark(content).hidden = !track.lyrics;
 		DOMBuilder.newDuration(content, Timespan.fromComponents(0, 0, track.duration));

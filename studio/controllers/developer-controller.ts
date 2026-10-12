@@ -48,6 +48,7 @@ export class DeveloperController extends Controller<[Visualizer, HTMLDialogEleme
 		const selectDeveloperModel = divDeveloper.getElement(HTMLSelectElement, "select#developer-model");
 		for (const [label, model] of DeveloperController.#models) {
 			const option = selectDeveloperModel.appendChild(document.createElement("option"));
+			option.translate = false;
 			option.value = String(model);
 			option.innerText = label;
 		}

@@ -96,6 +96,7 @@ export class LayersView extends EventTarget {
 		inputRange.value = String(value);
 		inputRange.title = title;
 		inputRange.classList.add("value", "depth", "rounded");
+		inputRange.translate = true;
 		inputRange.addEventListener("input", event => onInput(Number(inputRange.value)));
 		return inputRange;
 	}
@@ -104,8 +105,10 @@ export class LayersView extends EventTarget {
 		const selectChoice = option.appendChild(document.createElement("select"));
 		selectChoice.title = title;
 		selectChoice.classList.add("value", "depth", "rounded", "with-padding");
+		selectChoice.translate = true;
 		for (const [name, item] of Object.entries(reference)) {
 			const choice = selectChoice.appendChild(document.createElement("option"));
+			choice.translate = true;
 			choice.value = item;
 			choice.innerText = name.toTitleCase();
 		}
@@ -117,6 +120,7 @@ export class LayersView extends EventTarget {
 	#buildRow(settings: LayerSettings, isPinned: boolean): HTMLLIElement {
 		const row = document.createElement("li");
 		row.classList.add("rounded", "depth", "flex", "alt-center");
+		row.translate = true;
 		row.dataset["name"] = settings.name;
 		if (isPinned) row.dataset["pinned"] = String.empty;
 
@@ -157,11 +161,14 @@ export class LayersView extends EventTarget {
 		let definition = "No image yet, a plain colour is shown.";
 		if (settings.image !== null) definition = settings.image;
 		const optionImage = DOMBuilder.newOption(group, "Image", definition);
+		optionImage.getElement(HTMLElement, "span.definition").translate = !settings.hasImage;
 		const divImage = optionImage.appendChild(document.createElement("div"));
 		divImage.classList.add("value", "flex", "with-gap");
+		divImage.translate = true;
 
 		const inputImage = divImage.appendChild(document.createElement("input"));
 		inputImage.type = "file";
+		inputImage.translate = true;
 		inputImage.accept = "image/*";
 		inputImage.hidden = true;
 		inputImage.addEventListener("change", event => {
@@ -176,6 +183,7 @@ export class LayersView extends EventTarget {
 		const buttonUpload = divImage.appendChild(document.createElement("button"));
 		buttonUpload.type = "button";
 		buttonUpload.classList.add("depth", "rounded", "with-padding");
+		buttonUpload.translate = true;
 		buttonUpload.innerText = "Upload";
 		buttonUpload.addEventListener("click", event => inputImage.click());
 
@@ -183,6 +191,7 @@ export class LayersView extends EventTarget {
 			const buttonRemove = divImage.appendChild(document.createElement("button"));
 			buttonRemove.type = "button";
 			buttonRemove.classList.add("depth", "rounded", "with-padding");
+			buttonRemove.translate = true;
 			buttonRemove.innerText = "Remove";
 			buttonRemove.addEventListener("click", event => this.dispatchEvent(new Event("remove")));
 
@@ -207,6 +216,7 @@ export class LayersView extends EventTarget {
 
 		const spanMessage = group.appendChild(document.createElement("span"));
 		spanMessage.classList.add("message", "alert", "grid-line");
+		spanMessage.translate = true;
 		spanMessage.hidden = true;
 
 		return row;
