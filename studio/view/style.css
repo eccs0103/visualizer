@@ -293,6 +293,10 @@ ol#visualization-layers > li > span.pin {
 	visibility: hidden;
 }
 
+ol#visualization-layers section.option > select:has(> option[value="none"]:checked) ~ section.option {
+	display: none !important;
+}
+
 /* Experimental */
 
 dialog.loader img[alt="Logo"] {

@@ -184,16 +184,14 @@ export class LayersView extends EventTarget {
 			const optionEffect = DOMBuilder.newOption(group, "Effect", "Makes the image move with the music. Pulse zooms in on the beat, shake and parallax follow the movement of the visuals.");
 			this.#buildSelect(optionEffect, "Effect", BackgroundEffectKind, settings.effect, value => {
 				settings.effect = value;
-				inputIntensity.disabled = value === BackgroundEffectKind.none;
 				this.#adjust(settings);
 			});
 
 			const optionIntensity = DOMBuilder.newOption(optionEffect, "Intensity", "How strong the effect is.");
-			const inputIntensity = this.#buildRange(optionIntensity, "Intensity", settings.intensity, value => {
+			this.#buildRange(optionIntensity, "Intensity", settings.intensity, value => {
 				settings.intensity = value;
 				this.#adjust(settings);
 			});
-			inputIntensity.disabled = settings.effect === BackgroundEffectKind.none;
 		}
 
 		const spanMessage = group.appendChild(document.createElement("span"));
