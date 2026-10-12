@@ -16,15 +16,16 @@ export interface PlaylistViewEventMap {
 
 export class PlaylistView extends EventTarget {
 	static #titles: Map<PlaybackMode, string> = new Map([
-		[PlaybackMode.once, "Play once. Press to change the playback mode"],
-		[PlaybackMode.one, "Repeat track. Press to change the playback mode"],
-		[PlaybackMode.loop, "Loop playlist. Press to change the playback mode"],
-		[PlaybackMode.shuffle, "Shuffle. Press to change the playback mode"],
+		[PlaybackMode.once, "Play once"],
+		[PlaybackMode.one, "Repeat track"],
+		[PlaybackMode.loop, "Loop playlist"],
+		[PlaybackMode.shuffle, "Shuffle"],
 	]);
 
 	#olPlaylistTracks: HTMLOListElement;
 	#spanPlaylistEmpty: HTMLElement;
 	#buttonPlaylistMode: HTMLButtonElement;
+	#spanPlaylistModeLabel: HTMLSpanElement;
 	#rows: Map<string, HTMLLIElement> = new Map();
 	#order: string[] = [];
 	#drag: TrackDrag | null = null;
@@ -34,6 +35,7 @@ export class PlaylistView extends EventTarget {
 		this.#olPlaylistTracks = olPlaylistTracks;
 		this.#spanPlaylistEmpty = spanPlaylistEmpty;
 		this.#buttonPlaylistMode = buttonPlaylistMode;
+		this.#spanPlaylistModeLabel = buttonPlaylistMode.getElement(HTMLSpanElement, "span#playlist-mode-label");
 		olPlaylistTracks.addEventListener("click", this.#onClick.bind(this));
 		olPlaylistTracks.addEventListener("pointerdown", this.#onPointerDown.bind(this));
 		olPlaylistTracks.addEventListener("pointermove", this.#onPointerMove.bind(this));
@@ -199,7 +201,7 @@ export class PlaylistView extends EventTarget {
 		this.#spanPlaylistEmpty.hidden = tracks.length > 0;
 		const buttonPlaylistMode = this.#buttonPlaylistMode;
 		buttonPlaylistMode.dataset["mode"] = mode;
-		buttonPlaylistMode.title = ReferenceError.suppress(PlaylistView.#titles.get(mode));
+		this.#spanPlaylistModeLabel.innerText = ReferenceError.suppress(PlaylistView.#titles.get(mode));
 
 		if (focused !== null && olPlaylistTracks.contains(focused) && document.activeElement !== focused) focused.focus({ preventScroll: true });
 	}
