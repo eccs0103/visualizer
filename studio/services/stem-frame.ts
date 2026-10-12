@@ -142,6 +142,12 @@ export class StemFrame {
 		const gains = this.#gains;
 		const stems = Stems.all;
 		const factors = stems.map(stem => gains.of(stem));
+		this.#mixed = true;
+		if (factors.every(factor => factor === 1)) {
+			values.set(whole);
+			this.#level = 1;
+			return values;
+		}
 		const scale = (SabLayout.bins - 1) / max(1, length - 1);
 		let sum = 0, sum2 = 0;
 		for (let index = 0; index < length; index++) {
@@ -158,7 +164,6 @@ export class StemFrame {
 			sum2 += whole[index];
 		}
 		this.#level = sum2 > 0 ? sum / sum2 : 1;
-		this.#mixed = true;
 		return values;
 	}
 
