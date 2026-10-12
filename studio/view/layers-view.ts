@@ -192,7 +192,7 @@ export class LayersView extends EventTarget {
 				this.#adjust(settings);
 			});
 
-			const optionEffect = DOMBuilder.newOption(group, "Effect", "Makes the image move with the music. Pulse zooms in on the beat, shake jolts it on every beat, parallax lets it float slowly like a far-away layer.");
+			const optionEffect = DOMBuilder.newOption(group, "Effect", "Makes the image move with the music. Pulse zooms in on the beat, shake jolts it on every beat, parallax sways it slowly in calm parts and faster in loud ones.");
 			this.#buildSelect(optionEffect, "Effect", BackgroundEffectKind, settings.effect, value => {
 				settings.effect = value;
 				this.#adjust(settings);

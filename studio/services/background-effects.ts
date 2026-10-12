@@ -114,27 +114,31 @@ class PulseEffect extends BackgroundEffect {
 //#region Parallax effect
 class ParallaxEffect extends BackgroundEffect {
 	static #reach: number = 0.035;
-	static #pace: number = 0.12;
-	static #surge: number = 0.5;
-	static #ease: number = 1.5;
-	static #depth: number = 0.03;
+	static #calm: number = 0.35;
+	static #pace: number = 0.3;
+	static #surge: number = 2.7;
+	static #ease: number = 3;
+	static #depth: number = 0.05;
 	static #ratio: number = 0.71;
 	static #shift: number = 1.3;
-	static #flatten: number = 0.8;
+	static #ceiling: number = 0.6;
 	#phase: number = 0;
 	#level: number = 0;
 
 	place(stage: Stage, intensity: number, placement: Placement): void {
-		const { delta, volume, width, height } = stage;
+		const { delta, bassLevel, width, height } = stage;
 		const elapsed = BackgroundEffect.elapsed(delta);
+		const ceiling = ParallaxEffect.#ceiling;
+		const energy = bassLevel.clamp(0, ceiling).lerp(0, ceiling, 0, 1);
 		let level = this.#level;
-		level += (volume.clamp(0, 1) - level) * min(1, elapsed * ParallaxEffect.#ease);
+		level += (energy - level) * min(1, elapsed * ParallaxEffect.#ease);
 		this.#level = level;
 		const phase = this.#phase + elapsed * (ParallaxEffect.#pace + level * ParallaxEffect.#surge);
 		this.#phase = phase;
-		const reach = ParallaxEffect.#reach * min(width, height) * intensity;
-		placement.x = sin(phase) * reach;
-		placement.y = sin(phase * ParallaxEffect.#ratio + ParallaxEffect.#shift) * reach * ParallaxEffect.#flatten;
+		const calm = ParallaxEffect.#calm;
+		const reach = ParallaxEffect.#reach * intensity * (calm + (1 - calm) * level);
+		placement.x = sin(phase) * reach * width;
+		placement.y = sin(phase * ParallaxEffect.#ratio + ParallaxEffect.#shift) * reach * height;
 		placement.scale = 1 + intensity * level * ParallaxEffect.#depth;
 	}
 }
