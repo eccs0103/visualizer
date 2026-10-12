@@ -1,8 +1,12 @@
 "use strict";
 
 import "adaptive-extender/core";
+import { Random, Vector2D } from "adaptive-extender/core";
 import { BackgroundEffectKind } from "../models/background-settings.js";
 import { type Stage } from "./stage.js";
+
+const { min, sqrt, sin, cos, PI } = Math;
+const random = Random.global;
 
 //#region Placement
 export class Placement {
@@ -27,6 +31,13 @@ export class Placement {
 //#endregion
 //#region Background effect
 export abstract class BackgroundEffect {
+	static #limit: number = 0.05;
+
+	static elapsed(delta: number): number {
+		if (!Number.isFinite(delta)) return 0;
+		return delta.clamp(0, BackgroundEffect.#limit);
+	}
+
 	abstract place(stage: Stage, intensity: number, placement: Placement): void;
 }
 //#endregion
@@ -39,14 +50,48 @@ class NoEffect extends BackgroundEffect {
 //#endregion
 //#region Shake effect
 class ShakeEffect extends BackgroundEffect {
-	static #gain: number = 4;
+	static #reach: number = 0.04;
+	static #stiffness: number = 400;
+	static #damping: number = 22;
+	static #zoom: number = 0.03;
+	static #decay: number = 10;
+	#offset: Vector2D = Vector2D.newZero;
+	#velocity: Vector2D = Vector2D.newZero;
+	#energy: number = 0;
+	#isBeat: boolean = false;
+
+	#kick(stage: Stage, intensity: number): void {
+		const { width, height, dropIntensity } = stage;
+		const reach = ShakeEffect.#reach * min(width, height) * intensity * (0.5 + 0.5 * dropIntensity.clamp(0, 1));
+		const speed = reach * sqrt(ShakeEffect.#stiffness);
+		const angle = random.number(0, 2 * PI);
+		const velocity = this.#velocity;
+		velocity.x = cos(angle) * speed;
+		velocity.y = sin(angle) * speed;
+		this.#energy = 1;
+	}
+
+	#settle(elapsed: number): void {
+		const offset = this.#offset;
+		const velocity = this.#velocity;
+		const stiffness = ShakeEffect.#stiffness;
+		const damping = ShakeEffect.#damping;
+		velocity.x -= (stiffness * offset.x + damping * velocity.x) * elapsed;
+		velocity.y -= (stiffness * offset.y + damping * velocity.y) * elapsed;
+		offset.x += velocity.x * elapsed;
+		offset.y += velocity.y * elapsed;
+		this.#energy = (this.#energy - elapsed * ShakeEffect.#decay).clamp(0, 1);
+	}
 
 	place(stage: Stage, intensity: number, placement: Placement): void {
-		const { camera } = stage;
-		const factor = intensity * ShakeEffect.#gain;
-		placement.x = camera.e * factor;
-		placement.y = camera.f * factor;
-		placement.scale = 1 + (camera.a - 1) * intensity;
+		const { beatDetected } = stage;
+		if (beatDetected && !this.#isBeat) this.#kick(stage, intensity);
+		this.#isBeat = beatDetected;
+		this.#settle(BackgroundEffect.elapsed(stage.delta));
+		const offset = this.#offset;
+		placement.x = offset.x;
+		placement.y = offset.y;
+		placement.scale = 1 + intensity * this.#energy * ShakeEffect.#zoom;
 	}
 }
 //#endregion
@@ -68,13 +113,29 @@ class PulseEffect extends BackgroundEffect {
 //#endregion
 //#region Parallax effect
 class ParallaxEffect extends BackgroundEffect {
-	static #gain: number = 4;
+	static #reach: number = 0.035;
+	static #pace: number = 0.12;
+	static #surge: number = 0.5;
+	static #ease: number = 1.5;
+	static #depth: number = 0.03;
+	static #ratio: number = 0.71;
+	static #shift: number = 1.3;
+	static #flatten: number = 0.8;
+	#phase: number = 0;
+	#level: number = 0;
 
 	place(stage: Stage, intensity: number, placement: Placement): void {
-		const { camera } = stage;
-		const factor = intensity * ParallaxEffect.#gain;
-		placement.x = -camera.e * factor;
-		placement.y = -camera.f * factor;
+		const { delta, volume, width, height } = stage;
+		const elapsed = BackgroundEffect.elapsed(delta);
+		let level = this.#level;
+		level += (volume.clamp(0, 1) - level) * min(1, elapsed * ParallaxEffect.#ease);
+		this.#level = level;
+		const phase = this.#phase + elapsed * (ParallaxEffect.#pace + level * ParallaxEffect.#surge);
+		this.#phase = phase;
+		const reach = ParallaxEffect.#reach * min(width, height) * intensity;
+		placement.x = sin(phase) * reach;
+		placement.y = sin(phase * ParallaxEffect.#ratio + ParallaxEffect.#shift) * reach * ParallaxEffect.#flatten;
+		placement.scale = 1 + intensity * level * ParallaxEffect.#depth;
 	}
 }
 //#endregion
