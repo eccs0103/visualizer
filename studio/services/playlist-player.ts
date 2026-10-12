@@ -3,7 +3,6 @@
 import "adaptive-extender/web";
 import { BufferedCell, type Store } from "adaptive-extender/web";
 import { Playlist, PlaybackMode, Track } from "../models/playlist.js";
-import { Settings } from "../models/settings.js";
 
 //#region Playlist player
 export interface PlaylistPlayerEventMap {
@@ -15,9 +14,9 @@ export class PlaylistPlayer extends EventTarget {
 	#audioPlayer: HTMLAudioElement;
 	#store: Store<string>;
 	#legacy: Store<number>;
-	#cell: BufferedCell<typeof Settings>;
+	#cell: BufferedCell<typeof Playlist>;
 
-	constructor(audioPlayer: HTMLAudioElement, store: Store<string>, legacy: Store<number>, cell: BufferedCell<typeof Settings>) {
+	constructor(audioPlayer: HTMLAudioElement, store: Store<string>, legacy: Store<number>, cell: BufferedCell<typeof Playlist>) {
 		super();
 		this.#audioPlayer = audioPlayer;
 		this.#store = store;
@@ -37,7 +36,7 @@ export class PlaylistPlayer extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
-	get #playlist(): Playlist { return this.#cell.content.playlist; }
+	get #playlist(): Playlist { return this.#cell.content; }
 	get tracks(): readonly Track[] { return this.#playlist.tracks; }
 	get index(): number { return this.#playlist.index; }
 	get mode(): PlaybackMode { return this.#playlist.mode; }

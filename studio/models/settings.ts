@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field, Enum } from "adaptive-extender/core";
+import { Model, Field, Enum, Optional } from "adaptive-extender/core";
 import { Registry } from "../services/visualization-registry.js";
 import { type Layer } from "../services/layers.js";
 import { LayerSettings } from "./layer-settings.js";
@@ -94,9 +94,6 @@ export class Settings extends Model {
 	@Field(Map.AsRecord(VisualizationSettings), { name: "attachments" })
 	attachments: Map<string, VisualizationSettings> = new Map(Array.from(Registry.names(), name => [name, new VisualizationSettings()]));
 
-	@Field(Playlist, { name: "playlist" })
-	playlist: Playlist = new Playlist();
-
 	get configuration(): VisualizationSettings {
 		return ReferenceError.suppress(this.attachments.get(this.visualization), `Missing configurations for visualization '${this.visualization}'`);
 	}
@@ -108,5 +105,15 @@ export class Settings extends Model {
 		for (const [name, attachment] of this.attachments) attachment.reconcile(Registry.layers(name));
 		if (!Registry.has(this.visualization)) this.visualization = Registry.default;
 	}
+}
+//#endregion
+//#region Legacy settings
+/**
+ * Reads the playlist that the settings cell held before the playlist got its own cell.
+ * @deprecated Migration only. Remove once no stored settings cell carries a playlist.
+ */
+export class LegacySettings extends Model {
+	@Field(Optional.Of(Playlist), { name: "playlist" })
+	playlist: Playlist | undefined = undefined;
 }
 //#endregion
