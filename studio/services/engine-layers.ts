@@ -151,15 +151,26 @@ ${Error.from(reason)}`);
 		output.restore();
 	}
 
-	render(stage: Stage, output: OffscreenCanvasRenderingContext2D): void {
+	#tint(stage: Stage): string {
 		const color = stage.color;
 		let colorText = this.#colorText;
-		if (color !== this.#color || colorText === null) {
-			colorText = color.toString();
-			this.#color = color;
-			this.#colorText = colorText;
-			this.#isStale = true;
-		}
+		if (color === this.#color && colorText !== null) return colorText;
+		colorText = color.toString();
+		this.#color = color;
+		this.#colorText = colorText;
+		this.#isStale = true;
+		return colorText;
+	}
+
+	underlay(stage: Stage, output: OffscreenCanvasRenderingContext2D): void {
+		output.globalAlpha = 1;
+		output.globalCompositeOperation = "destination-over";
+		output.fillStyle = this.#tint(stage);
+		output.fillRect(0, 0, this.#width, this.#height);
+	}
+
+	render(stage: Stage, output: OffscreenCanvasRenderingContext2D): void {
+		const colorText = this.#tint(stage);
 		output.globalAlpha = this.opacity;
 		output.globalCompositeOperation = this.blend;
 		const master = this.#master;

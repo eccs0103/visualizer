@@ -102,6 +102,7 @@ export class Scene {
 		this.#draw(this.#background, output);
 		for (const layer of this.#layers) this.#draw(layer, output);
 		this.#draw(this.#lyrics, output);
+		this.#background.underlay(this.#stage, output);
 	}
 }
 //#endregion

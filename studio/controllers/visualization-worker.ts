@@ -19,6 +19,10 @@ class VisualizationWorker extends Controller {
 	#rebuilt: boolean = false;
 	#frame: number | null = null;
 
+	static #even(size: number): number {
+		return size - size % 2;
+	}
+
 	#findScene(name: string): Scene {
 		return ReferenceError.suppress(this.#scenes.get(name), `Visualization with name '${name}' is not attached`);
 	}
@@ -36,8 +40,8 @@ class VisualizationWorker extends Controller {
 		if (width === 0 || height === 0) return;
 		const stage = this.#stage;
 		const { canvas } = this.#context;
-		canvas.width = width;
-		canvas.height = height;
+		canvas.width = VisualizationWorker.#even(width);
+		canvas.height = VisualizationWorker.#even(height);
 		stage.sync();
 		stage.resize(canvas.width, canvas.height);
 		const scene = this.#findScene(this.#selection);
