@@ -23,6 +23,7 @@ export interface LayersViewEventMap {
 export class LayersView extends EventTarget {
 	#olVisualizationLayers: HTMLOListElement;
 	#drag: TrackDrag | null = null;
+	#rows: WeakMap<LayerSettings, HTMLLIElement> = new WeakMap();
 
 	constructor(olVisualizationLayers: HTMLOListElement) {
 		super();
@@ -136,6 +137,16 @@ export class LayersView extends EventTarget {
 			this.#adjust(settings);
 		});
 
+		return row;
+	}
+
+	#reuseRow(settings: LayerSettings, isPinned: boolean): HTMLLIElement {
+		const rows = this.#rows;
+		let row = rows.get(settings);
+		if (row === undefined) {
+			row = this.#buildRow(settings, isPinned);
+			rows.set(settings, row);
+		}
 		return row;
 	}
 
@@ -258,10 +269,23 @@ export class LayersView extends EventTarget {
 		const olVisualizationLayers = this.#olVisualizationLayers;
 		const focused = this.#readFocusedName();
 
-		olVisualizationLayers.replaceChildren();
-		olVisualizationLayers.appendChild(this.#buildRow(lyrics, true));
-		for (let index = layers.length - 1; index >= 0; index--) olVisualizationLayers.appendChild(this.#buildRow(layers[index], false));
-		olVisualizationLayers.appendChild(this.#buildBackgroundRow(background));
+		const order: HTMLLIElement[] = [this.#reuseRow(lyrics, true)];
+		for (let index = layers.length - 1; index >= 0; index--) order.push(this.#reuseRow(layers[index], false));
+		order.push(this.#buildBackgroundRow(background));
+
+		const kept = new Set(order);
+		for (const row of Array.from(olVisualizationLayers.getElements(HTMLLIElement, ":scope > li"))) {
+			if (kept.has(row)) continue;
+			row.remove();
+		}
+
+		let previous: HTMLLIElement | null = null;
+		for (const row of order) {
+			let after: Element | null = olVisualizationLayers.firstElementChild;
+			if (previous !== null) after = previous.nextElementSibling;
+			if (after !== row) olVisualizationLayers.insertBefore(row, after);
+			previous = row;
+		}
 
 		if (focused === null) return;
 		const row = this.#readRows().find(candidate => candidate.dataset["name"] === focused);
