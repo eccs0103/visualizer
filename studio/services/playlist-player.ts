@@ -14,15 +14,13 @@ export class PlaylistPlayer extends EventTarget {
 	#audioPlayer: HTMLAudioElement;
 	#store: Store<string>;
 	#lyrics: Store<string>;
-	#legacy: Store<number>;
 	#cell: BufferedCell<typeof Playlist>;
 
-	constructor(audioPlayer: HTMLAudioElement, store: Store<string>, lyrics: Store<string>, legacy: Store<number>, cell: BufferedCell<typeof Playlist>) {
+	constructor(audioPlayer: HTMLAudioElement, store: Store<string>, lyrics: Store<string>, cell: BufferedCell<typeof Playlist>) {
 		super();
 		this.#audioPlayer = audioPlayer;
 		this.#store = store;
 		this.#lyrics = lyrics;
-		this.#legacy = legacy;
 		this.#cell = cell;
 	}
 
@@ -123,21 +121,6 @@ export class PlaylistPlayer extends EventTarget {
 		void this.#persist();
 	}
 
-	async #adoptLegacy(playlist: Playlist): Promise<void> {
-		if (!playlist.isEmpty) return;
-		const legacy = this.#legacy;
-		const file = await legacy.select(0);
-		if (!(file instanceof File)) return;
-
-		const id = crypto.randomUUID();
-		const signature = Track.probeSignature(file.name);
-		const duration = await PlaylistPlayer.#probeDuration(file);
-		await this.#store.insert(id, file);
-		await legacy.delete(0);
-		playlist.append(new Track(id, signature, duration));
-		playlist.index = 0;
-	}
-
 	async #prune(store: Store<string>, ids: ReadonlySet<string>): Promise<void> {
 		const orphans: string[] = [];
 		for (const [key] of await store.select()) {
@@ -149,8 +132,6 @@ export class PlaylistPlayer extends EventTarget {
 
 	async restore(): Promise<void> {
 		const playlist = this.#playlist;
-
-		await this.#adoptLegacy(playlist);
 
 		const ids = new Set(playlist.tracks.map(track => track.id));
 		await this.#prune(this.#store, ids);

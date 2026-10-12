@@ -2,6 +2,7 @@
 
 import "adaptive-extender/web";
 import { type Store } from "adaptive-extender/web";
+import { type PlaylistPlayer } from "./playlist-player.js";
 
 //#region Legacy backgrounds
 /**
@@ -43,6 +44,24 @@ export class LegacyBackgrounds {
 	}
 }
 //#endregion
+//#region Legacy audio
+/**
+ * Imports the single track of the one-track era, kept in the `Audiolist` table under the number key `0`, into the playlist.
+ * @deprecated Migration only. Remove once no browser keeps a track under the key `0`.
+ */
+export class LegacyAudio {
+	static #key: number = 0;
+
+	static async migrate(legacy: Store<number>, player: PlaylistPlayer): Promise<void> {
+		if (!player.isEmpty) return;
+		const key = LegacyAudio.#key;
+		const file = await legacy.select(key);
+		if (!(file instanceof File)) return;
+		await player.add([file]);
+		await legacy.delete(key);
+	}
+}
+//#endregion
 //#region Legacy lyrics
 /**
  * Moves the lyrics out of the `Audiolist` table, where they were kept under `<track id>.lrc`, into the `Lyrics` table under the track id.
@@ -56,7 +75,7 @@ export class LegacyLyrics {
 		const keys: string[] = [];
 		const entries: (readonly [string, unknown])[] = [];
 		for (const [key, value] of await audiolist.select()) {
-			if (!key.endsWith(suffix)) continue;
+			if (typeof key !== "string" || !key.endsWith(suffix)) continue;
 			keys.push(key);
 			const id = key.slice(0, -suffix.length);
 			if (await lyrics.select(id) !== null) continue;

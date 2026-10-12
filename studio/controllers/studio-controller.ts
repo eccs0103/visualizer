@@ -7,7 +7,7 @@ import { Playlist } from "../models/playlist.js";
 import { Visualizer } from "../services/visualizer.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { PlaylistPlayer } from "../services/playlist-player.js";
-import { LegacyLyrics } from "../services/legacy-stores.js";
+import { LegacyAudio, LegacyLyrics } from "../services/legacy-stores.js";
 import { AudioController } from "./audio-controller.js";
 import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
 import { DeveloperController } from "./developer-controller.js";
@@ -50,7 +50,7 @@ class StudioController extends Controller {
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer);
 		const guard = new WakeGuard();
-		const player = new PlaylistPlayer(audioPlayer, store, lyrics, legacy, playlist);
+		const player = new PlaylistPlayer(audioPlayer, store, lyrics, playlist);
 
 		const settings = cell.content;
 		settings.reconcile();
@@ -86,6 +86,7 @@ class StudioController extends Controller {
 		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
 		await PlaylistController.launch(player, dialogPlaylist);
 
+		await LegacyAudio.migrate(legacy, player);
 		await player.restore();
 	}
 
