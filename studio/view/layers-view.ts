@@ -124,13 +124,13 @@ export class LayersView extends EventTarget {
 
 		const group = DOMBuilder.newGroup(row, settings.name);
 
-		const optionOpacity = DOMBuilder.newOption(group, "Opacity", "How visible the layer is. 0 hides it completely.");
+		const optionOpacity = DOMBuilder.newOption(group, "Opacity", "How visible the layer is. 0 hides it completely, 1 shows it fully.");
 		this.#buildRange(optionOpacity, "Opacity", settings.opacity, value => {
 			settings.opacity = value;
 			this.#adjust(settings);
 		});
 
-		const optionBlend = DOMBuilder.newOption(group, "Blend mode", "How the layer mixes with the layers below it.");
+		const optionBlend = DOMBuilder.newOption(group, "Blend mode", "How the layer's colours mix with the layers under it.");
 		this.#buildSelect(optionBlend, "Blend mode", Blend, settings.blend, value => {
 			settings.blend = value;
 			this.#adjust(settings);
@@ -143,7 +143,7 @@ export class LayersView extends EventTarget {
 		const row = this.#buildRow(settings, true);
 		const group = row.getElement(HTMLElement, "section.option");
 
-		let definition = "No image, the theme colour is used.";
+		let definition = "No image yet, a plain colour is shown.";
 		if (settings.image !== null) definition = settings.image;
 		const optionImage = DOMBuilder.newOption(group, "Image", definition);
 		const divImage = optionImage.appendChild(document.createElement("div"));
@@ -175,13 +175,13 @@ export class LayersView extends EventTarget {
 			buttonRemove.innerText = "Remove";
 			buttonRemove.addEventListener("click", event => this.dispatchEvent(new Event("remove")));
 
-			const optionFit = DOMBuilder.newOption(group, "Fit", "How the image fills the canvas. Cover crops the edges, contain shows the whole image, stretch distorts it to fit.");
+			const optionFit = DOMBuilder.newOption(group, "Fit", "How the image fills the screen. Cover fills it and cuts off the edges, contain shows the whole image, stretch squeezes it to fill.");
 			this.#buildSelect(optionFit, "Fit", BackgroundFit, settings.fit, value => {
 				settings.fit = value;
 				this.#adjust(settings);
 			});
 
-			const optionEffect = DOMBuilder.newOption(group, "Effect", "Moves the image with the music. Shake and parallax follow the visualization's own motion, pulse follows the beat.");
+			const optionEffect = DOMBuilder.newOption(group, "Effect", "Makes the image move with the music. Pulse zooms in on the beat, shake and parallax follow the movement of the visuals.");
 			this.#buildSelect(optionEffect, "Effect", BackgroundEffectKind, settings.effect, value => {
 				settings.effect = value;
 				inputIntensity.disabled = value === BackgroundEffectKind.none;

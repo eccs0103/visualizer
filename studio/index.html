@@ -71,8 +71,8 @@
 			</button>
 		</div>
 		<ol id="playlist-tracks" class="flex column with-gap with-inline-padding large-padding"></ol>
-		<span id="playlist-empty" class="description with-inline-padding large-padding" hidden>No tracks yet — add some to get started.</span>
-		<span id="playlist-hint" class="description with-inline-padding large-padding">Drop files anywhere on the page. A .lrc file named like a song attaches to it as lyrics. Drag a track by its handle to reorder.</span>
+		<span id="playlist-empty" class="description with-inline-padding large-padding" hidden>No songs yet. Add some to get started.</span>
+		<span id="playlist-hint" class="description with-inline-padding large-padding">Drop songs anywhere on the page to add them. To add lyrics to a song, add a .lrc file with the same name. Drag a song by its handle to change the order.</span>
 		<div class="layer flex column">
 			<button id="playlist-add" type="button" class="with-padding large-padding flex center with-gap">
 				<span class="icon with-padding small-padding">Add songs or lyrics</span>
@@ -91,24 +91,24 @@
 			<h2>Visualizer</h2>
 			<section class="option">
 				<h4 class="title">Rate</h4>
-				<span class="definition description">How many times per second the visuals refresh. Higher values look smoother but increase CPU usage.</span>
+				<span class="definition description">How many times per second the picture is redrawn. Higher looks smoother but works the computer harder.</span>
 				<input id="visualizer-rate" type="number" class="value rounded depth with-padding">
 			</section>
 			<section class="option">
 				<h4 class="title">Stem separation (AI)</h4>
-				<span class="definition description">An AI splits the music into drums, bass, vocals and other, so visualizations can follow each instrument. It runs on the graphics card through WebGPU; without WebGPU every stem stays an equal share of the mix. <span id="visualizer-splitter-hint" hidden>The AI runs slower than intended on this graphics chip. On computers with two graphics chips, choosing "High performance" for your browser in the system's graphics settings makes the stems smoother.</span></span>
+				<span class="definition description">An AI listens to the song and splits it into instruments (drums, bass, vocals, guitar, keys and the rest), so the visuals can react to each one separately. It needs a browser with WebGPU; without it, all instruments react together. <span id="visualizer-splitter-hint" hidden>The AI runs slower than it should on this computer. If the computer has two graphics cards, set the browser to "High performance" in the system's graphics settings.</span></span>
 				<output id="visualizer-splitter" class="value with-padding"></output>
 			</section>
 			<section class="option">
 				<h4 class="title">Lyrics</h4>
-				<span class="definition description">Sends synced lyrics to the active visualization when the current track has an attached .lrc file. Each visualization decides how to display them. Attach one by adding a .lrc file named like the song to the playlist.</span>
+				<span class="definition description">Shows the song's words on screen when the track has lyrics. To add lyrics, add a .lrc file with the same name as the song to the playlist.</span>
 				<input id="lyrics-toggle" type="checkbox" hidden>
 				<label for="lyrics-toggle" role="checkbox" class="value depth toggle">
 					<span class="layer knob"></span>
 				</label>
 				<section class="option">
 					<h4 class="title">Lyrics lookup</h4>
-					<span class="definition description">When a track has no attached lyrics, looks up synced lyrics online by filename.</span>
+					<span class="definition description">If a song has no lyrics, tries to find them on the internet by its file name.</span>
 					<input id="lyrics-lookup-toggle" type="checkbox" hidden>
 					<label for="lyrics-lookup-toggle" role="checkbox" class="value depth toggle">
 						<span class="layer knob"></span>
@@ -116,7 +116,7 @@
 				</section>
 				<section class="option">
 					<h4 class="title">Shake</h4>
-					<span class="definition description">How much of the visualization's own motion affects the lyrics text. 0 keeps it perfectly still; 1 moves it exactly like the rest of the canvas.</span>
+					<span class="definition description">How much the lyrics move along with the visuals. 0 keeps them still, 1 moves them as much as everything else.</span>
 					<input id="lyrics-shake" type="range" class="value depth rounded">
 				</section>
 			</section>
@@ -124,47 +124,47 @@
 			<h2>Visualization</h2>
 			<section class="option">
 				<h4 class="title">Type</h4>
-				<span class="definition description">The visual style used to represent audio. Each style has a different look and feel. Press <kbd class="depth rounded">↑</kbd> / <kbd class="depth rounded">↓</kbd> with the panels closed to switch.</span>
+				<span class="definition description">The look of the visuals. Press <kbd class="depth rounded">↑</kbd> / <kbd class="depth rounded">↓</kbd> with the panels closed to switch.</span>
 				<select id="visualizer-visualization" class="value rounded depth with-padding"></select>
 				<section class="option">
 					<h4 class="title">Quality</h4>
-					<span class="definition description">Detail level of the audio analysis. Higher values are more accurate but heavier on the CPU. Acceptable range: 5–15.</span>
+					<span class="definition description">How much detail the visuals pick up from the music. Higher is more detailed but works the computer harder. From 5 to 15.</span>
 					<input id="visualization-quality" type="number" class="value rounded depth with-padding">
 				</section>
 				<section class="option">
 					<h4 class="title">Smoothing</h4>
-					<span class="definition description">How smoothly values transition between frames. 0 means no smoothing; 1 is maximum smoothness.</span>
+					<span class="definition description">How softly the visuals change. 0 reacts instantly and looks jumpy, 1 is the smoothest.</span>
 					<input id="visualization-smoothing" type="range" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Focus</h4>
-					<span class="definition description">The center volume level the analysis focuses on. Adjust to emphasize specific loudness ranges.</span>
+					<span class="definition description">Which loudness the visuals pay most attention to. Lower it for quiet music, raise it for loud music.</span>
 					<input id="visualization-focus" type="range" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Spread</h4>
-					<span class="definition description">The volume range around the focus point. Wider means more dynamic range is captured.</span>
+					<span class="definition description">How wide a range of loudness the visuals react to. Wider shows both quiet and loud parts, narrower makes the movement sharper.</span>
 					<input id="visualization-spread" type="range" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Boost</h4>
-					<span class="definition description">Pre-analysis gain applied to the audio signal. Higher values amplify quiet passages; lower values attenuate loud ones. Default: 1×.</span>
+					<span class="definition description">Makes the music louder for the visuals only, not for your ears. Raise it when the visuals barely move. 1 leaves it unchanged.</span>
 					<input id="visualization-boost" type="range" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Tilt</h4>
-					<span class="definition description">Tilts the tonal balance of the analysis. Positive values emphasize highs and cut lows (bright); negative values do the opposite (warm). Default: 0.</span>
+					<span class="definition description">Shifts attention between low and high sounds. Higher favours cymbals and voices, lower favours bass and kick drums. 0 is balanced.</span>
 					<input id="visualization-tilt" type="range" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Punch</h4>
-					<span class="definition description">Applies dynamic compression to the analysis signal before analysis. 0 means no compression (transparent); 1 is maximum punch. Default: 0.</span>
+					<span class="definition description">Evens out quiet and loud parts so beats stand out more. 0 is off.</span>
 					<input id="visualization-punch" type="range" class="value depth rounded">
 				</section>
 			</section>
 			<hr class="depth">
 			<h2>Layers</h2>
-			<span class="description">The parts this visualization is drawn from, top layer first. Drag a layer by its handle to reorder it. Lyrics stay on top and the background stays at the bottom.</span>
+			<span class="description">The pieces this picture is made of, from top to bottom. Drag a layer by its handle to change the order. Lyrics always stay on top and the background at the bottom.</span>
 			<ol id="visualization-layers" class="flex column with-gap"></ol>
 			<div id="developer" class="flex column with-gap" hidden>
 				<hr class="depth">
@@ -176,32 +176,32 @@
 				</section>
 				<section class="option">
 					<h4 class="title">Drums × <output id="developer-drums-value">1</output></h4>
-					<span class="definition description">Multiplies the drums' array the visualization receives. 1 leaves it exactly as the AI split it.</span>
+					<span class="definition description">Makes the drums stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 					<input id="developer-drums" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Bass × <output id="developer-bass-value">1</output></h4>
-					<span class="definition description">Multiplies the bass's array the visualization receives. 1 leaves it exactly as the AI split it.</span>
+					<span class="definition description">Makes the bass stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 					<input id="developer-bass" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Vocals × <output id="developer-vocals-value">1</output></h4>
-					<span class="definition description">Multiplies the vocals' array the visualization receives. 1 leaves it exactly as the AI split it.</span>
+					<span class="definition description">Makes the vocals stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 					<input id="developer-vocals" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Guitar × <output id="developer-guitar-value">1</output></h4>
-					<span class="definition description">Multiplies the guitar's array the visualization receives. 1 leaves it exactly as the AI split it.</span>
+					<span class="definition description">Makes the guitar stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 					<input id="developer-guitar" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Keys × <output id="developer-keys-value">1</output></h4>
-					<span class="definition description">Multiplies the keys' array the visualization receives. 1 leaves it exactly as the AI split it.</span>
+					<span class="definition description">Makes the keys stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 					<input id="developer-keys" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded">
 				</section>
 				<section class="option">
 					<h4 class="title">Other × <output id="developer-other-value">1</output></h4>
-					<span class="definition description">Multiplies the array of everything else (strings, wind, pads…) the visualization receives. 1 leaves it exactly as the AI split it.</span>
+					<span class="definition description">Makes everything else (strings, wind, pads…) stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 					<input id="developer-other" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded">
 				</section>
 			</div>
