@@ -46,7 +46,7 @@ export class DOMBuilder {
 		heading.classList.add("title");
 		heading.innerText = title;
 		const description = option.appendChild(document.createElement("span"));
-		description.classList.add("definition");
+		description.classList.add("definition", "description");
 		description.innerText = definition;
 		return option;
 	}
