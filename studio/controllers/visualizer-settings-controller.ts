@@ -59,13 +59,13 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		}
 		const { available, reason, device, rate, slowed } = splitter;
 		if (!available) {
-			outputVisualizerSplitter.value = reason === null ? "Unavailable" : `Unavailable: ${reason}`;
+			outputVisualizerSplitter.value = reason === null ? "Unavailable" : `Unavailable\n${reason}`;
 			return;
 		}
 		const parts = ["Active"];
 		if (device !== null) parts.push(device);
 		if (rate !== null) parts.push(`${rate} updates/s`);
-		outputVisualizerSplitter.value = parts.join(" · ");
+		outputVisualizerSplitter.value = parts.join("\n");
 		spanVisualizerSplitterHint.hidden = !slowed;
 	}
 

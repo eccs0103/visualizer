@@ -130,6 +130,12 @@ li > span.content > span.lyrics-mark > span.icon {
 	--url: url(../../assets/icons/align-left.svg);
 }
 
+output#visualizer-splitter {
+	max-width: 10em;
+	white-space: pre-line;
+	text-align: end;
+}
+
 dialog#playlist,
 dialog#configurator {
 	position: absolute;
