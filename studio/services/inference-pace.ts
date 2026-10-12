@@ -37,11 +37,9 @@ export class InferencePace {
 		this.#started = now;
 	}
 
-	finish(now: number): boolean {
-		const started = this.#started;
-		if (started === null) throw new ReferenceError("No inference was started");
+	finish(spent: number, now: number): boolean {
+		if (this.#started === null) throw new ReferenceError("No inference was started");
 		const cost = this.#cost;
-		const spent = now - started;
 		this.#cost = cost === null ? spent : cost + (spent - cost) * InferencePace.#learning;
 
 		const opened = this.#opened;

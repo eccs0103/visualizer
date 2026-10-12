@@ -6,6 +6,8 @@ import { ConvolutionLayer, HeadLayer, PresenceLayer } from "../models/stem-layer
 import { GpuGraph, type GpuActivation } from "./gpu-graph.js";
 import { ConvolutionPass, HeadPass, PresencePass } from "./stem-passes.js";
 
+const { ceil } = Math;
+
 //#region Stem U-Net
 class StemUNet {
 	static #blocks: number = 10;
@@ -48,19 +50,58 @@ class StemUNet {
 	}
 }
 //#endregion
+//#region Pass timer
+class PassTimer {
+	static #size: number = 2 * BigUint64Array.BYTES_PER_ELEMENT;
+
+	#queries: GPUQuerySet;
+	#resolved: GPUBuffer;
+	#writes: GPUComputePassTimestampWrites;
+	#offset: number;
+
+	constructor(device: GPUDevice, after: number) {
+		const queries = this.#queries = device.createQuerySet({ type: "timestamp", count: 2 });
+		this.#resolved = device.createBuffer({ size: PassTimer.#size, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC });
+		this.#writes = { querySet: queries, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 };
+		this.#offset = ceil(after / BigUint64Array.BYTES_PER_ELEMENT) * BigUint64Array.BYTES_PER_ELEMENT;
+	}
+
+	get writes(): GPUComputePassTimestampWrites { return this.#writes; }
+	get end(): number { return this.#offset + PassTimer.#size; }
+
+	read(range: ArrayBuffer): number | null {
+		const [begin, end] = new BigUint64Array(range, this.#offset, 2);
+		if (end <= begin) return null;
+		return Number(end - begin) / 1_000_000;
+	}
+
+	copy(encoder: GPUCommandEncoder, target: GPUBuffer): void {
+		const resolved = this.#resolved;
+		encoder.resolveQuerySet(this.#queries, 0, 2, resolved, 0);
+		encoder.copyBufferToBuffer(resolved, 0, target, this.#offset, PassTimer.#size);
+	}
+}
+//#endregion
 //#region Stem network
 export class StemNetwork {
+	static #depth: number = 2;
+
 	#device: GPUDevice;
 	#unet: StemUNet;
-	#readback: GPUBuffer;
+	#timer: PassTimer | null;
+	#readbacks: GPUBuffer[];
+	#cursor: number = 0;
 	#stems: number;
 	#result: Float32Array;
+	#duration: number | null = null;
 
-	constructor(device: GPUDevice, unet: StemUNet, stems: number) {
+	constructor(device: GPUDevice, unet: StemUNet, stems: number, timer: PassTimer | null) {
 		const { buffer, span } = unet.output;
+		const size = timer === null ? buffer.size : timer.end;
 		this.#device = device;
 		this.#unet = unet;
-		this.#readback = device.createBuffer({ size: buffer.size, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+		this.#timer = timer;
+		this.#readbacks = Array.from({ length: StemNetwork.#depth }, () => device.createBuffer({ size, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST }));
 		this.#stems = stems;
 		this.#result = new Float32Array(span * stems);
 	}
@@ -76,13 +117,15 @@ export class StemNetwork {
 		if (error !== null) throw new TypeError(`WebGPU rejected the network: ${error.message}`);
 		const { channels } = unet.output;
 		if (channels < stems) throw new TypeError(`The model splits into ${channels} stems, the visualizer needs at least ${stems}`);
-		return new StemNetwork(device, unet, stems);
+		const timer = device.features.has("timestamp-query") ? new PassTimer(device, unet.output.buffer.size) : null;
+		return new StemNetwork(device, unet, stems, timer);
 	}
 
 	static async #connect(): Promise<GPUDevice> {
 		const adapter = await navigator.gpu?.requestAdapter() ?? null;
 		if (adapter === null) throw new ReferenceError("WebGPU is not available in this browser");
-		return await adapter.requestDevice();
+		const features: GPUFeatureName[] = adapter.features.has("timestamp-query") ? ["timestamp-query"] : [];
+		return await adapter.requestDevice({ requiredFeatures: features });
 	}
 
 	static async #download(model: Readonly<URL>): Promise<StemTensors> {
@@ -115,6 +158,8 @@ export class StemNetwork {
 	}
 
 	get frames(): number { return this.#unet.input.channels; }
+	get depth(): number { return this.#readbacks.length; }
+	get duration(): number | null { return this.#duration; }
 	get lost(): Promise<GPUDeviceLostInfo> { return this.#device.lost; }
 
 	destroy(): void {
@@ -123,22 +168,30 @@ export class StemNetwork {
 
 	async infer(input: Float32Array<ArrayBuffer>): Promise<Float32Array> {
 		const device = this.#device;
-		const readback = this.#readback;
+		const readbacks = this.#readbacks;
+		const cursor = this.#cursor;
+		const readback = readbacks[cursor];
+		this.#cursor = (cursor + 1) % readbacks.length;
 		const unet = this.#unet;
+		const timer = this.#timer;
 		const { queue } = device;
 		const target = unet.input.buffer;
+		const { buffer } = unet.output;
 		if (input.byteLength !== target.size) throw new TypeError(`Expected ${target.size / Float32Array.BYTES_PER_ELEMENT} input values, got ${input.length}`);
 		queue.writeBuffer(target, 0, input);
 
 		const encoder = device.createCommandEncoder();
-		const pass = encoder.beginComputePass();
+		const pass = encoder.beginComputePass(timer === null ? undefined : { timestampWrites: timer.writes });
 		unet.encode(pass);
 		pass.end();
-		encoder.copyBufferToBuffer(unet.output.buffer, 0, readback, 0, readback.size);
+		encoder.copyBufferToBuffer(buffer, 0, readback, 0, buffer.size);
+		timer?.copy(encoder, readback);
 		queue.submit([encoder.finish()]);
 
 		await readback.mapAsync(GPUMapMode.READ);
-		this.#fold(new Float32Array(readback.getMappedRange()));
+		const range = readback.getMappedRange();
+		this.#fold(new Float32Array(range, 0, buffer.size / Float32Array.BYTES_PER_ELEMENT));
+		this.#duration = timer?.read(range) ?? null;
 		readback.unmap();
 		return this.#result;
 	}

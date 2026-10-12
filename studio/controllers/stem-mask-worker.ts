@@ -20,7 +20,7 @@ class StemMaskWorker extends Controller {
 	#smoother: MaskSmoother = new MaskSmoother();
 	#pace: InferencePace = new InferencePace();
 	#status: StatusMaskCommand | null = null;
-	#busy: boolean = false;
+	#pending: number = 0;
 
 	#capture(tap: Float32Array, masks: MaskChannel, network: StemNetwork, history: TapHistory): void {
 		const now = performance.now();
@@ -29,20 +29,21 @@ class StemMaskWorker extends Controller {
 	}
 
 	async #infer(network: StemNetwork, history: TapHistory, masks: MaskChannel): Promise<void> {
-		if (this.#busy) return;
-		this.#busy = true;
+		if (this.#pending >= network.depth) return;
+		this.#pending++;
 		const pace = this.#pace;
 		try {
-			pace.start(performance.now());
+			const begun = performance.now();
+			pace.start(begun);
 			const predicted = await network.infer(history.pack());
 			const now = performance.now();
 			masks.publish(this.#smoother.smooth(predicted, now), performance.timeOrigin + now);
-			if (pace.finish(now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed));
+			if (pace.finish(network.duration ?? now - begun, now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed));
 		} catch (reason) {
 			if (this.#slot.network !== network) return;
 			this.#disable(reason);
 		} finally {
-			this.#busy = false;
+			this.#pending--;
 		}
 	}
 

@@ -10,6 +10,7 @@ declare global {
 		COPY_DST: number;
 		UNIFORM: number;
 		STORAGE: number;
+		QUERY_RESOLVE: number;
 	}
 
 	export interface GPUMapModeTable {
