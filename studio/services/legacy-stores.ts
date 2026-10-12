@@ -43,3 +43,28 @@ export class LegacyBackgrounds {
 	}
 }
 //#endregion
+//#region Legacy lyrics
+/**
+ * Moves the lyrics out of the `Audiolist` table, where they were kept under `<track id>.lrc`, into the `Lyrics` table under the track id.
+ * @deprecated Migration only. Remove once no browser keeps lyrics in the `Audiolist` table.
+ */
+export class LegacyLyrics {
+	static #suffix: string = ".lrc";
+
+	static async migrate(audiolist: Store<string>, lyrics: Store<string>): Promise<void> {
+		const suffix = LegacyLyrics.#suffix;
+		const keys: string[] = [];
+		const entries: (readonly [string, unknown])[] = [];
+		for (const [key, value] of await audiolist.select()) {
+			if (!key.endsWith(suffix)) continue;
+			keys.push(key);
+			const id = key.slice(0, -suffix.length);
+			if (await lyrics.select(id) !== null) continue;
+			entries.push([id, value]);
+		}
+		if (keys.length < 1) return;
+		await lyrics.insert(entries);
+		await audiolist.delete(keys);
+	}
+}
+//#endregion

@@ -7,6 +7,7 @@ import { Playlist } from "../models/playlist.js";
 import { Visualizer } from "../services/visualizer.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { PlaylistPlayer } from "../services/playlist-player.js";
+import { LegacyLyrics } from "../services/legacy-stores.js";
 import { AudioController } from "./audio-controller.js";
 import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
 import { DeveloperController } from "./developer-controller.js";
@@ -41,13 +42,15 @@ class StudioController extends Controller {
 		const playlist: BufferedCell<typeof Playlist> = localStorage.openBufferedCell("Visualizer\\Studio\\Playlist", Playlist, inherited ?? new Playlist());
 		if (inherited !== undefined) void cell.save();
 		const store: Store<string> = indexedDB.openStore("Visualizer", "Audiolist");
+		const lyrics: Store<string> = indexedDB.openStore("Visualizer", "Lyrics");
 		const legacy: Store<number> = indexedDB.openStore<number>("Visualizer", "Audiolist");
+		await LegacyLyrics.migrate(store, lyrics);
 
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer);
 		const guard = new WakeGuard();
-		const player = new PlaylistPlayer(audioPlayer, store, legacy, playlist);
+		const player = new PlaylistPlayer(audioPlayer, store, lyrics, legacy, playlist);
 
 		const settings = cell.content;
 		settings.reconcile();
