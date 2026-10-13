@@ -19,5 +19,10 @@ export class ArrowKeys {
 		default: return 0;
 		}
 	}
+
+	static cycle(select: HTMLSelectElement, step: number): void {
+		select.selectedIndex = (select.selectedIndex + step).mod(select.length);
+		select.dispatchEvent(new Event("change"));
+	}
 }
 //#endregion

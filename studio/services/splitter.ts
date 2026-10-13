@@ -8,9 +8,9 @@ const { baseURI } = document;
 
 //#region Splitter
 export enum SplitterModel {
-	current,
+	standard,
 	presence,
-	c64,
+	memory,
 }
 
 export interface SplitterEventMap {
@@ -22,7 +22,7 @@ export class Splitter extends EventTarget {
 	#worker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
 	#masks: MaskChannel = MaskChannel.create();
 	#status: StatusMaskCommand | null = null;
-	#model: SplitterModel = SplitterModel.current;
+	#model: SplitterModel = SplitterModel.memory;
 
 	constructor(sabSignal: SharedArrayBuffer) {
 		super();
@@ -59,9 +59,9 @@ export class Splitter extends EventTarget {
 
 	static #locate(model: SplitterModel): string {
 		switch (model) {
-		case SplitterModel.current: return new URL("../data/stem-mask/model.json", baseURI).toString();
+		case SplitterModel.standard: return new URL("../data/stem-mask/model.json", baseURI).toString();
 		case SplitterModel.presence: return new URL("../data/stem-mask-presence/model.json", baseURI).toString();
-		case SplitterModel.c64: return new URL("../data/stem-mask-c64/model.json", baseURI).toString();
+		case SplitterModel.memory: return new URL("../data/stem-mask-c64/model.json", baseURI).toString();
 		default: throw new TypeError(`Invalid '${model}' splitter model`);
 		}
 	}

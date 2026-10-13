@@ -3,6 +3,7 @@
 import "adaptive-extender/web";
 import { Controller, BufferedCell, MetadataInjector, type Store } from "adaptive-extender/web";
 import { Settings, LegacySettings } from "../models/settings.js";
+import { Audiences } from "../models/audience.js";
 import { Playlist } from "../models/playlist.js";
 import { Visualizer } from "../services/visualizer.js";
 import { WakeGuard } from "../services/wake-guard.js";
@@ -10,7 +11,7 @@ import { PlaylistPlayer } from "../services/playlist-player.js";
 import { LegacyAudio, LegacyLyrics } from "../services/legacy-stores.js";
 import { AudioController } from "./audio-controller.js";
 import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
-import { DeveloperController } from "./developer-controller.js";
+import { SplitterController } from "./splitter-controller.js";
 import { LayersController } from "./layers-controller.js";
 import { PanelController } from "./panel-controller.js";
 import { ClipController } from "./clip-controller.js";
@@ -32,11 +33,12 @@ class StudioController extends Controller {
 			preview: new URL("../icons/equalizer.png", baseURI),
 			category: "MultimediaApplication",
 			os: "Web Browser",
-			description: "AI-powered real-time music visualizer for browsers. A self-teaching DJ that auto-tunes the audio in real time, Canvas 2D rendering, and a simple API for custom visualizations.",
+			description: "AI-powered real-time music visualizer for browsers. An AI splits every song into instruments (drums, bass, vocals, guitar, keys and the rest) so the visuals react to each one, Canvas 2D rendering, and a simple API for custom visualizations.",
 			keywords: ["music visualizer", "web audio", "canvas visualization", "real-time audio", "ai visualizer"],
 		});
 		void AnalyticsController.launch();
 
+		const audience = Audiences.from(new URL(location.href));
 		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Studio\\Settings", Settings, new Settings());
 		const { playlist: inherited } = localStorage.openPortableCell(cell.key, LegacySettings, new LegacySettings()).content;
 		const playlist: BufferedCell<typeof Playlist> = localStorage.openBufferedCell("Visualizer\\Studio\\Playlist", Playlist, inherited ?? new Playlist());
@@ -81,7 +83,7 @@ class StudioController extends Controller {
 		await ClipController.launch(guard, visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
 		await LyricsController.launch(cell, player, audioPlayer, visualizer, inputLyricsToggle, inputShake, inputLyricsLookupToggle);
 		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
-		await DeveloperController.launch(visualizer, dialogConfigurator);
+		await SplitterController.launch(audience, visualizer, dialogConfigurator);
 		await LayersController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
 		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
 		await PlaylistController.launch(player, dialogPlaylist);

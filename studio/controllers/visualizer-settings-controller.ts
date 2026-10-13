@@ -21,14 +21,6 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 	#inputVisualizationBoost: HTMLInputElement;
 	#inputVisualizationTilt: HTMLInputElement;
 	#inputVisualizationPunch: HTMLInputElement;
-	#outputVisualizerSplitter: HTMLOutputElement;
-	#spanVisualizerSplitterHint: HTMLSpanElement;
-
-	#cycleVisualization(step: number): void {
-		const select = this.#selectVisualizerVisualization;
-		select.selectedIndex = (select.selectedIndex + step).mod(select.length);
-		select.dispatchEvent(new Event("change"));
-	}
 
 	#refreshKnobs(): void {
 		const { manager } = this.#visualizer;
@@ -39,27 +31,6 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		this.#inputVisualizationBoost.value = String(manager.boost);
 		this.#inputVisualizationTilt.value = String(manager.tilt);
 		this.#inputVisualizationPunch.value = String(manager.punch);
-	}
-
-	#refreshSplitter(): void {
-		const splitter = this.#visualizer.splitter.status;
-		const outputVisualizerSplitter = this.#outputVisualizerSplitter;
-		const spanVisualizerSplitterHint = this.#spanVisualizerSplitterHint;
-		spanVisualizerSplitterHint.hidden = true;
-		if (splitter === null) {
-			outputVisualizerSplitter.value = "Loading…";
-			return;
-		}
-		const { available, reason, device, rate, slowed } = splitter;
-		if (!available) {
-			outputVisualizerSplitter.value = reason === null ? "Unavailable" : `Unavailable\n${reason}`;
-			return;
-		}
-		const parts = ["Active"];
-		if (device !== null) parts.push(device);
-		if (rate !== null) parts.push(`${rate} updates/s`);
-		outputVisualizerSplitter.value = parts.join("\n");
-		spanVisualizerSplitterHint.hidden = !slowed;
 	}
 
 	#applyVisualization(): void {
@@ -84,8 +55,6 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		const inputVisualizationBoost = this.#inputVisualizationBoost = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-boost");
 		const inputVisualizationTilt = this.#inputVisualizationTilt = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-tilt");
 		const inputVisualizationPunch = this.#inputVisualizationPunch = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-punch");
-		this.#outputVisualizerSplitter = dialogConfigurator.getElement(HTMLOutputElement, "output#visualizer-splitter");
-		this.#spanVisualizerSplitterHint = dialogConfigurator.getElement(HTMLSpanElement, "span#visualizer-splitter-hint");
 
 		const settings = cell.content;
 		const { manager } = visualizer;
@@ -191,9 +160,6 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 
 		this.#refreshKnobs();
 
-		this.#refreshSplitter();
-		visualizer.splitter.addEventListener("status", event => this.#refreshSplitter());
-
 		window.addEventListener("keydown", (event) => {
 			const step = ArrowKeys.vertical(event.code);
 			if (step === 0) return;
@@ -202,7 +168,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 			if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLSelectElement || activeElement instanceof HTMLTextAreaElement) return;
 			if (document.querySelector("dialog[open]") !== null) return;
 			event.preventDefault();
-			this.#cycleVisualization(step);
+			ArrowKeys.cycle(selectVisualizerVisualization, step);
 		});
 	}
 }

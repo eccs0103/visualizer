@@ -28,7 +28,11 @@ export class ClipController extends Controller<[WakeGuard, Visualizer, HTMLCanva
 		const recorder = this.#recorder;
 		if (value) return await recorder.start();
 		const file = await recorder.stop();
-		file.download();
+		try {
+			file.download();
+		} finally {
+			file.revoke();
+		}
 	}
 
 	async #toggleRecording(): Promise<void> {

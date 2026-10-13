@@ -130,6 +130,10 @@ li > span.content > span.lyrics-mark > span.icon {
 	--url: url(../../assets/icons/align-left.svg);
 }
 
+div#ai:not(:has(> section.option:not([hidden]))) {
+	display: none;
+}
+
 output#visualizer-splitter {
 	max-width: 10em;
 	white-space: pre-line;
