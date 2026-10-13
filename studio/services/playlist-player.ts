@@ -157,19 +157,10 @@ export class PlaylistPlayer extends EventTarget {
 	}
 
 	async setLyrics(track: Track, text: string, checked: number | null): Promise<void> {
-		await this.#save(track.id, text);
+		await this.#lyrics.upsert(track.id, text);
 		track.lyrics = !String.isEmpty(text);
 		track.checked = checked;
 		this.#notify();
-	}
-
-	async #save(key: string, value: unknown): Promise<void> {
-		const lyrics = this.#lyrics;
-		if (await lyrics.select(key) === null) {
-			await lyrics.insert(key, value);
-			return;
-		}
-		await lyrics.update(key, value);
 	}
 
 	#appendPending(files: readonly File[]): Map<Track, File> {

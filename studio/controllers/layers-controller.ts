@@ -60,15 +60,6 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		return null;
 	}
 
-	async #save(key: string, file: File): Promise<void> {
-		const store = this.#store;
-		if (await store.select(key) === null) {
-			await store.insert(key, file);
-			return;
-		}
-		await store.update(key, file);
-	}
-
 	async #upload(file: File): Promise<void> {
 		const cell = this.#cell;
 		const view = this.#view;
@@ -76,7 +67,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		const problem = await this.#validate(file);
 		if (problem !== null) return view.showMessage(problem);
 		try {
-			await this.#save(visualization, file);
+			await this.#store.upsert(visualization, file);
 		} catch (reason) {
 			console.error(`Failed to store the background image:\n${Error.from(reason)}`);
 			return view.showMessage("The image could not be stored, the browser storage may be full");
