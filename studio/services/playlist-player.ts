@@ -1,9 +1,10 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { BufferedCell, type Store } from "adaptive-extender/web";
+import { BufferedCell, type PortableStore } from "adaptive-extender/web";
 import { Playlist, PlaybackMode, Track } from "../models/playlist.js";
 import { type Reorder } from "../models/reorder.js";
+import { Row, FileRow, TextRow } from "../models/rows.js";
 
 //#region Playlist player
 export interface PlaylistPlayerEventMap {
@@ -13,11 +14,11 @@ export interface PlaylistPlayerEventMap {
 
 export class PlaylistPlayer extends EventTarget {
 	#audioPlayer: HTMLAudioElement;
-	#store: Store<string>;
-	#lyrics: Store<string>;
+	#store: PortableStore<typeof FileRow, "id">;
+	#lyrics: PortableStore<typeof TextRow, "id">;
 	#cell: BufferedCell<typeof Playlist>;
 
-	constructor(audioPlayer: HTMLAudioElement, store: Store<string>, lyrics: Store<string>, cell: BufferedCell<typeof Playlist>) {
+	constructor(audioPlayer: HTMLAudioElement, store: PortableStore<typeof FileRow, "id">, lyrics: PortableStore<typeof TextRow, "id">, cell: BufferedCell<typeof Playlist>) {
 		super();
 		this.#audioPlayer = audioPlayer;
 		this.#store = store;
@@ -80,9 +81,9 @@ export class PlaylistPlayer extends EventTarget {
 			return;
 		}
 
-		const file = await this.#store.select(track.id);
-		if (!(file instanceof File)) throw new ReferenceError(`Missing audio data for track '${track.signature}'`);
-		const url = URL.createObjectURL(file);
+		const row = await this.#store.select(track.id);
+		if (row === null) throw new ReferenceError(`Missing audio data for track '${track.signature}'`);
+		const url = URL.createObjectURL(row.file);
 		await Promise.withSignal((signal, resolve, reject) => {
 			audioPlayer.addEventListener("canplay", event => resolve(), { signal });
 			audioPlayer.addEventListener("error", event => reject(new Error(`Failed to load audio file '${track.signature}'`)), { signal });
@@ -122,21 +123,14 @@ export class PlaylistPlayer extends EventTarget {
 		void this.#persist();
 	}
 
-	async #prune(store: Store<string>, ids: ReadonlySet<string>): Promise<void> {
-		const orphans: string[] = [];
-		for (const [key] of await store.select()) {
-			if (ids.has(key)) continue;
-			orphans.push(key);
-		}
-		await store.delete(orphans);
-	}
-
 	async restore(): Promise<void> {
 		const playlist = this.#playlist;
+		const store = this.#store;
+		const lyrics = this.#lyrics;
 
 		const ids = new Set(playlist.tracks.map(track => track.id));
-		await this.#prune(this.#store, ids);
-		await this.#prune(this.#lyrics, ids);
+		await store.delete(Row.orphans(await store.select(), ids));
+		await lyrics.delete(Row.orphans(await lyrics.select(), ids));
 
 		void this.#persist();
 		await this.#load(playlist.current);
@@ -144,9 +138,9 @@ export class PlaylistPlayer extends EventTarget {
 	}
 
 	async readLyrics(track: Track): Promise<string | null> {
-		const value = await this.#lyrics.select(track.id);
-		if (value === null) return null;
-		const text = String(value);
+		const row = await this.#lyrics.select(track.id);
+		if (row === null) return null;
+		const { text } = row;
 		// ponytail: repairs the lyrics badge for rows written before the flag existed, or poisoned by a past failed lookup
 		const hasLyrics = !String.isEmpty(text);
 		if (track.lyrics !== hasLyrics) {
@@ -157,7 +151,7 @@ export class PlaylistPlayer extends EventTarget {
 	}
 
 	async setLyrics(track: Track, text: string, checked: number | null): Promise<void> {
-		await this.#lyrics.upsert(track.id, text);
+		await this.#lyrics.upsert(new TextRow(track.id, text));
 		track.lyrics = !String.isEmpty(text);
 		track.checked = checked;
 		this.#notify();
@@ -177,7 +171,7 @@ export class PlaylistPlayer extends EventTarget {
 	async #import(track: Track, file: File): Promise<Error | null> {
 		try {
 			const duration = await PlaylistPlayer.#probeDuration(file);
-			await this.#store.insert(track.id, file);
+			await this.#store.insert(new FileRow(track.id, file));
 			track.resolve(duration);
 			return null;
 		} catch (reason) {

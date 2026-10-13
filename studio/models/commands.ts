@@ -4,43 +4,7 @@ import "adaptive-extender/core";
 import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/core";
 import { LayerSettings, BackgroundSettings } from "./layer-settings.js";
 import { StemGains } from "./stem.js";
-
-//#region Shared array buffer portable
-class SharedArrayBufferPortable {
-	static import(source: unknown, name: string): SharedArrayBuffer {
-		if (source instanceof SharedArrayBuffer) return source;
-		throw new TypeError(`${name} must be a SharedArrayBuffer`);
-	}
-
-	static export(source: SharedArrayBuffer): SharedArrayBuffer {
-		return source;
-	}
-}
-//#endregion
-//#region Blob portable
-class BlobPortable {
-	static import(source: unknown, name: string): Blob {
-		if (source instanceof Blob) return source;
-		throw new TypeError(`${name} must be a Blob`);
-	}
-
-	static export(source: Blob): Blob {
-		return source;
-	}
-}
-//#endregion
-//#region Offscreen canvas portable
-class OffscreenCanvasPortable {
-	static import(source: unknown, name: string): OffscreenCanvas {
-		if (source instanceof OffscreenCanvas) return source;
-		throw new TypeError(`${name} must be an OffscreenCanvas`);
-	}
-
-	static export(source: OffscreenCanvas): OffscreenCanvas {
-		return source;
-	}
-}
-//#endregion
+import { SharedArrayBufferPortable, BlobPortable, OffscreenCanvasPortable } from "./portables.js";
 
 //#region Command
 export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, GainsRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {

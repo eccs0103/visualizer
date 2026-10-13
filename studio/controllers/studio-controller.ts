@@ -1,14 +1,15 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller, BufferedCell, MetadataInjector, type Store } from "adaptive-extender/web";
+import { Controller, BufferedCell, MetadataInjector, type Store, type PortableStore } from "adaptive-extender/web";
 import { Settings, LegacySettings } from "../models/settings.js";
 import { Audiences } from "../models/audience.js";
 import { Playlist } from "../models/playlist.js";
+import { FileRow, TextRow } from "../models/rows.js";
 import { Visualizer } from "../services/visualizer.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { PlaylistPlayer } from "../services/playlist-player.js";
-import { LegacyAudio, LegacyLyrics } from "../services/legacy-stores.js";
+import { LegacyAudio, LegacyLyrics, LegacyBareFiles, LegacyBareTexts } from "../services/legacy-stores.js";
 import { AudioController } from "./audio-controller.js";
 import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
 import { SplitterController } from "./splitter-controller.js";
@@ -43,10 +44,14 @@ class StudioController extends Controller {
 		const { playlist: inherited } = localStorage.openPortableCell(cell.key, LegacySettings, new LegacySettings()).content;
 		const playlist: BufferedCell<typeof Playlist> = localStorage.openBufferedCell("Visualizer\\Studio\\Playlist", Playlist, inherited ?? new Playlist());
 		if (inherited !== undefined) void cell.save();
-		const store: Store<string> = indexedDB.openStore("Visualizer", "Audiolist");
-		const lyrics: Store<string> = indexedDB.openStore("Visualizer", "Lyrics");
+		const store: PortableStore<typeof FileRow, "id"> = indexedDB.openPortableStore("Visualizer", "Audiolist", FileRow, "id");
+		const lyrics: PortableStore<typeof TextRow, "id"> = indexedDB.openPortableStore("Visualizer", "Lyrics", TextRow, "id");
+		const rawAudiolist: Store<string> = indexedDB.openStore("Visualizer", "Audiolist");
+		const rawLyrics: Store<string> = indexedDB.openStore("Visualizer", "Lyrics");
 		const legacy: Store<number> = indexedDB.openStore<number>("Visualizer", "Audiolist");
-		await LegacyLyrics.migrate(store, lyrics);
+		await LegacyBareTexts.migrate(rawLyrics, lyrics);
+		await LegacyBareFiles.migrate(rawAudiolist, store);
+		await LegacyLyrics.migrate(rawAudiolist, lyrics);
 
 		const audioPlayer = body.getElement(HTMLAudioElement, "audio#player");
 		const canvasDisplay = body.getElement(HTMLCanvasElement, "canvas#display");
