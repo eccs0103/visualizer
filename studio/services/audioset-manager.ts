@@ -23,6 +23,7 @@ export class AudiosetManager {
 	static #maxTilt: number = 12;
 	static #minPunch: number = 0;
 	static #maxPunch: number = 1;
+	static #rate: number = 44100;
 
 	#context: AudioContext;
 	#analyser: AnalyserNode;
@@ -35,7 +36,7 @@ export class AudiosetManager {
 	#bytes: Uint8Array<ArrayBuffer>;
 
 	constructor(media: HTMLMediaElement) {
-		const context = this.#context = new AudioContext();
+		const context = this.#context = new AudioContext({ sampleRate: AudiosetManager.#rate });
 		media.addEventListener("play", async event => await context.resume());
 
 		const source = context.createMediaElementSource(media);
