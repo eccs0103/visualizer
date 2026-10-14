@@ -35,7 +35,7 @@ class StemMaskWorker extends Controller {
 		try {
 			const begun = performance.now();
 			pace.start(begun);
-			const predicted = await network.infer(history.pack());
+			const predicted = await network.infer(history);
 			const now = performance.now();
 			masks.publish(this.#smoother.smooth(predicted, now), performance.timeOrigin + now);
 			if (pace.finish(network.duration ?? now - begun, now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed));

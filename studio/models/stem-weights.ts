@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Model, Field } from "adaptive-extender/core";
+import { Model, Field, Enum } from "adaptive-extender/core";
 
 //#region Stem tensor
 export class StemTensor {
@@ -117,20 +117,29 @@ export class StemWeightGroup extends Model {
 }
 //#endregion
 //#region Stem weights
+export enum StemArchitecture {
+	window = "window",
+	time = "time",
+}
+
 export class StemWeights extends Model {
 	@Field(Array.Of(StemWeightGroup), { name: "weightsManifest" })
 	groups: StemWeightGroup[];
 
+	@Field(Enum.Of(StemArchitecture), { name: "architecture" })
+	architecture: StemArchitecture = StemArchitecture.window;
+
 	constructor();
-	constructor(groups: StemWeightGroup[]);
-	constructor(groups?: StemWeightGroup[]) {
-		if (groups === undefined) {
+	constructor(groups: StemWeightGroup[], architecture: StemArchitecture);
+	constructor(groups?: StemWeightGroup[], architecture?: StemArchitecture) {
+		if (groups === undefined || architecture === undefined) {
 			super();
 			return;
 		}
 
 		super();
 		this.groups = groups;
+		this.architecture = architecture;
 	}
 
 	files(base: Readonly<URL>): URL[] {

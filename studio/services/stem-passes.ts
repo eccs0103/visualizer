@@ -33,30 +33,33 @@ export class ConvolutionPass {
 		return new ConvolutionPass(await GpuGraph.compile(device, code, { rows: ConvolutionPass.#rows, columns: ConvolutionPass.#columns, reach: ConvolutionPass.#reach }));
 	}
 
-	convolve(graph: GpuGraph, layer: ConvolutionLayer, source: GpuActivation): GpuActivation {
-		return this.#record(graph, layer, ConvolutionInput.plain, source, source, source.span);
+	convolve(graph: GpuGraph, layer: ConvolutionLayer, source: GpuActivation, dilation: number = 1, depth: number = 1): GpuActivation {
+		return this.#record(graph, layer, ConvolutionInput.plain, source, source, source.span, dilation, depth);
 	}
 
-	pool(graph: GpuGraph, layer: ConvolutionLayer, source: GpuActivation): GpuActivation {
-		return this.#record(graph, layer, ConvolutionInput.pooled, source, source, source.span / 2);
+	pool(graph: GpuGraph, layer: ConvolutionLayer, source: GpuActivation, dilation: number = 1, depth: number = 1): GpuActivation {
+		return this.#record(graph, layer, ConvolutionInput.pooled, source, source, source.span / 2, dilation, depth);
 	}
 
-	join(graph: GpuGraph, layer: ConvolutionLayer, source: GpuActivation, skip: GpuActivation): GpuActivation {
+	join(graph: GpuGraph, layer: ConvolutionLayer, source: GpuActivation, skip: GpuActivation, dilation: number = 1, depth: number = 1): GpuActivation {
 		const span = skip.span;
 		if (source.span * 2 !== span) throw new TypeError(`Unable to join a span of ${source.span} with a skip of ${span}`);
-		return this.#record(graph, layer, ConvolutionInput.joined, source, skip, span);
+		return this.#record(graph, layer, ConvolutionInput.joined, source, skip, span, dilation, depth);
 	}
 
-	#record(graph: GpuGraph, layer: ConvolutionLayer, input: ConvolutionInput, source: GpuActivation, skip: GpuActivation, span: number): GpuActivation {
-		const { size, filters } = layer;
+	#record(graph: GpuGraph, layer: ConvolutionLayer, input: ConvolutionInput, source: GpuActivation, skip: GpuActivation, span: number, dilation: number, depth: number): GpuActivation {
+		const { taps, size, filters } = layer;
 		const reach = ConvolutionPass.#reach;
 		if (size % 2 === 0 || size > reach) throw new TypeError(`Kernels must be odd and at most ${reach} wide, got ${size}`);
+		const { batch } = graph;
+		const history = (taps - 1) * dilation + batch;
+		if (history > source.depth || history > skip.depth) throw new TypeError(`A kernel reaching ${history} frames back needs rings of at least that depth`);
 		const skipped = input === ConvolutionInput.joined ? skip.channels : 0;
 		const weights = layer.pack(source.channels + skipped);
-		const result = graph.activation(filters, span);
-		const shape = graph.upload(new Uint32Array([source.channels, skipped, filters, span, size, input, 0, 0]), GPUBufferUsage.UNIFORM);
+		const result = graph.activation(filters, span, depth);
+		const shape = graph.upload(new Uint32Array([source.channels, skipped, filters, span, size, input, taps, dilation, depth, source.depth, skip.depth, 0]), GPUBufferUsage.UNIFORM);
 		const lanes = ConvolutionPass.#lanes;
-		graph.dispatch(this.#pipeline, [shape, source.buffer, skip.buffer, graph.upload(weights, GPUBufferUsage.STORAGE), result.buffer], ceil(filters / (lanes * ConvolutionPass.#rows)), ceil(span / (lanes * ConvolutionPass.#columns)));
+		graph.dispatch(this.#pipeline, [shape, source.buffer, skip.buffer, graph.upload(weights, GPUBufferUsage.STORAGE), result.buffer, graph.clock], ceil(filters / (lanes * ConvolutionPass.#rows)), ceil(span / (lanes * ConvolutionPass.#columns)), batch);
 		return result;
 	}
 }
@@ -83,8 +86,8 @@ export class HeadPass {
 		const { stems } = layer;
 		const weights = layer.pack(channels);
 		const result = graph.activation(stems, span);
-		const shape = graph.upload(new Uint32Array([channels, stems, span, 0]), GPUBufferUsage.UNIFORM);
-		graph.dispatch(this.#pipeline, [shape, source.buffer, graph.upload(weights, GPUBufferUsage.STORAGE), result.buffer, presence], ceil(span / HeadPass.#workgroup), 1);
+		const shape = graph.upload(new Uint32Array([channels, stems, span, source.depth]), GPUBufferUsage.UNIFORM);
+		graph.dispatch(this.#pipeline, [shape, source.buffer, graph.upload(weights, GPUBufferUsage.STORAGE), result.buffer, presence, graph.clock], ceil(span / HeadPass.#workgroup), 1);
 		return result;
 	}
 }

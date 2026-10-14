@@ -13,7 +13,8 @@ export class SplitterController extends Controller<[Audience, Visualizer, HTMLDi
 	static #models: (readonly [string, SplitterModel])[] = [
 		["Standard (1.7M)", SplitterModel.standard],
 		["Presence (1.7M)", SplitterModel.presence],
-		["Long memory (1.7M)", SplitterModel.memory]
+		["Long memory (1.7M)", SplitterModel.memory],
+		["Deep listening (1.5M)", SplitterModel.listening]
 	];
 	static #stems: readonly Stem[] = [Stem.drums, Stem.bass, Stem.vocals, Stem.guitar, Stem.keys, Stem.other];
 

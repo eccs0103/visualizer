@@ -2,7 +2,12 @@ struct Shape {
 	inputs: u32,
 	stems: u32,
 	span: u32,
-	padding: u32,
+	depth: u32,
+}
+
+struct Clock {
+	step: u32,
+	frames: u32,
 }
 
 @group(0) @binding(0) var<uniform> shape: Shape;
@@ -10,6 +15,7 @@ struct Shape {
 @group(0) @binding(2) var<storage, read> weights: array<f32>;
 @group(0) @binding(3) var<storage, read_write> result: array<f32>;
 @group(0) @binding(4) var<storage, read> presence: array<f32>;
+@group(0) @binding(5) var<uniform> clock: Clock;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -20,11 +26,12 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 	let stems = shape.stems;
 	let base = position * stems;
 	let bias = shape.inputs * stems;
+	let slot = (clock.step % shape.depth) * shape.inputs;
 	var peak = -3.0e38;
 	for (var stem = 0u; stem < stems; stem++) {
 		var logit = weights[bias + stem];
 		for (var channel = 0u; channel < shape.inputs; channel++) {
-			logit += weights[channel * stems + stem] * source[channel * shape.span + position];
+			logit += weights[channel * stems + stem] * source[(slot + channel) * shape.span + position];
 		}
 		result[base + stem] = logit;
 		peak = max(peak, logit);

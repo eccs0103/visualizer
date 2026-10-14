@@ -3,7 +3,7 @@
 import "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
 
-const { max, trunc } = Math;
+const { max, min, trunc } = Math;
 
 //#region Tap history
 export class TapHistory {
@@ -15,6 +15,7 @@ export class TapHistory {
 	#cursor: number = 0;
 	#origin: number | null = null;
 	#steps: number = 0;
+	#fresh: number = 0;
 	#previous: Float32Array = new Float32Array(SabLayout.bins);
 	#frame: Float32Array = new Float32Array(SabLayout.bins);
 
@@ -25,6 +26,8 @@ export class TapHistory {
 	}
 
 	get frames(): number { return this.#frames; }
+	get steps(): number { return this.#steps; }
+	get fresh(): number { return this.#fresh; }
 
 	capture(tap: Float32Array, now: number): boolean {
 		const origin = this.#origin;
@@ -38,6 +41,7 @@ export class TapHistory {
 		if (count <= 0) return false;
 		this.#advance(tap, count);
 		this.#steps = due;
+		this.#fresh = min(this.#fresh + count, this.#frames);
 		return true;
 	}
 
@@ -51,6 +55,7 @@ export class TapHistory {
 			const base = ((cursor + offset) % frames) * bins;
 			packed.set(ring.subarray(base, base + bins), offset * bins);
 		}
+		this.#fresh = 0;
 		return packed;
 	}
 

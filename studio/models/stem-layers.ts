@@ -31,15 +31,32 @@ export class ConvolutionLayer {
 		return new ConvolutionLayer(tensors.take(`${convolution}/kernel`), tensors.take(`${convolution}/bias`), tensors.take(`${norm}/gamma`), tensors.take(`${norm}/beta`), tensors.take(`${norm}/moving_mean`), tensors.take(`${norm}/moving_variance`));
 	}
 
-	get size(): number { return this.#kernel.shape[0]; }
-	get channels(): number { return this.#kernel.shape[1]; }
-	get filters(): number { return this.#kernel.shape[2]; }
+	get taps(): number {
+		const { shape } = this.#kernel;
+		return shape.length === 4 ? shape[0] : 1;
+	}
+
+	get size(): number {
+		const { shape } = this.#kernel;
+		return shape[shape.length - 3];
+	}
+
+	get channels(): number {
+		const { shape } = this.#kernel;
+		return shape[shape.length - 2];
+	}
+
+	get filters(): number {
+		const { shape } = this.#kernel;
+		return shape[shape.length - 1];
+	}
 
 	pack(channels: number): Float32Array<ArrayBuffer> {
-		const { size, filters } = this;
-		const count = size * channels * filters;
+		const { taps, size, filters } = this;
+		const kernel = this.#kernel;
+		const count = taps * size * channels * filters;
 		const weights = new Float32Array(count + filters * 3);
-		weights.set(this.#kernel.expect(size, channels, filters));
+		weights.set(kernel.shape.length === 4 ? kernel.expect(taps, size, channels, filters) : kernel.expect(size, channels, filters));
 		weights.set(this.#bias.expect(filters), count);
 		const gamma = this.#gamma.expect(filters);
 		const beta = this.#beta.expect(filters);

@@ -11,6 +11,7 @@ export enum SplitterModel {
 	standard,
 	presence,
 	memory,
+	listening,
 }
 
 export interface SplitterEventMap {
@@ -22,7 +23,7 @@ export class Splitter extends EventTarget {
 	#worker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
 	#masks: MaskChannel = MaskChannel.create();
 	#status: StatusMaskCommand | null = null;
-	#model: SplitterModel = SplitterModel.memory;
+	#model: SplitterModel = SplitterModel.listening;
 
 	constructor(sabSignal: SharedArrayBuffer) {
 		super();
@@ -62,6 +63,7 @@ export class Splitter extends EventTarget {
 		case SplitterModel.standard: return new URL("../data/stem-mask/model.json", baseURI).toString();
 		case SplitterModel.presence: return new URL("../data/stem-mask-presence/model.json", baseURI).toString();
 		case SplitterModel.memory: return new URL("../data/stem-mask-c64/model.json", baseURI).toString();
+		case SplitterModel.listening: return new URL("../data/stem-mask-listening/model.json", baseURI).toString();
 		default: throw new TypeError(`Invalid '${model}' splitter model`);
 		}
 	}

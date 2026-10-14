@@ -26,16 +26,19 @@ export class GpuActivation {
 	#buffer: GPUBuffer;
 	#channels: number;
 	#span: number;
+	#depth: number;
 
-	constructor(device: GPUDevice, channels: number, span: number) {
-		this.#buffer = device.createBuffer({ size: channels * span * Float32Array.BYTES_PER_ELEMENT, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
+	constructor(device: GPUDevice, channels: number, span: number, depth: number) {
+		this.#buffer = device.createBuffer({ size: depth * channels * span * Float32Array.BYTES_PER_ELEMENT, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
 		this.#channels = channels;
 		this.#span = span;
+		this.#depth = depth;
 	}
 
 	get buffer(): GPUBuffer { return this.#buffer; }
 	get channels(): number { return this.#channels; }
 	get span(): number { return this.#span; }
+	get depth(): number { return this.#depth; }
 }
 //#endregion
 //#region GPU step
@@ -44,28 +47,35 @@ class GpuStep {
 	#group: GPUBindGroup;
 	#columns: number;
 	#rows: number;
+	#frames: number;
 
-	constructor(pipeline: GPUComputePipeline, group: GPUBindGroup, columns: number, rows: number) {
+	constructor(pipeline: GPUComputePipeline, group: GPUBindGroup, columns: number, rows: number, frames: number) {
 		this.#pipeline = pipeline;
 		this.#group = group;
 		this.#columns = columns;
 		this.#rows = rows;
+		this.#frames = frames;
 	}
 
 	encode(pass: GPUComputePassEncoder): void {
 		pass.setPipeline(this.#pipeline);
 		pass.setBindGroup(0, this.#group);
-		pass.dispatchWorkgroups(this.#columns, this.#rows);
+		pass.dispatchWorkgroups(this.#columns, this.#rows, this.#frames);
 	}
 }
 //#endregion
 //#region GPU graph
 export class GpuGraph {
 	#device: GPUDevice;
+	#batch: number;
 	#steps: GpuStep[] = [];
+	#clock: GPUBuffer;
+	#time: Uint32Array<ArrayBuffer> = new Uint32Array(2);
 
-	constructor(device: GPUDevice) {
+	constructor(device: GPUDevice, batch: number) {
 		this.#device = device;
+		this.#batch = batch;
+		this.#clock = this.upload(new Uint32Array([0, 1]), GPUBufferUsage.UNIFORM);
 	}
 
 	static async compile(device: GPUDevice, code: string, constants: Record<string, number>): Promise<GPUComputePipeline> {
@@ -73,8 +83,20 @@ export class GpuGraph {
 		return await device.createComputePipelineAsync({ layout: "auto", compute: { module, entryPoint: "main", constants } });
 	}
 
-	activation(channels: number, span: number): GpuActivation {
-		return new GpuActivation(this.#device, channels, span);
+	get batch(): number { return this.#batch; }
+	get clock(): GPUBuffer { return this.#clock; }
+
+	activation(channels: number, span: number, depth: number = 1): GpuActivation {
+		return new GpuActivation(this.#device, channels, span, depth);
+	}
+
+	tick(step: number, frames: number): void {
+		const batch = this.#batch;
+		if (frames > batch) throw new TypeError(`Unable to run ${frames} frames at once, the graph holds ${batch}`);
+		const time = this.#time;
+		time[0] = step;
+		time[1] = frames;
+		this.#device.queue.writeBuffer(this.#clock, 0, time);
 	}
 
 	upload(data: ArrayBufferView<ArrayBuffer>, usage: number): GPUBuffer {
@@ -84,11 +106,11 @@ export class GpuGraph {
 		return buffer;
 	}
 
-	dispatch(pipeline: GPUComputePipeline, buffers: readonly GPUBuffer[], columns: number, rows: number): void {
+	dispatch(pipeline: GPUComputePipeline, buffers: readonly GPUBuffer[], columns: number, rows: number, frames: number = 1): void {
 		const entries: GPUBindGroupEntry[] = [];
 		for (let index = 0; index < buffers.length; index++) entries.push({ binding: index, resource: { buffer: buffers[index] } });
 		const group = this.#device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries });
-		this.#steps.push(new GpuStep(pipeline, group, columns, rows));
+		this.#steps.push(new GpuStep(pipeline, group, columns, rows, frames));
 	}
 
 	encode(pass: GPUComputePassEncoder): void {
