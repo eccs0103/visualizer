@@ -3,7 +3,6 @@
 import "adaptive-extender/web";
 import { Controller, BufferedCell, MetadataInjector, type Store, type PortableStore } from "adaptive-extender/web";
 import { Settings, LegacySettings } from "../models/settings.js";
-import { Audiences } from "../models/audience.js";
 import { Playlist } from "../models/playlist.js";
 import { FileRow, TextRow } from "../models/rows.js";
 import { Visualizer } from "../services/visualizer.js";
@@ -39,7 +38,7 @@ class StudioController extends Controller {
 		});
 		void AnalyticsController.launch();
 
-		const audience = Audiences.from(new URL(location.href));
+		const developer = new URL(location.href).searchParams.get("for") === "developers";
 		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Studio\\Settings", Settings, new Settings());
 		const { playlist: inherited } = localStorage.openPortableCell(cell.key, LegacySettings, new LegacySettings()).content;
 		const playlist: BufferedCell<typeof Playlist> = localStorage.openBufferedCell("Visualizer\\Studio\\Playlist", Playlist, inherited ?? new Playlist());
@@ -88,7 +87,7 @@ class StudioController extends Controller {
 		await ClipController.launch(guard, visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
 		await LyricsController.launch(cell, player, audioPlayer, visualizer, inputLyricsToggle, inputShake, inputLyricsLookupToggle);
 		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
-		await SplitterController.launch(audience, visualizer, dialogConfigurator);
+		await SplitterController.launch(developer, visualizer, dialogConfigurator);
 		await LayersController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
 		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
 		await PlaylistController.launch(player, dialogPlaylist);

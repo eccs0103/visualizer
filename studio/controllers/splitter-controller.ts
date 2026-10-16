@@ -5,11 +5,10 @@ import { Controller } from "adaptive-extender/web";
 import { type Visualizer } from "../services/visualizer.js";
 import { SplitterModel } from "../services/splitter.js";
 import { Stem, StemGains } from "../models/stem.js";
-import { type Audience, Audiences } from "../models/audience.js";
 import { ArrowKeys } from "../view/arrow-keys.js";
 
 //#region Splitter controller
-export class SplitterController extends Controller<[Audience, Visualizer, HTMLDialogElement]> {
+export class SplitterController extends Controller<[boolean, Visualizer, HTMLDialogElement]> {
 	static #models: (readonly [string, SplitterModel])[] = [
 		["Standard (1.7M)", SplitterModel.standard],
 		["Presence (1.7M)", SplitterModel.presence],
@@ -99,8 +98,8 @@ export class SplitterController extends Controller<[Audience, Visualizer, HTMLDi
 		}
 	}
 
-	async run(audience: Audience, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
-		if (!Audiences.isDeveloper(audience)) return;
+	async run(developer: boolean, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
+		if (!developer) return;
 		this.#visualizer = visualizer;
 
 		const sectionAiSplitter = dialogConfigurator.getElement(HTMLElement, "section#ai-splitter");
