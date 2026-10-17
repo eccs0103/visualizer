@@ -5,7 +5,7 @@ import { Controller, BufferedCell } from "adaptive-extender/web";
 import { Settings, Panel } from "../models/settings.js";
 
 //#region Panel controller
-export class PanelController extends Controller<[BufferedCell<typeof Settings>, HTMLDialogElement, HTMLDialogElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement]> {
+export class PanelController extends Controller<[BufferedCell<typeof Settings>, HTMLDialogElement, HTMLDialogElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement]> {
 	#cell: BufferedCell<typeof Settings>;
 	#dialogs: Map<Panel, HTMLDialogElement>;
 	#panel: Panel = Panel.none;
@@ -52,7 +52,7 @@ export class PanelController extends Controller<[BufferedCell<typeof Settings>, 
 		return event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom;
 	}
 
-	async run(cell: BufferedCell<typeof Settings>, dialogPlaylist: HTMLDialogElement, dialogConfigurator: HTMLDialogElement, buttonOpenPlaylist: HTMLButtonElement, buttonClosePlaylist: HTMLButtonElement, buttonOpenConfigurator: HTMLButtonElement, buttonCloseConfigurator: HTMLButtonElement): Promise<void> {
+	async run(cell: BufferedCell<typeof Settings>, dialogPlaylist: HTMLDialogElement, dialogConfigurator: HTMLDialogElement, buttonOpenPlaylist: HTMLButtonElement, buttonClosePlaylist: HTMLButtonElement, buttonOpenConfigurator: HTMLButtonElement, buttonCloseConfigurator: HTMLButtonElement, buttonNotice: HTMLButtonElement): Promise<void> {
 		this.#cell = cell;
 		this.#dialogs = new Map([
 			[Panel.playlist, dialogPlaylist],
@@ -82,6 +82,10 @@ export class PanelController extends Controller<[BufferedCell<typeof Settings>, 
 			await this.#activate(Panel.none);
 		});
 		buttonOpenConfigurator.addEventListener("click", async (event) => {
+			event.stopPropagation();
+			await this.#activate(Panel.configurator);
+		});
+		buttonNotice.addEventListener("click", async (event) => {
 			event.stopPropagation();
 			await this.#activate(Panel.configurator);
 		});

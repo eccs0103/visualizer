@@ -10,5 +10,9 @@ export class TextExpert {
 		const second = time.seconds;
 		return `${minute.toString().padStart(2, "0")}:${second.toString().padStart(2, "0")}`;
 	}
+
+	static formatMillions(count: number): string {
+		return `${(count / 1_000_000).toFixed(1)}M`;
+	}
 }
 //#endregion

@@ -1,0 +1,14 @@
+{
+	"models": [
+		{
+			"folder": "data/stem-mask-listening",
+			"name": "Deep listening",
+			"description": "Follows how every sound changes over time."
+		},
+		{
+			"folder": "data/stem-mask",
+			"name": "Standard",
+			"description": "The first model."
+		}
+	]
+}

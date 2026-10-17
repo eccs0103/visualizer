@@ -3,12 +3,12 @@
 import "adaptive-extender/web";
 import { Controller, Timespan } from "adaptive-extender/web";
 import { Visualizer } from "../services/visualizer.js";
-import { ClipRecorder } from "../services/clip-recorder.js";
+import { type ClipRecorder } from "../services/clip-recorder.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { TextExpert } from "../services/text-expert.js";
 
 //#region Clip controller
-export class ClipController extends Controller<[WakeGuard, Visualizer, HTMLCanvasElement, HTMLAudioElement, HTMLButtonElement, HTMLElement]> {
+export class ClipController extends Controller<[WakeGuard, Visualizer, ClipRecorder, HTMLButtonElement, HTMLElement]> {
 	static #zero: Timespan = Timespan.newZero;
 	#recorder: ClipRecorder;
 	#buttonClipToggle: HTMLButtonElement;
@@ -49,8 +49,8 @@ export class ClipController extends Controller<[WakeGuard, Visualizer, HTMLCanva
 		}
 	}
 
-	async run(guard: WakeGuard, visualizer: Visualizer, canvasDisplay: HTMLCanvasElement, audioPlayer: HTMLAudioElement, buttonClipToggle: HTMLButtonElement, itemClipTime: HTMLElement): Promise<void> {
-		const recorder = this.#recorder = new ClipRecorder(canvasDisplay, audioPlayer);
+	async run(guard: WakeGuard, visualizer: Visualizer, recorder: ClipRecorder, buttonClipToggle: HTMLButtonElement, itemClipTime: HTMLElement): Promise<void> {
+		this.#recorder = recorder;
 
 		this.#buttonClipToggle = buttonClipToggle;
 		this.#itemClipTime = itemClipTime;

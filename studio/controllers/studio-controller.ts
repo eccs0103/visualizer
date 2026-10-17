@@ -8,10 +8,14 @@ import { FileRow, TextRow } from "../models/rows.js";
 import { Visualizer } from "../services/visualizer.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { PlaylistPlayer } from "../services/playlist-player.js";
+import { ClipRecorder } from "../services/clip-recorder.js";
+import { Smoothness } from "../services/smoothness.js";
 import { LegacyAudio, LegacyLyrics, LegacyBareFiles, LegacyBareTexts } from "../services/legacy-stores.js";
 import { AudioController } from "./audio-controller.js";
 import { VisualizerSettingsController } from "./visualizer-settings-controller.js";
 import { SplitterController } from "./splitter-controller.js";
+import { SplitterCollector } from "./splitter-collector.js";
+import { NoticeController } from "./notice-controller.js";
 import { LayersController } from "./layers-controller.js";
 import { PanelController } from "./panel-controller.js";
 import { ClipController } from "./clip-controller.js";
@@ -57,9 +61,12 @@ class StudioController extends Controller {
 		const visualizer = new Visualizer(canvasDisplay, audioPlayer);
 		const guard = new WakeGuard();
 		const player = new PlaylistPlayer(audioPlayer, store, lyrics, playlist);
+		const recorder = new ClipRecorder(canvasDisplay, audioPlayer);
+		const smoothness = new Smoothness(visualizer);
 
 		const settings = cell.content;
-		settings.reconcile();
+		const catalog = ReferenceError.suppress(await visualizer.splitter.catalog, "The splitter catalog could not be loaded");
+		settings.reconcile(catalog);
 		visualizer.rate = settings.rate;
 		visualizer.visualization = settings.visualization;
 		visualizer.manager.apply(settings.configuration);
@@ -67,6 +74,7 @@ class StudioController extends Controller {
 		const divInterface = body.getElement(HTMLDivElement, "div#interface");
 		const buttonOpenPlaylist = divInterface.getElement(HTMLButtonElement, "button#open-playlist");
 		const buttonOpenConfigurator = divInterface.getElement(HTMLButtonElement, "button#open-configurator");
+		const buttonNotice = divInterface.getElement(HTMLButtonElement, "button#notice");
 		const buttonClipToggle = divInterface.getElement(HTMLButtonElement, "button#clip-toggle");
 		const buttonPlaybackPrevious = divInterface.getElement(HTMLButtonElement, "button#playback-previous");
 		const buttonPlaybackNext = divInterface.getElement(HTMLButtonElement, "button#playback-next");
@@ -84,12 +92,14 @@ class StudioController extends Controller {
 		const buttonClosePlaylist = dialogPlaylist.getElement(HTMLButtonElement, "button#close-playlist");
 
 		await AudioController.launch(guard, player, audioPlayer, divInterface, buttonPlaybackPrevious, buttonPlaybackNext, bPlaybackTitle, bPlaybackTime, inputPlaybackTrack);
-		await ClipController.launch(guard, visualizer, canvasDisplay, audioPlayer, buttonClipToggle, bClipTime);
+		await ClipController.launch(guard, visualizer, recorder, buttonClipToggle, bClipTime);
 		await LyricsController.launch(cell, player, audioPlayer, visualizer, inputLyricsToggle, inputShake, inputLyricsLookupToggle);
 		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
-		await SplitterController.launch(developer, visualizer, dialogConfigurator);
+		await SplitterController.launch(developer, cell, catalog, visualizer, dialogConfigurator);
+		await NoticeController.launch(visualizer, smoothness, recorder, buttonNotice, dialogConfigurator);
+		void SplitterCollector.launch(visualizer, smoothness, recorder);
 		await LayersController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
-		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator);
+		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator, buttonNotice);
 		await PlaylistController.launch(player, dialogPlaylist);
 
 		await LegacyAudio.migrate(legacy, player);

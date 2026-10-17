@@ -47,6 +47,10 @@ button#open-configurator > span.icon {
 	--url: url(../../assets/icons/sliders.svg);
 }
 
+button#notice > span.icon {
+	--url: url(../../assets/icons/triangle-exclamation.svg);
+}
+
 div#interface > *#transport-bar {
 	grid-area: transport-bar-area;
 	align-items: start;
@@ -134,7 +138,8 @@ div#ai:not(:has(> section.option:not([hidden]))) {
 	display: none;
 }
 
-output#visualizer-splitter {
+output#visualizer-splitter,
+output#visualizer-smoothness {
 	max-width: 10em;
 	white-space: pre-line;
 	text-align: end;

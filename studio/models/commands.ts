@@ -44,7 +44,6 @@ export interface InitializeMaskCommandScheme extends CommandScheme {
 	$type: keyof InitializeMaskCommandDiscriminator;
 	sabSignal: SharedArrayBuffer;
 	sabMask: SharedArrayBuffer;
-	urlModel: string;
 	urlShaders: string;
 }
 
@@ -56,15 +55,12 @@ export class InitializeMaskCommand extends Command {
 	sabMask: SharedArrayBuffer;
 
 	@Field(String)
-	urlModel: string;
-
-	@Field(String)
 	urlShaders: string;
 
 	constructor();
-	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, urlModel: string, urlShaders: string);
-	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, urlModel?: string, urlShaders?: string) {
-		if (sabSignal === undefined || sabMask === undefined || urlModel === undefined || urlShaders === undefined) {
+	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, urlShaders: string);
+	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, urlShaders?: string) {
+		if (sabSignal === undefined || sabMask === undefined || urlShaders === undefined) {
 			super();
 			return;
 		}
@@ -72,7 +68,6 @@ export class InitializeMaskCommand extends Command {
 		super();
 		this.sabSignal = sabSignal;
 		this.sabMask = sabMask;
-		this.urlModel = urlModel;
 		this.urlShaders = urlShaders;
 	}
 }
@@ -84,16 +79,16 @@ export interface ModelMaskCommandDiscriminator {
 
 export interface ModelMaskCommandScheme extends CommandScheme {
 	$type: keyof ModelMaskCommandDiscriminator;
-	urlModel: string;
+	urlModel: string | null;
 }
 
 export class ModelMaskCommand extends Command {
-	@Field(String)
-	urlModel: string;
+	@Field(Nullable.Of(String))
+	urlModel: string | null;
 
 	constructor();
-	constructor(urlModel: string);
-	constructor(urlModel?: string) {
+	constructor(urlModel: string | null);
+	constructor(urlModel?: string | null) {
 		if (urlModel === undefined) {
 			super();
 			return;
@@ -115,6 +110,7 @@ export interface StatusMaskCommandScheme extends CommandScheme {
 	reason: string | null;
 	device: string | null;
 	rate: number | null;
+	milliseconds: number | null;
 	slowed: boolean;
 }
 
@@ -131,13 +127,16 @@ export class StatusMaskCommand extends Command {
 	@Field(Nullable.Of(Number))
 	rate: number | null;
 
+	@Field(Nullable.Of(Number))
+	milliseconds: number | null;
+
 	@Field(Boolean)
 	slowed: boolean;
 
 	constructor();
-	constructor(available: boolean, reason: string | null, device: string | null, rate: number | null, slowed: boolean);
-	constructor(available?: boolean, reason?: string | null, device?: string | null, rate?: number | null, slowed?: boolean) {
-		if (available === undefined || reason === undefined || device === undefined || rate === undefined || slowed === undefined) {
+	constructor(available: boolean, reason: string | null, device: string | null, rate: number | null, milliseconds: number | null, slowed: boolean);
+	constructor(available?: boolean, reason?: string | null, device?: string | null, rate?: number | null, milliseconds?: number | null, slowed?: boolean) {
+		if (available === undefined || reason === undefined || device === undefined || rate === undefined || milliseconds === undefined || slowed === undefined) {
 			super();
 			return;
 		}
@@ -147,11 +146,12 @@ export class StatusMaskCommand extends Command {
 		this.reason = reason;
 		this.device = device;
 		this.rate = rate;
+		this.milliseconds = milliseconds;
 		this.slowed = slowed;
 	}
 
 	equals(other: StatusMaskCommand): boolean {
-		return this.available === other.available && this.reason === other.reason && this.device === other.device && this.rate === other.rate && this.slowed === other.slowed;
+		return this.available === other.available && this.reason === other.reason && this.device === other.device && this.rate === other.rate && this.milliseconds === other.milliseconds && this.slowed === other.slowed;
 	}
 }
 //#endregion

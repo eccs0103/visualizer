@@ -38,7 +38,7 @@ class StemMaskWorker extends Controller {
 			const predicted = await network.infer(history);
 			const now = performance.now();
 			masks.publish(this.#smoother.smooth(predicted, now), performance.timeOrigin + now);
-			if (pace.finish(network.duration ?? now - begun, now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, pace.slowed));
+			if (pace.finish(network.duration ?? now - begun, now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, network.duration, pace.slowed));
 		} catch (reason) {
 			if (this.#slot.network !== network) return;
 			this.#disable(reason);
@@ -54,12 +54,13 @@ class StemMaskWorker extends Controller {
 			this.#signal = new Signal(command.sabSignal);
 			this.#masks = new MaskChannel(command.sabMask);
 			this.#shaders = command.urlShaders;
-			void this.#load(command.urlModel);
 			return;
 		}
 
 		if (command instanceof ModelMaskCommand) {
-			void this.#load(command.urlModel);
+			const { urlModel } = command;
+			if (urlModel === null) return this.#unload();
+			void this.#load(urlModel);
 			return;
 		}
 
@@ -78,7 +79,7 @@ class StemMaskWorker extends Controller {
 			const network = await slot.load(url, shaders, SabLayout.bins, SabLayout.stems);
 			if (network === null) return;
 			if (this.#history?.frames !== network.frames) this.#history = new TapHistory(network.frames);
-			this.#report(new StatusMaskCommand(true, null, network.adapter, null, false));
+			this.#report(new StatusMaskCommand(true, null, network.adapter, null, null, false));
 			const loss = await slot.watch(network);
 			if (loss === null) return;
 			this.#disable(loss);
@@ -87,10 +88,16 @@ class StemMaskWorker extends Controller {
 		}
 	}
 
+	#unload(): void {
+		this.#slot.unload();
+		this.#masks?.publish(this.#smoother.reset(), performance.timeOrigin + performance.now());
+		this.#report(new StatusMaskCommand(false, null, null, null, null, false));
+	}
+
 	#disable(reason: unknown): void {
 		this.#slot.clear();
 		this.#masks?.publish(this.#smoother.reset(), performance.timeOrigin + performance.now());
-		this.#report(new StatusMaskCommand(false, Error.from(reason).message, null, null, false));
+		this.#report(new StatusMaskCommand(false, Error.from(reason).message, null, null, null, false));
 	}
 
 	#report(status: StatusMaskCommand): void {

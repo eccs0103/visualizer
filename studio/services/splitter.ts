@@ -3,33 +3,33 @@
 import "adaptive-extender/web";
 import { MaskChannel } from "../models/audio-features.js";
 import { Command, InitializeMaskCommand, ModelMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
+import { SplitterCatalog, type SplitterModel } from "../models/splitter-catalog.js";
+import { type SplitterStatus, LoadingStatus, OffStatus, ActiveStatus, UnavailableStatus } from "../models/splitter-status.js";
+import { StemWeights } from "../models/stem-weights.js";
 
 const { baseURI } = document;
 
 //#region Splitter
-export enum SplitterModel {
-	standard,
-	presence,
-	memory,
-	listening,
-}
-
 export interface SplitterEventMap {
 	"status": Event;
 }
 
 export class Splitter extends EventTarget {
 	static #tick = Command.export(new TickCommand());
+	static #source: URL = new URL("../models.json", baseURI);
 	#worker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
 	#masks: MaskChannel = MaskChannel.create();
-	#status: StatusMaskCommand | null = null;
-	#model: SplitterModel = SplitterModel.listening;
+	#status: SplitterStatus = new LoadingStatus();
+	#model: SplitterModel | null = null;
+	#sizes: Map<SplitterModel, number> = new Map();
+	#catalog: Promise<SplitterCatalog | null>;
 
 	constructor(sabSignal: SharedArrayBuffer) {
 		super();
 		const worker = this.#worker;
 		worker.addEventListener("message", event => this.#onMessage(event));
-		worker.postMessage(Command.export(new InitializeMaskCommand(sabSignal, this.#masks.sab, Splitter.#locate(this.#model), new URL("../shaders/", baseURI).toString())));
+		worker.postMessage(Command.export(new InitializeMaskCommand(sabSignal, this.#masks.sab, new URL("../shaders/", baseURI).toString())));
+		this.#catalog = this.#open();
 	}
 
 	addEventListener<K extends keyof SplitterEventMap>(type: K, listener: (this: Splitter, event: SplitterEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -45,34 +45,76 @@ export class Splitter extends EventTarget {
 	}
 
 	get masks(): MaskChannel { return this.#masks; }
-	get status(): StatusMaskCommand | null { return this.#status; }
-	get model(): SplitterModel { return this.#model; }
+	get status(): SplitterStatus { return this.#status; }
+	get catalog(): Promise<SplitterCatalog | null> { return this.#catalog; }
+	get model(): SplitterModel | null { return this.#model; }
 
-	set model(value: SplitterModel) {
+	set model(value: SplitterModel | null) {
+		if (value === null) this.#mark(new OffStatus());
 		if (value === this.#model) return;
 		this.#model = value;
-		this.#worker.postMessage(Command.export(new ModelMaskCommand(Splitter.#locate(value))));
+		if (value !== null) this.#mark(new LoadingStatus());
+		this.#worker.postMessage(Command.export(new ModelMaskCommand(value === null ? null : Splitter.#locate(value))));
+	}
+
+	size(model: SplitterModel): number | null {
+		return this.#sizes.get(model) ?? null;
 	}
 
 	tick(): void {
 		this.#worker.postMessage(Splitter.#tick);
 	}
 
+	static #manifest(model: SplitterModel): URL {
+		return new URL(`${model.folder}/model.json`, Splitter.#source);
+	}
+
 	static #locate(model: SplitterModel): string {
-		switch (model) {
-		case SplitterModel.standard: return new URL("../data/stem-mask/model.json", baseURI).toString();
-		case SplitterModel.presence: return new URL("../data/stem-mask-presence/model.json", baseURI).toString();
-		case SplitterModel.memory: return new URL("../data/stem-mask-c64/model.json", baseURI).toString();
-		case SplitterModel.listening: return new URL("../data/stem-mask-listening/model.json", baseURI).toString();
-		default: throw new TypeError(`Invalid '${model}' splitter model`);
+		return Splitter.#manifest(model).toString();
+	}
+
+	static async #fetch(url: Readonly<URL>): Promise<unknown> {
+		const response = await fetch(url);
+		if (!response.ok) throw new ReferenceError(`Unable to load '${url}': ${response.status} ${response.statusText}`);
+		return await response.json();
+	}
+
+	async #weigh(model: SplitterModel): Promise<void> {
+		try {
+			const weights = StemWeights.import(await Splitter.#fetch(Splitter.#manifest(model)), "model");
+			this.#sizes.set(model, weights.length);
+		} catch (reason) {
+			console.error(`Failed to read the size of the '${model.name}' model cause:\n${Error.from(reason)}`);
 		}
+	}
+
+	async #open(): Promise<SplitterCatalog | null> {
+		try {
+			const catalog = SplitterCatalog.import(await Splitter.#fetch(Splitter.#source), "catalog");
+			await Promise.all(catalog.models.map(this.#weigh.bind(this)));
+			return catalog;
+		} catch (reason) {
+			this.#mark(new UnavailableStatus(Error.from(reason).message));
+			return null;
+		}
+	}
+
+	static #read(command: StatusMaskCommand): SplitterStatus {
+		const { available, reason, device, rate, milliseconds, slowed } = command;
+		if (available) return new ActiveStatus(device, rate, milliseconds, slowed);
+		if (reason !== null) return new UnavailableStatus(reason);
+		return new OffStatus();
+	}
+
+	#mark(status: SplitterStatus): void {
+		this.#status = status;
+		this.dispatchEvent(new Event("status"));
 	}
 
 	#onMessage(event: MessageEvent): void {
 		const command = Command.import(event.data, "command");
 		if (!(command instanceof StatusMaskCommand)) return;
-		this.#status = command;
-		this.dispatchEvent(new Event("status"));
+		this.#mark(Splitter.#read(command));
 	}
 }
 //#endregion

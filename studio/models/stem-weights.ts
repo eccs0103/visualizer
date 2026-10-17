@@ -158,6 +158,14 @@ export class StemWeights extends Model {
 		return this.groups.flatMap(group => group.paths);
 	}
 
+	get length(): number {
+		let length = 0;
+		for (const group of this.groups) {
+			for (const weight of group.weights) length += weight.length;
+		}
+		return length;
+	}
+
 	tensors(buffer: ArrayBuffer): StemTensors {
 		const tensors: Map<string, StemTensor> = new Map();
 		let offset = 0;

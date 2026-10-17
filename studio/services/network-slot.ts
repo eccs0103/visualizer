@@ -39,5 +39,11 @@ export class NetworkSlot {
 	clear(): void {
 		this.#network = null;
 	}
+
+	unload(): void {
+		this.#loads++;
+		this.#network?.destroy();
+		this.#network = null;
+	}
 }
 //#endregion

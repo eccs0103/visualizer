@@ -8,6 +8,7 @@ import { LayerSettings, BackgroundEffectKind, BackgroundFit, BackgroundSettings,
 import { Blend } from "./blend.js";
 import { Playlist, type PlaylistScheme } from "./playlist.js";
 import { type Reorder } from "./reorder.js";
+import { type SplitterCatalog, type SplitterModel } from "./splitter-catalog.js";
 
 //#region Visualization settings
 export interface VisualizationSettingsScheme {
@@ -86,6 +87,8 @@ export interface SettingsScheme {
 	lyrics: boolean;
 	lyrics_lookup: boolean;
 	shake: number;
+	splitter: boolean;
+	splitter_model: string | undefined;
 	visualization: string;
 	attachments: Record<string, VisualizationSettingsScheme>;
 }
@@ -106,6 +109,12 @@ export class Settings extends Model {
 	@Field(Number, { name: "shake" })
 	shake: number = 0.2;
 
+	@Field(Boolean, { name: "splitter" })
+	splitter: boolean = true;
+
+	@Field(Optional.Of(String), { name: "splitter_model" })
+	model: string | undefined = undefined;
+
 	@Field(String, { name: "visualization" })
 	visualization: string = Registry.default;
 
@@ -116,12 +125,25 @@ export class Settings extends Model {
 		return ReferenceError.suppress(this.attachments.get(this.visualization), `Missing configurations for visualization '${this.visualization}'`);
 	}
 
-	reconcile(): void {
+	reconcile(catalog: SplitterCatalog): void {
 		const names = new Set(Registry.names());
 		for (const name of Array.from(this.attachments.keys())) if (!names.has(name)) this.attachments.delete(name);
 		for (const name of names) if (!this.attachments.has(name)) this.attachments.add(name, new VisualizationSettings());
 		for (const [name, attachment] of this.attachments) attachment.reconcile(Registry.layers(name));
 		if (!Registry.has(this.visualization)) this.visualization = Registry.default;
+		const { model } = this;
+		if (model === undefined || catalog.find(model) === null) this.model = catalog.first.folder;
+	}
+
+	choice(catalog: SplitterCatalog): SplitterModel {
+		const { model } = this;
+		if (model === undefined) throw new ReferenceError("The splitter model is chosen only after the settings are reconciled");
+		return ReferenceError.suppress(catalog.find(model), `The splitter catalog has no '${model}' model`);
+	}
+
+	pick(catalog: SplitterCatalog): SplitterModel | null {
+		if (!this.splitter) return null;
+		return this.choice(catalog);
 	}
 }
 //#endregion

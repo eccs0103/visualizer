@@ -194,8 +194,8 @@ export class StemNetwork {
 	}
 
 	static async #connect(): Promise<GPUDevice> {
-		const adapter = await navigator.gpu?.requestAdapter() ?? null;
-		if (adapter === null) throw new ReferenceError("WebGPU is not available in this browser");
+		const adapter = await navigator.gpu.requestAdapter();
+		if (adapter === null) throw new ReferenceError("The browser blocks the graphics card. Turn on \"Use graphics acceleration when available\" in the browser settings and restart it");
 		const features: GPUFeatureName[] = adapter.features.has("timestamp-query") ? ["timestamp-query"] : [];
 		return await adapter.requestDevice({ requiredFeatures: features });
 	}

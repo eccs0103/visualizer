@@ -33,9 +33,13 @@
 				<span class="icon with-padding small-padding" translate="yes">Open playlist</span>
 			</button>
 		</div>
-		<div id="audio-auxiliary" class="with-padding large-padding flex reversed" translate="yes">
+		<div id="audio-auxiliary" class="with-padding large-padding flex reversed with-gap" translate="yes">
 			<button id="open-configurator" type="button" class="flex alt-center with-gap" title="Settings (Tab)" translate="yes">
 				<span class="icon with-padding small-padding" translate="yes">Open configurator</span>
+			</button>
+			<button id="notice" type="button" class="flex alt-center with-gap warn" hidden translate="yes">
+				<span class="icon with-padding small-padding" translate="yes">Warning</span>
+				<b id="notice-text" translate="yes"></b>
 			</button>
 		</div>
 		<div id="transport-bar" class="with-inline-padding large-padding flex column reversed with-gap" translate="yes">
@@ -96,6 +100,11 @@
 				<input id="visualizer-rate" type="number" class="value rounded depth with-padding" translate="yes">
 			</section>
 			<section class="option" translate="yes">
+				<h4 class="title" translate="yes">Smoothness</h4>
+				<span class="definition description" translate="yes">How many frames per second the computer draws now, next to its normal for this Rate. When it falls behind, a lower Rate or Quality, or the AI off, makes the page lighter.</span>
+				<output id="visualizer-smoothness" class="value with-padding" translate="no">Measuring…</output>
+			</section>
+			<section class="option" translate="yes">
 				<h4 class="title" translate="yes">Lyrics</h4>
 				<span class="definition description" translate="yes">Shows the song's words on screen when the track has lyrics. To add lyrics, add a .lrc file with the same name as the song to the playlist.</span>
 				<input id="lyrics-toggle" type="checkbox" hidden translate="yes">
@@ -120,41 +129,49 @@
 				<hr class="depth" translate="yes">
 				<h2 translate="yes">AI</h2>
 				<span class="description" translate="yes">The AIs that listen to the song together with the visuals. Each one has its own job, and its settings are listed under it.</span>
-				<section id="ai-splitter" class="option" hidden translate="yes">
+				<section id="ai-splitter" class="option" translate="yes">
 					<h4 class="title" translate="yes">Stem separation</h4>
-					<span class="definition description" translate="yes">An AI listens to the song and splits it into instruments (drums, bass, vocals, guitar, keys and the rest), so the visuals can react to each one separately. It needs a browser with WebGPU; without it, all instruments react together. <span id="visualizer-splitter-hint" hidden translate="yes">The AI runs slower than it should on this computer. If the computer has two graphics cards, set the browser to "High performance" in the system's graphics settings.</span></span>
-					<output id="visualizer-splitter" class="value with-padding" translate="no"></output>
+					<span class="definition description" translate="yes">An AI listens to the song and splits it into instruments (drums, bass, vocals, guitar, keys and the rest), so the visuals can react to each one separately. It needs a browser with WebGPU. When it is off or unavailable, all instruments react together.</span>
+					<input id="splitter-toggle" type="checkbox" hidden translate="yes">
+					<label for="splitter-toggle" role="checkbox" class="value depth toggle" translate="yes">
+						<span class="layer knob" translate="yes"></span>
+					</label>
 					<section class="option" translate="yes">
-						<h4 class="title" translate="yes">Model</h4>
-						<span class="definition description" translate="yes">Which trained model splits the song. Deep listening is the one everyone gets: it follows how every sound changes over time and is the most accurate. Standard is the first model. Presence also judges whether each instrument plays at all. Long memory hears four times more of the song at once. The number is the size of the model.</span>
-						<select id="splitter-model" class="value rounded depth with-padding" translate="yes"></select>
+						<h4 class="title" translate="yes">Status</h4>
+						<span class="definition description" translate="yes">How the AI runs on this computer. <span id="visualizer-splitter-hint" class="warn" hidden translate="yes"></span></span>
+						<output id="visualizer-splitter" class="value with-padding" translate="no"></output>
 					</section>
 					<section class="option" translate="yes">
+						<h4 class="title" translate="yes">Model</h4>
+						<span class="definition description" translate="yes">Which trained model splits the song. The number is the size of the model. <span id="splitter-model-description" translate="yes"></span></span>
+						<select id="splitter-model" class="value rounded depth with-padding" translate="yes"></select>
+					</section>
+					<section class="option" hidden translate="yes">
 						<h4 class="title" translate="yes">Drums × <output id="splitter-drums-value" translate="no">1</output></h4>
 						<span class="definition description" translate="yes">Makes the drums stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 						<input id="splitter-drums" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded" translate="yes">
 					</section>
-					<section class="option" translate="yes">
+					<section class="option" hidden translate="yes">
 						<h4 class="title" translate="yes">Bass × <output id="splitter-bass-value" translate="no">1</output></h4>
 						<span class="definition description" translate="yes">Makes the bass stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 						<input id="splitter-bass" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded" translate="yes">
 					</section>
-					<section class="option" translate="yes">
+					<section class="option" hidden translate="yes">
 						<h4 class="title" translate="yes">Vocals × <output id="splitter-vocals-value" translate="no">1</output></h4>
 						<span class="definition description" translate="yes">Makes the vocals stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 						<input id="splitter-vocals" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded" translate="yes">
 					</section>
-					<section class="option" translate="yes">
+					<section class="option" hidden translate="yes">
 						<h4 class="title" translate="yes">Guitar × <output id="splitter-guitar-value" translate="no">1</output></h4>
 						<span class="definition description" translate="yes">Makes the guitar stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 						<input id="splitter-guitar" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded" translate="yes">
 					</section>
-					<section class="option" translate="yes">
+					<section class="option" hidden translate="yes">
 						<h4 class="title" translate="yes">Keys × <output id="splitter-keys-value" translate="no">1</output></h4>
 						<span class="definition description" translate="yes">Makes the keys stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 						<input id="splitter-keys" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded" translate="yes">
 					</section>
-					<section class="option" translate="yes">
+					<section class="option" hidden translate="yes">
 						<h4 class="title" translate="yes">Other × <output id="splitter-other-value" translate="no">1</output></h4>
 						<span class="definition description" translate="yes">Makes everything else (strings, wind, pads…) stronger or weaker for the visuals. 1 leaves it exactly as the AI split it.</span>
 						<input id="splitter-other" type="range" min="0" max="2" step="0.5" value="1" class="value depth rounded" translate="yes">
