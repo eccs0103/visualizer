@@ -4,6 +4,11 @@ import "adaptive-extender/core";
 import { Field, Model, Optional } from "adaptive-extender/core";
 
 //#region Traffic context
+export interface TrafficContextScheme {
+	traffic_type: string | undefined;
+	network: string | undefined;
+}
+
 export class TrafficContext extends Model {
 	/** GA4's reserved internal-traffic marker. "internal" when the page runs on localhost (the owner's development server), absent otherwise. Never derived from anything a visitor can set, so it cannot be spoofed on the live site. */
 	@Field(Optional.Of(String), { name: "traffic_type" })

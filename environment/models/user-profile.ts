@@ -4,6 +4,24 @@ import "adaptive-extender/core";
 import { Field, Model, Optional } from "adaptive-extender/core";
 
 //#region User profile
+export interface UserProfileScheme {
+	cpu_architecture: string;
+	cpu_cores: number;
+	memory_gigabytes: number | undefined;
+	max_touch_points: number;
+	pixel_ratio: number;
+	bit_depth: number;
+	dark_mode: boolean;
+	low_motion: boolean;
+	high_contrast: boolean;
+	pointer_type: string;
+	do_not_track: string;
+	screen_resolution: string;
+	time_zone: string;
+	standalone: boolean;
+	webdriver: boolean;
+}
+
 export class UserProfile extends Model {
 	/** CPU instruction-set architecture (e.g. "x86_64", "arm64", "arm", "x86"). Resolved from UA-CH getHighEntropyValues → userAgent token parsing. Worst-case "unknown". */
 	@Field(String, { name: "cpu_architecture" })

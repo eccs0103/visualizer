@@ -4,6 +4,11 @@ import "adaptive-extender/core";
 import { Field, Model } from "adaptive-extender/core";
 
 //#region Page leave
+export interface PageLeaveScheme {
+	visible_ms: number;
+	max_scroll_percent: number;
+}
+
 export class PageLeave extends Model {
 	/** Accumulated foreground-visible time for this page in milliseconds. Deliberately not named engagement_time_msec: GA4 sums that parameter across events as incremental engagement, so a running total under that name would inflate GA4's own engagement metrics. */
 	@Field(Number, { name: "visible_ms" })

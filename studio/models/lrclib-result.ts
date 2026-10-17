@@ -6,6 +6,12 @@ import { Model, Field, Nullable } from "adaptive-extender/core";
 const { abs } = Math;
 
 //#region Lrclib result
+export interface LrclibResultScheme {
+	duration: number;
+	instrumental: boolean;
+	syncedLyrics: string | null;
+}
+
 export class LrclibResult extends Model {
 	@Field(Number, { name: "duration" })
 	duration: number;

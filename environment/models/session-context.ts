@@ -4,6 +4,17 @@ import "adaptive-extender/core";
 import { Field, Model, Optional } from "adaptive-extender/core";
 
 //#region Session context
+export interface SessionContextScheme {
+	referrer_domain: string;
+	navigation_type: string;
+	all_languages: string;
+	connection_type: string | undefined;
+	effective_connection: string | undefined;
+	downlink_mbps: number | undefined;
+	round_trip_time_ms: number | undefined;
+	data_saver_enabled: boolean | undefined;
+}
+
 export class SessionContext extends Model {
 	/** Hostname of the referring page (e.g. "google.com", "t.me"). "direct" when there is no referrer. "unknown" if the referrer URL could not be parsed. The full referrer URL is not sent: GA4 already records it as page_referrer. */
 	@Field(String, { name: "referrer_domain" })

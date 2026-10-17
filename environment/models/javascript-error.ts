@@ -4,6 +4,12 @@ import "adaptive-extender/core";
 import { Field, Model, Optional } from "adaptive-extender/core";
 
 //#region JavaScript error
+export interface JavaScriptErrorScheme {
+	error_message: string;
+	error_source: string | undefined;
+	error_line: number | undefined;
+}
+
 export class JavaScriptError extends Model {
 	/** Error.message from the thrown error or rejection value. For unhandled rejections, normalised through Error.from() so non-Error rejections (strings, objects) still produce a readable message. */
 	@Field(String, { name: "error_message" })

@@ -4,6 +4,15 @@ import "adaptive-extender/core";
 import { Field, Model, Optional } from "adaptive-extender/core";
 
 //#region Performance context
+export interface PerformanceContextScheme {
+	fcp_ms: number | undefined;
+	lcp_ms: number | undefined;
+	ttfb_ms: number | undefined;
+	cls_score: number | undefined;
+	inp_ms: number | undefined;
+	long_tasks: number | undefined;
+}
+
 export class PerformanceContext extends Model {
 	/** First Contentful Paint — milliseconds from navigation start until the browser renders the first text or image. Collected via PerformanceObserver (paint). Available in all modern browsers. */
 	@Field(Optional.Of(Number), { name: "fcp_ms" })

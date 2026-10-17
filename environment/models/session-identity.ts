@@ -4,6 +4,11 @@ import "adaptive-extender/core";
 import { Field, Model } from "adaptive-extender/core";
 
 //#region Session identity
+export interface SessionIdentityScheme {
+	user_id: string;
+	session_fingerprint: string;
+}
+
 export class SessionIdentity extends Model {
 	/** GA4 native User-ID. Persisted UUID for this browser (localStorage). Stable across page loads and browser restarts; resets only if the user clears storage. Enables User-ID reporting in GA4 and links all sessions from the same browser. */
 	@Field(String, { name: "user_id" })

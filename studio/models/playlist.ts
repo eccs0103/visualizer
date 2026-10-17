@@ -5,6 +5,14 @@ import { Model, Field, Enum, Random, Nullable } from "adaptive-extender/worker";
 import { type Reorder } from "./reorder.js";
 
 //#region Track
+export interface TrackScheme {
+	id: string;
+	signature: string;
+	duration: number;
+	lyrics: boolean;
+	lyrics_checked: number | null;
+}
+
 export class Track extends Model {
 	@Field(String, { name: "id" })
 	id: string;
@@ -67,6 +75,12 @@ export enum PlaybackMode {
 	one = "one",
 	loop = "loop",
 	shuffle = "shuffle",
+}
+
+export interface PlaylistScheme {
+	tracks: TrackScheme[];
+	index: number;
+	mode: PlaybackMode;
 }
 
 export class Playlist extends Model {

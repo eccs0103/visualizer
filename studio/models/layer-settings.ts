@@ -6,6 +6,12 @@ import { Blend } from "./blend.js";
 import { type Layer } from "../services/layers.js";
 
 //#region Layer settings
+export interface LayerSettingsScheme {
+	name: string;
+	opacity: number;
+	blend: Blend;
+}
+
 export class LayerSettings extends Model {
 	@Field(String, { name: "name" })
 	name: string;
@@ -51,6 +57,13 @@ export enum BackgroundEffectKind {
 	shake = "shake",
 	pulse = "pulse",
 	parallax = "parallax",
+}
+
+export interface BackgroundSettingsScheme extends LayerSettingsScheme {
+	fit: BackgroundFit;
+	image: string | null;
+	effect: BackgroundEffectKind;
+	intensity: number;
 }
 
 export class BackgroundSettings extends LayerSettings {

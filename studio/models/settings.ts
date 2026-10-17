@@ -4,12 +4,25 @@ import "adaptive-extender/worker";
 import { Model, Field, Enum, Optional } from "adaptive-extender/worker";
 import { Registry } from "../services/visualization-registry.js";
 import { type Layer } from "../services/layers.js";
-import { LayerSettings, BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "./layer-settings.js";
+import { LayerSettings, BackgroundEffectKind, BackgroundFit, BackgroundSettings, type LayerSettingsScheme, type BackgroundSettingsScheme } from "./layer-settings.js";
 import { Blend } from "./blend.js";
-import { Playlist } from "./playlist.js";
+import { Playlist, type PlaylistScheme } from "./playlist.js";
 import { type Reorder } from "./reorder.js";
 
 //#region Visualization settings
+export interface VisualizationSettingsScheme {
+	quality: number;
+	smoothing: number;
+	focus: number;
+	spread: number;
+	boost: number;
+	tilt: number;
+	punch: number;
+	layers: LayerSettingsScheme[];
+	background: BackgroundSettingsScheme;
+	lyrics: LayerSettingsScheme;
+}
+
 export class VisualizationSettings extends Model {
 	@Field(Number, { name: "quality" })
 	quality: number = 10;
@@ -67,6 +80,16 @@ export enum Panel {
 	configurator = "configurator",
 }
 
+export interface SettingsScheme {
+	panel: Panel;
+	rate: number;
+	lyrics: boolean;
+	lyrics_lookup: boolean;
+	shake: number;
+	visualization: string;
+	attachments: Record<string, VisualizationSettingsScheme>;
+}
+
 export class Settings extends Model {
 	@Field(Enum.Of(Panel), { name: "panel" })
 	panel: Panel = Panel.none;
@@ -103,6 +126,10 @@ export class Settings extends Model {
 }
 //#endregion
 //#region Legacy settings
+export interface LegacySettingsScheme {
+	playlist: PlaylistScheme | undefined;
+}
+
 /**
  * Reads the playlist that the settings cell held before the playlist got its own cell.
  * @deprecated Migration only. Remove once no stored settings cell carries a playlist.

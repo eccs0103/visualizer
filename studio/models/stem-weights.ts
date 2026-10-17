@@ -53,6 +53,12 @@ export class StemTensors {
 }
 //#endregion
 //#region Stem weight
+export interface StemWeightScheme {
+	name: string;
+	shape: number[];
+	dtype: string;
+}
+
 export class StemWeight extends Model {
 	@Field(String, { name: "name" })
 	name: string;
@@ -91,6 +97,11 @@ export class StemWeight extends Model {
 }
 //#endregion
 //#region Stem weight group
+export interface StemWeightGroupScheme {
+	paths: string[];
+	weights: StemWeightScheme[];
+}
+
 export class StemWeightGroup extends Model {
 	@Field(Array.Of(String), { name: "paths" })
 	paths: string[];
@@ -116,6 +127,11 @@ export class StemWeightGroup extends Model {
 export enum StemArchitecture {
 	window = "window",
 	time = "time",
+}
+
+export interface StemWeightsScheme {
+	weightsManifest: StemWeightGroupScheme[];
+	architecture: StemArchitecture;
 }
 
 export class StemWeights extends Model {

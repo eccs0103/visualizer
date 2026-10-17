@@ -20,6 +20,15 @@ export class Stems {
 }
 //#endregion
 //#region Stem gains
+export interface StemGainsScheme {
+	drums: number;
+	bass: number;
+	vocals: number;
+	guitar: number;
+	keys: number;
+	other: number;
+}
+
 export class StemGains extends Model {
 	@Field(Number)
 	drums: number;

@@ -5,6 +5,10 @@ import { Field, Model } from "adaptive-extender/worker";
 import { BlobPortable } from "./portables.js";
 
 //#region Row
+export interface RowScheme {
+	id: string;
+}
+
 export abstract class Row extends Model {
 	@Field(String, { name: "id" })
 	id: string;
@@ -29,6 +33,10 @@ export abstract class Row extends Model {
 }
 //#endregion
 //#region File row
+export interface FileRowScheme extends RowScheme {
+	file: Blob;
+}
+
 export class FileRow extends Row {
 	@Field(BlobPortable, { name: "file" })
 	file: Blob;
@@ -47,6 +55,10 @@ export class FileRow extends Row {
 }
 //#endregion
 //#region Text row
+export interface TextRowScheme extends RowScheme {
+	text: string;
+}
+
 export class TextRow extends Row {
 	@Field(String, { name: "text" })
 	text: string;

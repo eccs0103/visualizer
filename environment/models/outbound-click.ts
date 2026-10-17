@@ -4,6 +4,11 @@ import "adaptive-extender/core";
 import { Field, Model } from "adaptive-extender/core";
 
 //#region Outbound click
+export interface OutboundClickScheme {
+	link_url: string;
+	link_text: string;
+}
+
 export class OutboundClick extends Model {
 	/** Full absolute URL of the clicked link (anchor.href). Always an external destination — only anchors with target="_blank" are tracked. */
 	@Field(String, { name: "link_url" })
