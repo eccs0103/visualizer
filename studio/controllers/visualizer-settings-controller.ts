@@ -7,7 +7,7 @@ import { Visualizer } from "../services/visualizer.js";
 import { AudiosetManager } from "../services/audioset-manager.js";
 import { type Smoothness } from "../services/smoothness.js";
 import { Registry } from "../services/visualization-registry.js";
-import { ArrowKeys } from "../view/arrow-keys.js";
+import { Keyboard } from "../view/keyboard.js";
 
 //#region Visualizer settings controller
 export class VisualizerSettingsController extends Controller<[BufferedCell<typeof Settings>, Visualizer, Smoothness, HTMLDialogElement, HTMLSelectElement]> {
@@ -166,14 +166,13 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		this.#refreshKnobs();
 
 		window.addEventListener("keydown", (event) => {
-			const step = ArrowKeys.vertical(event.code);
+			const step = Keyboard.vertical(event.code);
 			if (step === 0) return;
 			if (event.repeat) return;
-			const { activeElement } = document;
-			if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLSelectElement || activeElement instanceof HTMLTextAreaElement) return;
+			if (Keyboard.typing) return;
 			if (document.querySelector("dialog[open]") !== null) return;
 			event.preventDefault();
-			ArrowKeys.cycle(selectVisualizerVisualization, step);
+			Keyboard.cycle(selectVisualizerVisualization, step);
 		});
 	}
 }

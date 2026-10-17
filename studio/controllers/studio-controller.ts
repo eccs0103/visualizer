@@ -95,7 +95,7 @@ class StudioController extends Controller {
 		await ClipController.launch(guard, visualizer, recorder, buttonClipToggle, bClipTime);
 		await LyricsController.launch(cell, player, audioPlayer, visualizer, inputLyricsToggle, inputShake, inputLyricsLookupToggle);
 		await VisualizerSettingsController.launch(cell, visualizer, smoothness, dialogConfigurator, selectVisualizerVisualization);
-		await SplitterController.launch(developer, cell, catalog, visualizer, dialogConfigurator);
+		await SplitterController.launch(developer, cell, visualizer, dialogConfigurator);
 		await NoticeController.launch(visualizer, smoothness, recorder, buttonNotice);
 		void SplitterCollector.launch(visualizer, smoothness, recorder);
 		await LayersController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);

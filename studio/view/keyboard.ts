@@ -2,8 +2,13 @@
 
 import "adaptive-extender/web";
 
-//#region Arrow keys
-export class ArrowKeys {
+//#region Keyboard
+export class Keyboard {
+	static get typing(): boolean {
+		const { activeElement } = document;
+		return activeElement instanceof HTMLInputElement || activeElement instanceof HTMLSelectElement || activeElement instanceof HTMLTextAreaElement;
+	}
+
 	static vertical(code: string): number {
 		switch (code) {
 		case "ArrowUp": return -1;

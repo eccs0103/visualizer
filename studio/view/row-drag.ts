@@ -2,7 +2,7 @@
 
 import "adaptive-extender/web";
 import { Reorder } from "../models/reorder.js";
-import { ArrowKeys } from "./arrow-keys.js";
+import { Keyboard } from "./keyboard.js";
 
 //#region Drag gesture
 class DragGesture {
@@ -153,7 +153,7 @@ export class RowDrag extends EventTarget {
 	}
 
 	#onKeyDown(event: KeyboardEvent): void {
-		const step = ArrowKeys.vertical(event.code);
+		const step = Keyboard.vertical(event.code);
 		if (step === 0) return;
 		if (this.#findHandle(event) === undefined) return;
 		const row = this.#findRow(event);

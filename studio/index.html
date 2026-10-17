@@ -96,12 +96,12 @@
 			<h2 translate="yes">Engine</h2>
 			<section class="option" translate="yes">
 				<h4 class="title" translate="yes">Rate</h4>
-				<span class="definition description" translate="yes">How many times per second the picture is redrawn. Higher looks smoother but works the computer harder.</span>
+				<span class="definition description" translate="yes">The most times per second the picture is redrawn. A screen shows only its own refresh rate or a whole fraction of it (a half, a third…), so the picture is redrawn at the highest of those that is not above Rate: a 144 Hz screen gives 72 at Rate 120 and 144 at Rate 150. Higher looks smoother but works the computer harder.</span>
 				<input id="visualizer-rate" type="number" class="value rounded depth with-padding" translate="yes">
 			</section>
 			<section class="option" translate="yes">
 				<h4 class="title" translate="yes">Smoothness</h4>
-				<span class="definition description" translate="yes">How many frames per second the computer draws now, next to its normal for this Rate. When it falls behind, a lower Rate or Quality, or the AI off, makes the page lighter.</span>
+				<span class="definition description" translate="yes">How many frames per second are drawn now, out of the most this screen allows at this Rate. A freeze or a drop below that is marked right away, and the mark stays until it runs smoothly for a few seconds. A lower Rate or Quality, or the AI off, makes the page lighter.</span>
 				<output id="visualizer-smoothness" class="value with-padding" translate="no">Measuring…</output>
 			</section>
 			<section class="option" translate="yes">

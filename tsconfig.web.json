@@ -19,8 +19,8 @@
 		"studio/services/splitter.ts",
 		"studio/services/visualizer.ts",
 		"studio/services/wake-guard.ts",
-		"studio/view/arrow-keys.ts",
 		"studio/view/dom-builder.ts",
+		"studio/view/keyboard.ts",
 		"studio/view/layers-view.ts",
 		"studio/view/playlist-view.ts",
 		"studio/view/row-drag.ts"

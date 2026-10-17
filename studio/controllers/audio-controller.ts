@@ -6,7 +6,7 @@ import { PlaylistPlayer } from "../services/playlist-player.js";
 import { WakeGuard } from "../services/wake-guard.js";
 import { Track } from "../models/playlist.js";
 import { TextExpert } from "../services/text-expert.js";
-import { ArrowKeys } from "../view/arrow-keys.js";
+import { Keyboard } from "../view/keyboard.js";
 
 //#region Audio controller
 export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTMLAudioElement, HTMLDivElement, HTMLButtonElement, HTMLButtonElement, HTMLElement, HTMLElement, HTMLInputElement]> {
@@ -202,17 +202,15 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		window.addEventListener("keydown", async (event) => {
 			if (event.code !== "Space") return;
 			if (event.repeat) return;
-			const { activeElement } = document;
-			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;
+			if (Keyboard.typing) return;
 			event.preventDefault();
 			await this.#playToggle(audioPlayer.paused);
 		});
 
 		window.addEventListener("keydown", async (event) => {
-			const step = ArrowKeys.horizontal(event.code);
+			const step = Keyboard.horizontal(event.code);
 			if (step === 0) return;
-			const { activeElement } = document;
-			if (activeElement instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(activeElement.tagName)) return;
+			if (Keyboard.typing) return;
 			if (document.querySelector("dialog[open]") !== null) return;
 			event.preventDefault();
 			if (!event.shiftKey) return this.#seekBy(step * 5);

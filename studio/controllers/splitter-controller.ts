@@ -3,17 +3,14 @@
 import "adaptive-extender/web";
 import { Controller, type BufferedCell } from "adaptive-extender/web";
 import { type Visualizer } from "../services/visualizer.js";
-import { TextExpert } from "../services/text-expert.js";
-import { type SplitterCatalog, type SplitterModel } from "../models/splitter-catalog.js";
+import { type SplitterCatalog } from "../models/splitter-catalog.js";
 import { type Settings } from "../models/settings.js";
 import { ActiveStatus, UnavailableStatus } from "../models/splitter-status.js";
-import { Stem, StemGains } from "../models/stem.js";
-import { ArrowKeys } from "../view/arrow-keys.js";
+import { Stem, Stems, StemGains } from "../models/stem.js";
+import { Keyboard } from "../view/keyboard.js";
 
 //#region Splitter controller
-export class SplitterController extends Controller<[boolean, BufferedCell<typeof Settings>, SplitterCatalog, Visualizer, HTMLDialogElement]> {
-	static #stems: readonly Stem[] = [Stem.drums, Stem.bass, Stem.vocals, Stem.guitar, Stem.keys, Stem.other];
-
+export class SplitterController extends Controller<[boolean, BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement]> {
 	#visualizer: Visualizer;
 	#cell: BufferedCell<typeof Settings>;
 	#catalog: SplitterCatalog;
@@ -44,12 +41,6 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 		spanVisualizerSplitterHint.hidden = !slowed;
 		if (!slowed) return;
 		spanVisualizerSplitterHint.innerText = `${model.name} is too heavy for this computer: it falls behind the song, so it splits it worse. Try another model, or turn the AI off. If the computer has two graphics cards, set the browser to "High performance" in the system's graphics settings.`;
-	}
-
-	#label(model: SplitterModel): string {
-		const size = this.#catalog.size(model);
-		if (size === null) return model.name;
-		return `${model.name} (${TextExpert.formatMillions(size)})`;
 	}
 
 	#apply(): void {
@@ -89,7 +80,7 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 			const option = selectSplitterModel.appendChild(document.createElement("option"));
 			option.translate = false;
 			option.value = model.folder;
-			option.innerText = this.#label(model);
+			option.innerText = model.label;
 		}
 		selectSplitterModel.value = settings.choice(catalog).folder;
 		selectSplitterModel.addEventListener("change", async (event) => {
@@ -99,20 +90,19 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 		});
 		window.addEventListener("keydown", (event) => {
 			if (!event.shiftKey) return;
-			const step = ArrowKeys.vertical(event.code);
+			const step = Keyboard.vertical(event.code);
 			if (step === 0) return;
-			const { activeElement } = document;
-			if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLSelectElement || activeElement instanceof HTMLTextAreaElement) return;
+			if (Keyboard.typing) return;
 			event.preventDefault();
 			event.stopImmediatePropagation();
 			if (event.repeat) return;
-			ArrowKeys.cycle(selectSplitterModel, step);
+			Keyboard.cycle(selectSplitterModel, step);
 		}, { capture: true });
 	}
 
 	#bindStems(sectionAiSplitter: HTMLElement): void {
 		const inputs = this.#inputs;
-		for (const stem of SplitterController.#stems) {
+		for (const stem of Stems.all) {
 			const name = Stem[stem];
 			const inputSplitterStem = sectionAiSplitter.getElement(HTMLInputElement, `input#splitter-${name}`);
 			const outputSplitterStem = sectionAiSplitter.getElement(HTMLOutputElement, `output#splitter-${name}-value`);
@@ -126,15 +116,13 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 		}
 	}
 
-	async run(developer: boolean, cell: BufferedCell<typeof Settings>, catalog: SplitterCatalog, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
+	async run(developer: boolean, cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
 		this.#visualizer = visualizer;
+		this.#cell = cell;
+		this.#catalog = await visualizer.splitter.catalog;
 
 		const sectionAiSplitter = dialogConfigurator.getElement(HTMLElement, "section#ai-splitter");
 		this.#bindStatus(sectionAiSplitter);
-
-		this.#catalog = catalog;
-		this.#cell = cell;
-
 		this.#bindToggle(sectionAiSplitter);
 		this.#bindModel(sectionAiSplitter);
 		if (developer) this.#bindStems(sectionAiSplitter);

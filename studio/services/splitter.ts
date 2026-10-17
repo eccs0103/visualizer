@@ -19,7 +19,7 @@ export class Splitter extends EventTarget {
 	static #source: URL = new URL("../models.json", baseURI);
 	#worker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
 	#masks: MaskChannel = MaskChannel.create();
-	#status: SplitterStatus = new LoadingStatus();
+	#status: SplitterStatus = new OffStatus();
 	#model: SplitterModel | null = null;
 	#catalog: Promise<SplitterCatalog>;
 
@@ -49,12 +49,9 @@ export class Splitter extends EventTarget {
 	get model(): SplitterModel | null { return this.#model; }
 
 	set model(value: SplitterModel | null) {
-		if (value === this.#model) {
-			if (value === null) this.#mark(new OffStatus());
-			return;
-		}
+		if (value === this.#model) return;
 		this.#model = value;
-		if (value !== null) this.#mark(new LoadingStatus());
+		this.#mark(value === null ? new OffStatus() : new LoadingStatus());
 		this.#worker.postMessage(Command.export(new ModelMaskCommand(value === null ? null : Splitter.#manifest(value).toString())));
 	}
 
@@ -72,10 +69,10 @@ export class Splitter extends EventTarget {
 		return await response.json();
 	}
 
-	static async #weigh(catalog: SplitterCatalog, model: SplitterModel): Promise<void> {
+	static async #weigh(model: SplitterModel): Promise<void> {
 		try {
 			const weights = StemWeights.import(await Splitter.#fetch(Splitter.#manifest(model)), "model");
-			catalog.weigh(model, weights.length);
+			model.weigh(weights.length);
 		} catch (reason) {
 			console.error(`Failed to read the size of the '${model.name}' model cause:\n${Error.from(reason)}`);
 		}
@@ -83,7 +80,7 @@ export class Splitter extends EventTarget {
 
 	async #open(): Promise<SplitterCatalog> {
 		const catalog = SplitterCatalog.import(await Splitter.#fetch(Splitter.#source), "catalog");
-		await Promise.all(catalog.models.map(Splitter.#weigh.bind(Splitter, catalog)));
+		await Promise.all(catalog.models.map(Splitter.#weigh));
 		return catalog;
 	}
 

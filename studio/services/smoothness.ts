@@ -2,9 +2,8 @@
 
 import "adaptive-extender/web";
 import { type Visualizer } from "./visualizer.js";
-import { RateWindow } from "./rate-window.js";
 
-const { max } = Math;
+const { max, min, round, trunc } = Math;
 
 //#region Frame rate
 export class FrameRate {
@@ -17,14 +16,57 @@ export class FrameRate {
 	}
 
 	get fps(): number { return this.#fps; }
-	get normal(): number { return this.#normal; }
 
 	get summary(): string {
-		return `${this.#fps} of normal ${this.#normal}\nframes/s`;
+		return `${this.#fps} of ${this.#normal}\nframes/s`;
 	}
 
 	falls(share: number): boolean {
 		return this.#fps < this.#normal * share;
+	}
+}
+//#endregion
+//#region Screen pace
+class ScreenPace {
+	static #memory: number = 60;
+
+	#rates: number[] = [];
+	#paces: number[] = [];
+
+	static #typical(intervals: readonly number[]): number {
+		const sorted = intervals.toSorted((interval, interval2) => interval - interval2);
+		const begin = trunc(sorted.length / 4);
+		const end = sorted.length - begin;
+		let sum = 0;
+		for (let index = begin; index < end; index++) sum += sorted[index];
+		return sum / (end - begin);
+	}
+
+	remember(rate: number, intervals: readonly number[]): void {
+		if (intervals.length < 1) return;
+		const rates = this.#rates;
+		const paces = this.#paces;
+		rates.push(rate);
+		paces.push(ScreenPace.#typical(intervals));
+		if (rates.length <= ScreenPace.#memory) return;
+		rates.shift();
+		paces.shift();
+	}
+
+	normal(rate: number): number {
+		const rates = this.#rates;
+		const paces = this.#paces;
+		let screen = Infinity;
+		let own = Infinity;
+		for (let index = 0; index < paces.length; index++) {
+			const pace = paces[index];
+			screen = min(screen, pace);
+			if (rates[index] === rate) own = min(own, pace);
+		}
+		const frequency = 1000 / screen;
+		let divisor = 1;
+		while (round(frequency / divisor) > rate) divisor++;
+		return max(round(frequency / divisor), round(1000 / own));
 	}
 }
 //#endregion
@@ -38,23 +80,25 @@ export class Smoothness extends EventTarget {
 	static #length: number = 1000;
 	static #share: number = 0.8;
 	static #freeze: number = 100;
-	static #patience: number = 1000;
-	static #warmup: number = 3000;
+	static #hold: number = 3000;
+	static #warmup: number = 2000;
 
 	#visualizer: Visualizer;
-	#window: RateWindow = new RateWindow(Smoothness.#length);
-	#previous: number | null = null;
-	#gap: number = 0;
+	#screen: ScreenPace = new ScreenPace();
+	#clock: number = 0;
 	#started: number | null = null;
-	#rate: number | null = null;
-	#normal: number = 0;
-	#since: number | null = null;
+	#rate: number = 0;
+	#opened: number = 0;
+	#intervals: number[] = [];
+	#draws: number = 0;
+	#drawn: number = 0;
+	#lagged: number | null = null;
 	#slow: boolean = false;
 
 	constructor(visualizer: Visualizer) {
 		super();
 		this.#visualizer = visualizer;
-		visualizer.addEventListener("update", event => this.#onUpdate(performance.now()));
+		visualizer.addEventListener("update", event => this.#onUpdate());
 		document.addEventListener("visibilitychange", event => this.#reset());
 	}
 
@@ -72,54 +116,56 @@ export class Smoothness extends EventTarget {
 
 	get slow(): boolean { return this.#slow; }
 
-	#onUpdate(now: number): void {
-		const previous = this.#previous;
-		this.#previous = now;
-		if (previous !== null) this.#gap = max(this.#gap, now - previous);
-		const fps = this.#window.count(now);
-		if (fps === null) return;
-		const gap = this.#gap;
-		this.#gap = 0;
-		this.#measure(new FrameRate(fps, this.#raise(fps)), gap, now);
-	}
-
-	#raise(fps: number): number {
-		const { rate } = this.#visualizer;
-		if (rate !== this.#rate) {
-			this.#rate = rate;
-			this.#normal = 0;
+	#onUpdate(): void {
+		const { rate, interval, fresh } = this.#visualizer;
+		if (this.#started === null) return this.#start(rate);
+		const clock = this.#clock += interval;
+		if (rate !== this.#rate) this.#open(clock, rate);
+		this.#intervals.push(interval);
+		const gap = clock - this.#drawn;
+		if (fresh) {
+			this.#draws++;
+			this.#drawn = clock;
 		}
-		return this.#normal = max(this.#normal, fps);
+		if (gap > Smoothness.#freeze) this.#lag(clock);
+		if (clock - this.#opened >= Smoothness.#length) this.#close(clock);
 	}
 
-	#measure(frames: FrameRate, gap: number, now: number): void {
+	#start(rate: number): void {
+		const clock = this.#clock;
+		this.#started = clock;
+		this.#drawn = clock;
+		this.#open(clock, rate);
+	}
+
+	#open(clock: number, rate: number): void {
+		this.#opened = clock;
+		this.#rate = rate;
+		this.#intervals = [];
+		this.#draws = 0;
+	}
+
+	#close(clock: number): void {
+		const rate = this.#rate;
+		const screen = this.#screen;
+		screen.remember(rate, this.#intervals);
+		const frames = new FrameRate(round(this.#draws * 1000 / (clock - this.#opened)), screen.normal(rate));
 		this.dispatchEvent(new CustomEvent("measure", { detail: frames }));
+		if (frames.falls(Smoothness.#share)) this.#lag(clock);
+		const lagged = this.#lagged;
+		if (lagged === null || clock - lagged >= Smoothness.#hold) this.#mark(false);
+		this.#open(clock, rate);
+	}
+
+	#lag(clock: number): void {
 		const started = this.#started;
-		if (started === null) {
-			this.#started = now;
-			return;
-		}
-		if (now - started < Smoothness.#warmup) return;
-		if (!frames.falls(Smoothness.#share) && gap <= Smoothness.#freeze) {
-			this.#since = null;
-			return this.#mark(false);
-		}
-		const since = this.#since;
-		if (since === null) {
-			this.#since = now;
-			return;
-		}
-		if (now - since < Smoothness.#patience) return;
+		if (started === null || clock - started < Smoothness.#warmup) return;
+		this.#lagged = clock;
 		this.#mark(true);
 	}
 
 	#reset(): void {
-		this.#previous = null;
-		this.#window.reset();
-		this.#gap = 0;
 		this.#started = null;
-		this.#normal = 0;
-		this.#since = null;
 	}
 
 	#mark(value: boolean): void {

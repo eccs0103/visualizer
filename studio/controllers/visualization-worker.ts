@@ -50,6 +50,17 @@ class VisualizationWorker extends Controller {
 		this.#rebuilt = true;
 	}
 
+	#draw(): void {
+		if (!this.#rebuilt) return;
+		const stage = this.#stage;
+		const { frame } = stage;
+		if (frame === this.#frame) return;
+		this.#frame = frame;
+		stage.sync();
+		stage.tick();
+		this.#findScene(this.#selection).render();
+	}
+
 	#onMessage(event: MessageEvent): void {
 		const command = Command.import(event.data, "command");
 		const scenes = this.#scenes;
@@ -73,13 +84,11 @@ class VisualizationWorker extends Controller {
 		const stage = this.#stage;
 
 		if (command instanceof TickCommand) {
-			if (!this.#rebuilt) return;
-			const frame = stage.frame;
-			if (frame === this.#frame) return;
-			this.#frame = frame;
-			stage.sync();
-			stage.tick();
-			this.#findScene(this.#selection).render();
+			try {
+				this.#draw();
+			} finally {
+				stage.finish();
+			}
 			return;
 		}
 

@@ -194,7 +194,9 @@ export class StemNetwork {
 	}
 
 	static async #connect(): Promise<GPUDevice> {
-		const adapter = await navigator.gpu.requestAdapter();
+		const { gpu } = navigator;
+		if (gpu === undefined) throw new ReferenceError("This browser can't run the AI.");
+		const adapter = await gpu.requestAdapter();
 		if (adapter === null) throw new ReferenceError("The browser blocks the graphics card. Turn on \"Use graphics acceleration when available\" in the browser settings and restart it");
 		const features: GPUFeatureName[] = adapter.features.has("timestamp-query") ? ["timestamp-query"] : [];
 		return await adapter.requestDevice({ requiredFeatures: features });

@@ -59,6 +59,7 @@ class StemMaskWorker extends Controller {
 
 		if (command instanceof ModelMaskCommand) {
 			const { urlModel } = command;
+			this.#status = null;
 			if (urlModel === null) return this.#unload();
 			void this.#load(urlModel);
 			return;
@@ -78,6 +79,7 @@ class StemMaskWorker extends Controller {
 			if (shaders === null) throw new ReferenceError("The splitter has no shaders before it is initialized");
 			const network = await slot.load(url, shaders, SabLayout.bins, SabLayout.stems);
 			if (network === null) return;
+			this.#pace = new InferencePace();
 			if (this.#history?.frames !== network.frames) this.#history = new TapHistory(network.frames);
 			this.#report(new StatusMaskCommand(true, null, network.adapter, null, null, false));
 			const loss = await slot.watch(network);

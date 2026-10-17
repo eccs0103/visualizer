@@ -22,12 +22,14 @@ export class Visualizer extends EventTarget {
 	static #tick = Command.export(new TickCommand());
 	static #minRate: number = 30;
 	static #maxRate: number = 1200;
+	static #depth: number = 2;
 	static #renderers: RegExp = /SwiftShader|Basic Render/i;
 	#accelerated: boolean = Visualizer.#detect();
 	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
 	#engine: WebEngine = new FastEngine();
 	#visualization: string;
-	#shake: number = 0.2;
+	#posted: number = 0;
+	#fresh: boolean = false;
 	#canvas: HTMLCanvasElement;
 	#manager: AudiosetManager;
 	#splitter: Splitter;
@@ -86,6 +88,8 @@ export class Visualizer extends EventTarget {
 		this.#engine.limit = value;
 	}
 
+	get interval(): number { return this.#engine.delta * 1000; }
+	get fresh(): boolean { return this.#fresh; }
 	get accelerated(): boolean { return this.#accelerated; }
 	get manager(): AudiosetManager { return this.#manager; }
 	get splitter(): Splitter { return this.#splitter; }
@@ -116,11 +120,8 @@ export class Visualizer extends EventTarget {
 		this.#rebuild();
 	}
 
-	get shake(): number { return this.#shake; }
-
 	set shake(value: number) {
 		value = value.clamp(0, 1);
-		this.#shake = value;
 		this.#worker.postMessage(Command.export(new ShakeRenderCommand(value)));
 	}
 
@@ -140,9 +141,15 @@ export class Visualizer extends EventTarget {
 	}
 
 	#update(): void {
-		this.#manager.capture();
+		const manager = this.#manager;
+		manager.capture();
 		this.#splitter.tick();
-		this.#worker.postMessage(Visualizer.#tick);
+		const posted = this.#posted;
+		const fresh = this.#fresh = ((posted - manager.signal.drawn) | 0) < Visualizer.#depth;
+		if (fresh) {
+			this.#posted = (posted + 1) | 0;
+			this.#worker.postMessage(Visualizer.#tick);
+		}
 		this.dispatchEvent(new Event("update"));
 	}
 

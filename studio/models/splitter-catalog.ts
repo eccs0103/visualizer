@@ -2,6 +2,7 @@
 
 import "adaptive-extender/core";
 import { Model, Field } from "adaptive-extender/core";
+import { TextExpert } from "../services/text-expert.js";
 
 //#region Splitter model
 export interface SplitterModelScheme {
@@ -20,6 +21,8 @@ export class SplitterModel extends Model {
 	@Field(String, { name: "description" })
 	description: string;
 
+	#size: number | null = null;
+
 	constructor();
 	constructor(folder: string, name: string, description: string);
 	constructor(folder?: string, name?: string, description?: string) {
@@ -33,6 +36,16 @@ export class SplitterModel extends Model {
 		this.name = name;
 		this.description = description;
 	}
+
+	get label(): string {
+		const size = this.#size;
+		if (size === null) return this.name;
+		return `${this.name} (${TextExpert.formatMillions(size)})`;
+	}
+
+	weigh(size: number): void {
+		this.#size = size;
+	}
 }
 //#endregion
 //#region Splitter catalog
@@ -43,8 +56,6 @@ export interface SplitterCatalogScheme {
 export class SplitterCatalog extends Model {
 	@Field(Array.Of(SplitterModel), { name: "models" })
 	models: SplitterModel[];
-
-	#sizes: Map<SplitterModel, number> = new Map();
 
 	constructor();
 	constructor(models: SplitterModel[]);
@@ -66,14 +77,6 @@ export class SplitterCatalog extends Model {
 
 	find(folder: string): SplitterModel | null {
 		return this.models.find(model => model.folder === folder) ?? null;
-	}
-
-	size(model: SplitterModel): number | null {
-		return this.#sizes.get(model) ?? null;
-	}
-
-	weigh(model: SplitterModel, size: number): void {
-		this.#sizes.set(model, size);
 	}
 }
 //#endregion

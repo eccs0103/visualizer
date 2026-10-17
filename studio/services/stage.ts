@@ -145,6 +145,10 @@ export class Stage implements Audioset, Environment {
 	updateGains(gains: StemGains): void {
 		this.#stems.weigh(gains);
 	}
+
+	finish(): void {
+		this.#signal.finish();
+	}
 	//#endregion
 }
 //#endregion
