@@ -10,7 +10,7 @@ import { type Track } from "../models/playlist.js";
 import { type Settings } from "../models/settings.js";
 
 //#region Lyrics controller
-export class LyricsController extends Controller<[BufferedCell<typeof Settings>, PlaylistPlayer, HTMLAudioElement, Visualizer, HTMLInputElement, HTMLInputElement, HTMLInputElement]> {
+export class LyricsController extends Controller<[BufferedCell<typeof Settings>, PlaylistPlayer, HTMLAudioElement, Visualizer, HTMLDialogElement]> {
 	#audioPlayer: HTMLAudioElement;
 	#visualizer: Visualizer;
 	#finder: LyricsFinder;
@@ -20,14 +20,10 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 
 	#render(): void {
 		const visualizer = this.#visualizer;
-		if (!this.#enabled) { visualizer.updateLyrics(null, null, null); return; }
 		const lyrics = this.#lyrics;
-		if (lyrics === null || lyrics.isEmpty) { visualizer.updateLyrics(null, null, null); return; }
+		if (!this.#enabled || lyrics === null) return visualizer.updateLyrics(null, null, null);
 		const index = this.#index;
-		const previous = lyrics.line(index - 1);
-		const current = lyrics.line(index);
-		const next = lyrics.line(index + 1);
-		visualizer.updateLyrics(previous, current, next);
+		visualizer.updateLyrics(lyrics.line(index - 1), lyrics.line(index), lyrics.line(index + 1));
 	}
 
 	#sync(): void {
@@ -40,8 +36,6 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 	}
 
 	#follow(): void {
-		const lyrics = this.#lyrics;
-		if (lyrics === null || lyrics.isEmpty) return;
 		if (this.#audioPlayer.paused) return;
 		this.#sync();
 	}
@@ -53,7 +47,10 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 		await this.#finder.load(track);
 	}
 
-	async run(cell: BufferedCell<typeof Settings>, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, visualizer: Visualizer, inputLyricsToggle: HTMLInputElement, inputShake: HTMLInputElement, inputLyricsLookupToggle: HTMLInputElement): Promise<void> {
+	async run(cell: BufferedCell<typeof Settings>, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
+		const inputLyricsToggle = dialogConfigurator.getElement(HTMLInputElement, "input#lyrics-toggle");
+		const inputShake = dialogConfigurator.getElement(HTMLInputElement, "input#lyrics-shake");
+		const inputLyricsLookupToggle = dialogConfigurator.getElement(HTMLInputElement, "input#lyrics-lookup-toggle");
 		this.#audioPlayer = audioPlayer;
 		const settings = cell.content;
 		this.#visualizer = visualizer;

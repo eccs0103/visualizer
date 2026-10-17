@@ -9,7 +9,7 @@ import { TextExpert } from "../services/text-expert.js";
 import { Keyboard } from "../view/keyboard.js";
 
 //#region Audio controller
-export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTMLAudioElement, HTMLDivElement, HTMLButtonElement, HTMLButtonElement, HTMLElement, HTMLElement, HTMLInputElement]> {
+export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTMLAudioElement, HTMLDivElement]> {
 	#audioPlayer: HTMLAudioElement;
 	#player: PlaylistPlayer;
 	#buttonPlaybackPrevious: HTMLButtonElement;
@@ -20,23 +20,10 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 	#inputPlaybackTrack: HTMLInputElement;
 	#scrubbing: boolean = false;
 
-	get #markReady(): boolean {
-		return this.#audioPlayer.dataset["ready"] !== undefined;
-	}
-	set #markReady(value: boolean) {
-		const { dataset } = this.#audioPlayer;
-		if (value) dataset["ready"] = String.empty;
-		else delete dataset["ready"];
-	}
-
-	get #markPlaying(): boolean {
-		return this.#audioPlayer.dataset["playing"] !== undefined;
-	}
-	set #markPlaying(value: boolean) {
-		if (!this.#markReady) return;
-		const { dataset } = this.#audioPlayer;
-		if (value) dataset["playing"] = String.empty;
-		else delete dataset["playing"];
+	#markPlaying(value: boolean): void {
+		const audioPlayer = this.#audioPlayer;
+		if (!audioPlayer.hasAttribute("data-ready")) return;
+		audioPlayer.toggleAttribute("data-playing", value);
 	}
 
 	async #playToggle(value: boolean): Promise<void> {
@@ -62,14 +49,16 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		return x.lerp(left, right).clamp(0, 1);
 	}
 
-	#updateSeekTrack(): void {
+	#showPosition(factor: number, seconds: number): void {
 		const inputPlaybackTrack = this.#inputPlaybackTrack;
-		const bPlaybackTime = this.#bPlaybackTime;
-		const { duration } = this.#audioPlayer;
-		const factor = this.#seekFactor();
+		inputPlaybackTrack.value = `${factor * 100}`;
 		inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
-		const time = (duration * factor).insteadNaN(0);
-		bPlaybackTime.innerText = this.#toPlaytimeInfo(time);
+		this.#bPlaybackTime.innerText = this.#toPlaytimeInfo(seconds);
+	}
+
+	#updateSeekTrack(): void {
+		const factor = this.#seekFactor();
+		this.#showPosition(factor, (this.#audioPlayer.duration * factor).insteadNaN(0));
 	}
 
 	#scrubTo(x: number): void {
@@ -98,13 +87,10 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 	#renderTrack(track: Track | null): void {
 		let signature = "Open the playlist or drop music here";
 		if (track !== null) signature = track.signature;
-		const inputPlaybackTrack = this.#inputPlaybackTrack;
 		const bPlaybackTitle = this.#bPlaybackTitle;
 		bPlaybackTitle.translate = track === null;
 		bPlaybackTitle.innerText = signature;
-		inputPlaybackTrack.value = "0";
-		inputPlaybackTrack.style.setProperty("--track-value", "0%");
-		this.#bPlaybackTime.innerText = this.#toPlaytimeInfo(0);
+		this.#showPosition(0, 0);
 	}
 
 	#renderAvailability(): void {
@@ -114,27 +100,27 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 		this.#spanPlaybackToggle.ariaDisabled = String(isEmpty);
 	}
 
-	async run(guard: WakeGuard, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, divInterface: HTMLDivElement, buttonPlaybackPrevious: HTMLButtonElement, buttonPlaybackNext: HTMLButtonElement, bPlaybackTitle: HTMLElement, bPlaybackTime: HTMLElement, inputPlaybackTrack: HTMLInputElement): Promise<void> {
+	async run(guard: WakeGuard, player: PlaylistPlayer, audioPlayer: HTMLAudioElement, divInterface: HTMLDivElement): Promise<void> {
 		this.#audioPlayer = audioPlayer;
 		this.#player = player;
-		this.#buttonPlaybackPrevious = buttonPlaybackPrevious;
-		this.#buttonPlaybackNext = buttonPlaybackNext;
+		const buttonPlaybackPrevious = this.#buttonPlaybackPrevious = divInterface.getElement(HTMLButtonElement, "button#playback-previous");
+		const buttonPlaybackNext = this.#buttonPlaybackNext = divInterface.getElement(HTMLButtonElement, "button#playback-next");
 		this.#spanPlaybackToggle = divInterface.getElement(HTMLElement, "#playback-control > span.icon");
-		this.#bPlaybackTitle = bPlaybackTitle;
-		this.#bPlaybackTime = bPlaybackTime;
-		this.#inputPlaybackTrack = inputPlaybackTrack;
+		this.#bPlaybackTitle = divInterface.getElement(HTMLElement, "b#playback-title");
+		const bPlaybackTime = this.#bPlaybackTime = divInterface.getElement(HTMLElement, "b#playback-time");
+		const inputPlaybackTrack = this.#inputPlaybackTrack = divInterface.getElement(HTMLInputElement, "input#playback-track");
 
-		audioPlayer.addEventListener("canplay", event => this.#markReady = true);
-		audioPlayer.addEventListener("emptied", event => this.#markReady = false);
-		audioPlayer.addEventListener("play", event => this.#markPlaying = true);
-		audioPlayer.addEventListener("pause", event => this.#markPlaying = false);
+		audioPlayer.addEventListener("canplay", event => audioPlayer.toggleAttribute("data-ready", true));
+		audioPlayer.addEventListener("emptied", event => audioPlayer.toggleAttribute("data-ready", false));
+		audioPlayer.addEventListener("play", event => this.#markPlaying(true));
+		audioPlayer.addEventListener("pause", event => this.#markPlaying(false));
 
 		audioPlayer.addEventListener("canplay", event => guard.activate("playback"));
 		audioPlayer.addEventListener("emptied", event => guard.deactivate("playback"));
 
 		audioPlayer.addEventListener("ended", async (event) => {
 			const track = await player.advance();
-			if (track === null) this.#markPlaying = false;
+			if (track === null) this.#markPlaying(false);
 		});
 
 		player.addEventListener("track", event => this.#renderTrack(event.detail));
@@ -161,10 +147,8 @@ export class AudioController extends Controller<[WakeGuard, PlaylistPlayer, HTML
 
 		audioPlayer.addEventListener("timeupdate", (event) => {
 			if (this.#scrubbing || document.activeElement === inputPlaybackTrack) return;
-			const factor = (audioPlayer.currentTime / audioPlayer.duration).insteadNaN(0);
-			inputPlaybackTrack.value = `${factor * 100}`;
-			inputPlaybackTrack.style.setProperty("--track-value", `${factor * 100}%`);
-			bPlaybackTime.innerText = this.#toPlaytimeInfo(audioPlayer.currentTime);
+			const { currentTime, duration } = audioPlayer;
+			this.#showPosition((currentTime / duration).insteadNaN(0), currentTime);
 		});
 
 		inputPlaybackTrack.addEventListener("click", event => event.stopPropagation());

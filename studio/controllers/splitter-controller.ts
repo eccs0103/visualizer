@@ -46,9 +46,9 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 	#apply(): void {
 		const { splitter } = this.#visualizer;
 		const settings = this.#cell.content;
-		const catalog = this.#catalog;
-		splitter.model = settings.pick(catalog);
-		this.#spanSplitterModelDescription.innerText = settings.choice(catalog).description;
+		const choice = settings.choice(this.#catalog);
+		splitter.model = settings.splitter ? choice : null;
+		this.#spanSplitterModelDescription.innerText = choice.description;
 	}
 
 	#bindStatus(sectionAiSplitter: HTMLElement): void {

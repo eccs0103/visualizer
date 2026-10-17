@@ -17,7 +17,6 @@
 		"studio/models/stem.ts",
 		"studio/models/stem-layers.ts",
 		"studio/models/stem-weights.ts",
-		"studio/services/rate-window.ts",
 		"studio/services/text-expert.ts"
 	]
 }

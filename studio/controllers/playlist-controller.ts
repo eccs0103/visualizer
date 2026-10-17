@@ -5,7 +5,6 @@ import { Controller } from "adaptive-extender/web";
 import { PlaylistPlayer } from "../services/playlist-player.js";
 import { FileDrop } from "../services/file-drop.js";
 import { PlaylistView } from "../view/playlist-view.js";
-import { type Reorder } from "../models/reorder.js";
 
 //#region Playlist controller
 export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogElement]> {
@@ -17,29 +16,9 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 		this.#view.render(player.tracks, player.index, player.mode);
 	}
 
-	async #onActivate(event: CustomEvent<number>): Promise<void> {
+	async #attempt(task: Promise<void>): Promise<void> {
 		try {
-			await this.#player.activate(event.detail);
-		} catch (reason) {
-			await this.catch(Error.from(reason));
-		}
-	}
-
-	async #onRemove(event: CustomEvent<string>): Promise<void> {
-		try {
-			await this.#player.remove(event.detail);
-		} catch (reason) {
-			await this.catch(Error.from(reason));
-		}
-	}
-
-	#onReorder(event: CustomEvent<Reorder>): void {
-		this.#player.move(event.detail);
-	}
-
-	async #onFiles(files: Iterable<File>): Promise<void> {
-		try {
-			await this.#player.add(files);
+			await task;
 		} catch (reason) {
 			await this.catch(Error.from(reason));
 		}
@@ -60,9 +39,9 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 		player.addEventListener("change", event => this.#render());
 		this.#render();
 
-		view.addEventListener("activate", this.#onActivate.bind(this));
-		view.addEventListener("remove", this.#onRemove.bind(this));
-		view.addEventListener("reorder", this.#onReorder.bind(this));
+		view.addEventListener("activate", event => this.#attempt(player.activate(event.detail)));
+		view.addEventListener("remove", event => this.#attempt(player.remove(event.detail)));
+		view.addEventListener("reorder", event => player.move(event.detail));
 
 		buttonPlaylistMode.addEventListener("click", (event) => {
 			event.stopPropagation();
@@ -77,13 +56,13 @@ export class PlaylistController extends Controller<[PlaylistPlayer, HTMLDialogEl
 			const files = ReferenceError.suppress(inputAudioLoader.files, "Unable to read files list");
 			try {
 				if (files.length < 1) return;
-				await this.#onFiles(files);
+				await this.#attempt(player.add(files));
 			} finally {
 				inputAudioLoader.value = String.empty;
 			}
 		});
 
-		fileDrop.addEventListener("files", event => this.#onFiles(event.detail));
+		fileDrop.addEventListener("files", event => this.#attempt(player.add(event.detail)));
 	}
 }
 //#endregion

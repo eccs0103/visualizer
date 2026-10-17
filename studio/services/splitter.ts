@@ -28,7 +28,7 @@ export class Splitter extends EventTarget {
 		const worker = this.#worker;
 		worker.addEventListener("message", event => this.#onMessage(event));
 		worker.postMessage(Command.export(new InitializeMaskCommand(sabSignal, this.#masks.sab, new URL("../shaders/", baseURI).toString())));
-		this.#catalog = this.#open();
+		this.#catalog = Splitter.#open();
 	}
 
 	addEventListener<K extends keyof SplitterEventMap>(type: K, listener: (this: Splitter, event: SplitterEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -78,7 +78,7 @@ export class Splitter extends EventTarget {
 		}
 	}
 
-	async #open(): Promise<SplitterCatalog> {
+	static async #open(): Promise<SplitterCatalog> {
 		const catalog = SplitterCatalog.import(await Splitter.#fetch(Splitter.#source), "catalog");
 		await Promise.all(catalog.models.map(Splitter.#weigh));
 		return catalog;

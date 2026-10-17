@@ -8,18 +8,15 @@ import { WakeGuard } from "../services/wake-guard.js";
 import { TextExpert } from "../services/text-expert.js";
 
 //#region Clip controller
-export class ClipController extends Controller<[WakeGuard, Visualizer, ClipRecorder, HTMLButtonElement, HTMLElement]> {
+export class ClipController extends Controller<[WakeGuard, Visualizer, ClipRecorder, HTMLDivElement]> {
 	static #zero: Timespan = Timespan.newZero;
 	#recorder: ClipRecorder;
 	#buttonClipToggle: HTMLButtonElement;
 	#itemClipTime: HTMLElement;
 
 	#markRecording(value: boolean): void {
-		const { dataset } = this.#buttonClipToggle;
 		const itemClipTime = this.#itemClipTime;
-
-		if (value) dataset["recording"] = String.empty;
-		else delete dataset["recording"];
+		this.#buttonClipToggle.toggleAttribute("data-recording", value);
 		itemClipTime.hidden = !value;
 		if (!value) itemClipTime.innerText = TextExpert.formatDuration(ClipController.#zero);
 	}
@@ -49,11 +46,11 @@ export class ClipController extends Controller<[WakeGuard, Visualizer, ClipRecor
 		}
 	}
 
-	async run(guard: WakeGuard, visualizer: Visualizer, recorder: ClipRecorder, buttonClipToggle: HTMLButtonElement, itemClipTime: HTMLElement): Promise<void> {
+	async run(guard: WakeGuard, visualizer: Visualizer, recorder: ClipRecorder, divInterface: HTMLDivElement): Promise<void> {
 		this.#recorder = recorder;
 
-		this.#buttonClipToggle = buttonClipToggle;
-		this.#itemClipTime = itemClipTime;
+		const buttonClipToggle = this.#buttonClipToggle = divInterface.getElement(HTMLButtonElement, "button#clip-toggle");
+		const itemClipTime = this.#itemClipTime = divInterface.getElement(HTMLElement, "b#clip-time");
 
 		recorder.addEventListener("start", event => guard.activate("recording"));
 		recorder.addEventListener("stop", event => guard.deactivate("recording"));

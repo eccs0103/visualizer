@@ -47,10 +47,6 @@ export class Lyrics {
 		return new Lyrics(lines);
 	}
 
-	get isEmpty(): boolean {
-		return this.lines.length < 1;
-	}
-
 	at(seconds: number): number {
 		return this.lines.findLastIndex(line => line.time <= seconds);
 	}

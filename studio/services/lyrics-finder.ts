@@ -118,19 +118,13 @@ export class LyricsFinder extends EventTarget {
 	}
 
 	async load(track: Track | null): Promise<void> {
-		const abort2 = this.#abort;
-		if (abort2 !== null) abort2.abort();
-		let idTrack: string | null = null;
-		if (track !== null) idTrack = track.id;
-		this.#idTrack = idTrack;
+		this.#abort?.abort();
+		this.#abort = null;
+		this.#idTrack = null;
+		if (track === null) return;
 
-		if (track === null) {
-			this.#abort = null;
-			return;
-		}
-
-		const abort = new AbortController();
-		this.#abort = abort;
+		this.#idTrack = track.id;
+		const abort = this.#abort = new AbortController();
 		const resolved = await this.#resolveLyrics(track, abort.signal);
 		if (this.#idTrack !== track.id) return;
 

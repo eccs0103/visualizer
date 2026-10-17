@@ -10,7 +10,7 @@ import { Registry } from "../services/visualization-registry.js";
 import { Keyboard } from "../view/keyboard.js";
 
 //#region Visualizer settings controller
-export class VisualizerSettingsController extends Controller<[BufferedCell<typeof Settings>, Visualizer, Smoothness, HTMLDialogElement, HTMLSelectElement]> {
+export class VisualizerSettingsController extends Controller<[BufferedCell<typeof Settings>, Visualizer, Smoothness, HTMLDialogElement]> {
 	#visualizer: Visualizer;
 	#cell: BufferedCell<typeof Settings>;
 	#selectVisualizerVisualization: HTMLSelectElement;
@@ -43,10 +43,10 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		this.#refreshKnobs();
 	}
 
-	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, smoothness: Smoothness, dialogConfigurator: HTMLDialogElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
+	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, smoothness: Smoothness, dialogConfigurator: HTMLDialogElement): Promise<void> {
 		this.#visualizer = visualizer;
 		this.#cell = cell;
-		this.#selectVisualizerVisualization = selectVisualizerVisualization;
+		const selectVisualizerVisualization = this.#selectVisualizerVisualization = dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization");
 
 		const inputVisualizerRate = this.#inputVisualizerRate = dialogConfigurator.getElement(HTMLInputElement, "input#visualizer-rate");
 		const inputVisualizationQuality = this.#inputVisualizationQuality = dialogConfigurator.getElement(HTMLInputElement, "input#visualization-quality");

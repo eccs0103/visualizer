@@ -5,7 +5,7 @@ import { Controller, BufferedCell } from "adaptive-extender/web";
 import { Settings, Panel } from "../models/settings.js";
 
 //#region Panel controller
-export class PanelController extends Controller<[BufferedCell<typeof Settings>, HTMLDialogElement, HTMLDialogElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement, HTMLButtonElement]> {
+export class PanelController extends Controller<[BufferedCell<typeof Settings>, HTMLDivElement, HTMLDialogElement, HTMLDialogElement]> {
 	#cell: BufferedCell<typeof Settings>;
 	#dialogs: Map<Panel, HTMLDialogElement>;
 	#panel: Panel = Panel.none;
@@ -52,8 +52,13 @@ export class PanelController extends Controller<[BufferedCell<typeof Settings>, 
 		return event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom;
 	}
 
-	async run(cell: BufferedCell<typeof Settings>, dialogPlaylist: HTMLDialogElement, dialogConfigurator: HTMLDialogElement, buttonOpenPlaylist: HTMLButtonElement, buttonClosePlaylist: HTMLButtonElement, buttonOpenConfigurator: HTMLButtonElement, buttonCloseConfigurator: HTMLButtonElement, buttonNotice: HTMLButtonElement): Promise<void> {
+	async run(cell: BufferedCell<typeof Settings>, divInterface: HTMLDivElement, dialogPlaylist: HTMLDialogElement, dialogConfigurator: HTMLDialogElement): Promise<void> {
 		this.#cell = cell;
+		const buttonOpenPlaylist = divInterface.getElement(HTMLButtonElement, "button#open-playlist");
+		const buttonOpenConfigurator = divInterface.getElement(HTMLButtonElement, "button#open-configurator");
+		const buttonNotice = divInterface.getElement(HTMLButtonElement, "button#notice");
+		const buttonClosePlaylist = dialogPlaylist.getElement(HTMLButtonElement, "button#close-playlist");
+		const buttonCloseConfigurator = dialogConfigurator.getElement(HTMLButtonElement, "button#close-configurator");
 		this.#dialogs = new Map([
 			[Panel.playlist, dialogPlaylist],
 			[Panel.configurator, dialogConfigurator],

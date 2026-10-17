@@ -26,50 +26,6 @@ export class FrameRate {
 	}
 }
 //#endregion
-//#region Screen pace
-class ScreenPace {
-	static #memory: number = 60;
-
-	#rates: number[] = [];
-	#paces: number[] = [];
-
-	static #typical(intervals: readonly number[]): number {
-		const sorted = intervals.toSorted((interval, interval2) => interval - interval2);
-		const begin = trunc(sorted.length / 4);
-		const end = sorted.length - begin;
-		let sum = 0;
-		for (let index = begin; index < end; index++) sum += sorted[index];
-		return sum / (end - begin);
-	}
-
-	remember(rate: number, intervals: readonly number[]): void {
-		if (intervals.length < 1) return;
-		const rates = this.#rates;
-		const paces = this.#paces;
-		rates.push(rate);
-		paces.push(ScreenPace.#typical(intervals));
-		if (rates.length <= ScreenPace.#memory) return;
-		rates.shift();
-		paces.shift();
-	}
-
-	normal(rate: number): number {
-		const rates = this.#rates;
-		const paces = this.#paces;
-		let screen = Infinity;
-		let own = Infinity;
-		for (let index = 0; index < paces.length; index++) {
-			const pace = paces[index];
-			screen = min(screen, pace);
-			if (rates[index] === rate) own = min(own, pace);
-		}
-		const frequency = 1000 / screen;
-		let divisor = 1;
-		while (round(frequency / divisor) > rate) divisor++;
-		return max(round(frequency / divisor), round(1000 / own));
-	}
-}
-//#endregion
 //#region Smoothness
 export interface SmoothnessEventMap {
 	"measure": CustomEvent<FrameRate>;
@@ -82,9 +38,10 @@ export class Smoothness extends EventTarget {
 	static #freeze: number = 100;
 	static #hold: number = 3000;
 	static #warmup: number = 2000;
+	static #memory: number = 60;
 
 	#visualizer: Visualizer;
-	#screen: ScreenPace = new ScreenPace();
+	#screens: number[] = [];
 	#clock: number = 0;
 	#started: number | null = null;
 	#rate: number = 0;
@@ -115,6 +72,10 @@ export class Smoothness extends EventTarget {
 	}
 
 	get slow(): boolean { return this.#slow; }
+
+	static #median(intervals: readonly number[]): number {
+		return intervals.toSorted((interval, interval2) => interval - interval2)[trunc(intervals.length / 2)];
+	}
 
 	#onUpdate(): void {
 		const { rate, interval, fresh } = this.#visualizer;
@@ -147,9 +108,11 @@ export class Smoothness extends EventTarget {
 
 	#close(clock: number): void {
 		const rate = this.#rate;
-		const screen = this.#screen;
-		screen.remember(rate, this.#intervals);
-		const frames = new FrameRate(round(this.#draws * 1000 / (clock - this.#opened)), screen.normal(rate));
+		const fps = round(this.#draws * 1000 / (clock - this.#opened));
+		const screens = this.#screens;
+		screens.push(max(fps, 1000 / Smoothness.#median(this.#intervals)));
+		if (screens.length > Smoothness.#memory) screens.shift();
+		const frames = new FrameRate(fps, round(min(rate, max(...screens))));
 		this.dispatchEvent(new CustomEvent("measure", { detail: frames }));
 		if (frames.falls(Smoothness.#share)) this.#lag(clock);
 		const lagged = this.#lagged;

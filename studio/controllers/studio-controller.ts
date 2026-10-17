@@ -72,34 +72,18 @@ class StudioController extends Controller {
 		visualizer.manager.apply(settings.configuration);
 
 		const divInterface = body.getElement(HTMLDivElement, "div#interface");
-		const buttonOpenPlaylist = divInterface.getElement(HTMLButtonElement, "button#open-playlist");
-		const buttonOpenConfigurator = divInterface.getElement(HTMLButtonElement, "button#open-configurator");
-		const buttonNotice = divInterface.getElement(HTMLButtonElement, "button#notice");
-		const buttonClipToggle = divInterface.getElement(HTMLButtonElement, "button#clip-toggle");
-		const buttonPlaybackPrevious = divInterface.getElement(HTMLButtonElement, "button#playback-previous");
-		const buttonPlaybackNext = divInterface.getElement(HTMLButtonElement, "button#playback-next");
-		const bPlaybackTitle = divInterface.getElement(HTMLElement, "b#playback-title");
-		const bPlaybackTime = divInterface.getElement(HTMLElement, "b#playback-time");
-		const bClipTime = divInterface.getElement(HTMLElement, "b#clip-time");
-		const inputPlaybackTrack = divInterface.getElement(HTMLInputElement, "input#playback-track");
 		const dialogConfigurator = body.getElement(HTMLDialogElement, "dialog#configurator");
-		const buttonCloseConfigurator = dialogConfigurator.getElement(HTMLButtonElement, "button#close-configurator");
-		const selectVisualizerVisualization = dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization");
-		const inputLyricsToggle = dialogConfigurator.getElement(HTMLInputElement, "input#lyrics-toggle");
-		const inputShake = dialogConfigurator.getElement(HTMLInputElement, "input#lyrics-shake");
-		const inputLyricsLookupToggle = dialogConfigurator.getElement(HTMLInputElement, "input#lyrics-lookup-toggle");
 		const dialogPlaylist = body.getElement(HTMLDialogElement, "dialog#playlist");
-		const buttonClosePlaylist = dialogPlaylist.getElement(HTMLButtonElement, "button#close-playlist");
 
-		await AudioController.launch(guard, player, audioPlayer, divInterface, buttonPlaybackPrevious, buttonPlaybackNext, bPlaybackTitle, bPlaybackTime, inputPlaybackTrack);
-		await ClipController.launch(guard, visualizer, recorder, buttonClipToggle, bClipTime);
-		await LyricsController.launch(cell, player, audioPlayer, visualizer, inputLyricsToggle, inputShake, inputLyricsLookupToggle);
-		await VisualizerSettingsController.launch(cell, visualizer, smoothness, dialogConfigurator, selectVisualizerVisualization);
+		await AudioController.launch(guard, player, audioPlayer, divInterface);
+		await ClipController.launch(guard, visualizer, recorder, divInterface);
+		await LyricsController.launch(cell, player, audioPlayer, visualizer, dialogConfigurator);
+		await VisualizerSettingsController.launch(cell, visualizer, smoothness, dialogConfigurator);
 		await SplitterController.launch(developer, cell, visualizer, dialogConfigurator);
-		await NoticeController.launch(visualizer, smoothness, recorder, buttonNotice);
+		await NoticeController.launch(visualizer, smoothness, recorder, divInterface);
 		void SplitterCollector.launch(visualizer, smoothness, recorder);
-		await LayersController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
-		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator, buttonNotice);
+		await LayersController.launch(cell, visualizer, dialogConfigurator);
+		await PanelController.launch(cell, divInterface, dialogPlaylist, dialogConfigurator);
 		await PlaylistController.launch(player, dialogPlaylist);
 
 		await LegacyAudio.migrate(legacy, player);

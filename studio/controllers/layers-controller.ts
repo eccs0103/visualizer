@@ -9,7 +9,7 @@ import { LayersView } from "../view/layers-view.js";
 import { LegacyBackgrounds, LegacyBareFiles } from "../services/legacy-stores.js";
 
 //#region Layers controller
-export class LayersController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement, HTMLSelectElement]> {
+export class LayersController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement]> {
 	static #maxSize: number = 50 * 1024 * 1024;
 	#cell: BufferedCell<typeof Settings>;
 	#visualizer: Visualizer;
@@ -91,7 +91,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		await cell.save(500);
 	}
 
-	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
+	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement): Promise<void> {
 		this.#cell = cell;
 		this.#visualizer = visualizer;
 		const olVisualizationLayers = dialogConfigurator.getElement(HTMLOListElement, "ol#visualization-layers");
@@ -101,7 +101,7 @@ export class LayersController extends Controller<[BufferedCell<typeof Settings>,
 		for (const [name, configuration] of settings.attachments) this.#arrange(name, configuration);
 		this.#render();
 
-		selectVisualizerVisualization.addEventListener("change", event => this.#render());
+		dialogConfigurator.getElement(HTMLSelectElement, "select#visualizer-visualization").addEventListener("change", event => this.#render());
 
 		view.addEventListener("adjust", async event => {
 			this.#arrange(settings.visualization, settings.configuration);

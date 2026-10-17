@@ -24,7 +24,7 @@
 		"wrangler": "^4.149.0"
 	},
 	"dependencies": {
-		"adaptive-extender": "^1.1.3"
+		"adaptive-extender": "^1.1.4"
 	},
 	"allowScripts": {
 		"esbuild": true

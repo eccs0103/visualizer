@@ -140,11 +140,6 @@ export class Settings extends Model {
 		if (model === undefined) throw new ReferenceError("The splitter model is chosen only after the settings are reconciled");
 		return ReferenceError.suppress(catalog.find(model), `The splitter catalog has no '${model}' model`);
 	}
-
-	pick(catalog: SplitterCatalog): SplitterModel | null {
-		if (!this.splitter) return null;
-		return this.choice(catalog);
-	}
 }
 //#endregion
 //#region Legacy settings

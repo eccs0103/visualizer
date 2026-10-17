@@ -1,7 +1,8 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { RateWindow } from "./rate-window.js";
+
+const { round } = Math;
 
 //#region Inference pace
 export class InferencePace {
@@ -14,7 +15,8 @@ export class InferencePace {
 
 	#cost: number | null = null;
 	#started: number | null = null;
-	#window: RateWindow = new RateWindow(InferencePace.#length);
+	#opened: number | null = null;
+	#count: number = 0;
 	#rate: number | null = null;
 
 	get rate(): number | null { return this.#rate; }
@@ -40,12 +42,22 @@ export class InferencePace {
 		const cost = this.#cost;
 		this.#cost = cost === null ? spent : cost + (spent - cost) * InferencePace.#learning;
 
-		const window = this.#window;
-		if (window.idle(now, InferencePace.#gap)) window.reset();
-		const rate = window.count(now);
-		if (rate === null) return false;
-		this.#rate = rate;
+		const opened = this.#opened;
+		if (opened === null || now - opened > InferencePace.#gap) {
+			this.#open(now);
+			return false;
+		}
+		const count = ++this.#count;
+		const elapsed = now - opened;
+		if (elapsed < InferencePace.#length) return false;
+		this.#open(now);
+		this.#rate = round(count * 1000 / elapsed);
 		return true;
+	}
+
+	#open(now: number): void {
+		this.#opened = now;
+		this.#count = 0;
 	}
 }
 //#endregion
