@@ -5,11 +5,12 @@ import { Controller, BufferedCell } from "adaptive-extender/web";
 import { Settings } from "../models/settings.js";
 import { Visualizer } from "../services/visualizer.js";
 import { AudiosetManager } from "../services/audioset-manager.js";
+import { type Smoothness } from "../services/smoothness.js";
 import { Registry } from "../services/visualization-registry.js";
 import { ArrowKeys } from "../view/arrow-keys.js";
 
 //#region Visualizer settings controller
-export class VisualizerSettingsController extends Controller<[BufferedCell<typeof Settings>, Visualizer, HTMLDialogElement, HTMLSelectElement]> {
+export class VisualizerSettingsController extends Controller<[BufferedCell<typeof Settings>, Visualizer, Smoothness, HTMLDialogElement, HTMLSelectElement]> {
 	#visualizer: Visualizer;
 	#cell: BufferedCell<typeof Settings>;
 	#selectVisualizerVisualization: HTMLSelectElement;
@@ -42,7 +43,7 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 		this.#refreshKnobs();
 	}
 
-	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, dialogConfigurator: HTMLDialogElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
+	async run(cell: BufferedCell<typeof Settings>, visualizer: Visualizer, smoothness: Smoothness, dialogConfigurator: HTMLDialogElement, selectVisualizerVisualization: HTMLSelectElement): Promise<void> {
 		this.#visualizer = visualizer;
 		this.#cell = cell;
 		this.#selectVisualizerVisualization = selectVisualizerVisualization;
@@ -81,6 +82,10 @@ export class VisualizerSettingsController extends Controller<[BufferedCell<typeo
 			settings.rate = visualizer.rate;
 			await cell.save(500);
 		});
+
+		const outputVisualizerSmoothness = dialogConfigurator.getElement(HTMLOutputElement, "output#visualizer-smoothness");
+		smoothness.addEventListener("measure", event => outputVisualizerSmoothness.value = event.detail.summary);
+		smoothness.addEventListener("change", event => outputVisualizerSmoothness.classList.toggle("warn", smoothness.slow));
 
 		inputVisualizationQuality.min = String(AudiosetManager.minQuality);
 		inputVisualizationQuality.max = String(AudiosetManager.maxQuality);

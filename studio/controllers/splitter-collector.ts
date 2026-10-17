@@ -13,10 +13,9 @@ const analytics = AnalyticsService.instance;
 
 //#region Splitter collector
 export class SplitterCollector extends Controller<[Visualizer, Smoothness, ClipRecorder]> {
-	static #after: number = 10;
+	static #windows: number = 10;
 
 	#visualizer: Visualizer;
-	#smoothness: Smoothness;
 	#recorder: ClipRecorder;
 	#counts: Map<string, number> = new Map();
 	#sent: Set<string> = new Set();
@@ -29,31 +28,24 @@ export class SplitterCollector extends Controller<[Visualizer, Smoothness, ClipR
 	}
 
 	#onMeasure(frames: FrameRate): void {
-		const { model, status } = this.#visualizer.splitter;
-		const software = this.#smoothness.software;
+		const visualizer = this.#visualizer;
+		const { model, status } = visualizer.splitter;
+		const { accelerated } = visualizer;
 		const recording = this.#recorder.isRecording;
-		if (status instanceof UnavailableStatus) {
-			const { reason } = status;
-			return this.#send(reason, new SplitterReport(model?.folder ?? null, null, null, null, false, reason, frames.fps, software, recording));
-		}
+		if (status instanceof UnavailableStatus) return this.#send(status.reason, SplitterReport.unavailable(model, status, frames.fps, accelerated, recording));
 		if (!(status instanceof ActiveStatus) || model === null) return;
 		const { folder } = model;
 		const counts = this.#counts;
 		const count = (counts.get(folder) ?? 0) + 1;
 		counts.set(folder, count);
-		if (count < SplitterCollector.#after) return;
-		this.#send(folder, new SplitterReport(folder, status.device, status.milliseconds, status.rate, status.slowed, null, frames.fps, software, recording));
+		if (count < SplitterCollector.#windows) return;
+		this.#send(folder, SplitterReport.active(model, status, frames.fps, accelerated, recording));
 	}
 
 	async run(visualizer: Visualizer, smoothness: Smoothness, recorder: ClipRecorder): Promise<void> {
 		this.#visualizer = visualizer;
-		this.#smoothness = smoothness;
 		this.#recorder = recorder;
 		smoothness.addEventListener("measure", event => this.#onMeasure(event.detail));
-	}
-
-	async catch(error: Error): Promise<void> {
-		console.error(`Splitter collection failed:\n${error}`);
 	}
 }
 //#endregion

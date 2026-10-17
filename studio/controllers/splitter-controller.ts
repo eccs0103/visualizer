@@ -47,7 +47,7 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 	}
 
 	#label(model: SplitterModel): string {
-		const size = this.#visualizer.splitter.size(model);
+		const size = this.#catalog.size(model);
 		if (size === null) return model.name;
 		return `${model.name} (${TextExpert.formatMillions(size)})`;
 	}
@@ -82,15 +82,16 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 	#bindModel(sectionAiSplitter: HTMLElement): void {
 		const cell = this.#cell;
 		const settings = cell.content;
+		const catalog = this.#catalog;
 		this.#spanSplitterModelDescription = sectionAiSplitter.getElement(HTMLSpanElement, "span#splitter-model-description");
 		const selectSplitterModel = sectionAiSplitter.getElement(HTMLSelectElement, "select#splitter-model");
-		for (const model of this.#catalog.models) {
+		for (const model of catalog.models) {
 			const option = selectSplitterModel.appendChild(document.createElement("option"));
 			option.translate = false;
 			option.value = model.folder;
 			option.innerText = this.#label(model);
 		}
-		selectSplitterModel.value = settings.choice(this.#catalog).folder;
+		selectSplitterModel.value = settings.choice(catalog).folder;
 		selectSplitterModel.addEventListener("change", async (event) => {
 			settings.model = selectSplitterModel.value;
 			this.#apply();

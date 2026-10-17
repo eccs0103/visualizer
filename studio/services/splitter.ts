@@ -21,8 +21,7 @@ export class Splitter extends EventTarget {
 	#masks: MaskChannel = MaskChannel.create();
 	#status: SplitterStatus = new LoadingStatus();
 	#model: SplitterModel | null = null;
-	#sizes: Map<SplitterModel, number> = new Map();
-	#catalog: Promise<SplitterCatalog | null>;
+	#catalog: Promise<SplitterCatalog>;
 
 	constructor(sabSignal: SharedArrayBuffer) {
 		super();
@@ -46,19 +45,17 @@ export class Splitter extends EventTarget {
 
 	get masks(): MaskChannel { return this.#masks; }
 	get status(): SplitterStatus { return this.#status; }
-	get catalog(): Promise<SplitterCatalog | null> { return this.#catalog; }
+	get catalog(): Promise<SplitterCatalog> { return this.#catalog; }
 	get model(): SplitterModel | null { return this.#model; }
 
 	set model(value: SplitterModel | null) {
-		if (value === null) this.#mark(new OffStatus());
-		if (value === this.#model) return;
+		if (value === this.#model) {
+			if (value === null) this.#mark(new OffStatus());
+			return;
+		}
 		this.#model = value;
 		if (value !== null) this.#mark(new LoadingStatus());
-		this.#worker.postMessage(Command.export(new ModelMaskCommand(value === null ? null : Splitter.#locate(value))));
-	}
-
-	size(model: SplitterModel): number | null {
-		return this.#sizes.get(model) ?? null;
+		this.#worker.postMessage(Command.export(new ModelMaskCommand(value === null ? null : Splitter.#manifest(value).toString())));
 	}
 
 	tick(): void {
@@ -69,34 +66,25 @@ export class Splitter extends EventTarget {
 		return new URL(`${model.folder}/model.json`, Splitter.#source);
 	}
 
-	static #locate(model: SplitterModel): string {
-		return Splitter.#manifest(model).toString();
-	}
-
 	static async #fetch(url: Readonly<URL>): Promise<unknown> {
 		const response = await fetch(url);
 		if (!response.ok) throw new ReferenceError(`Unable to load '${url}': ${response.status} ${response.statusText}`);
 		return await response.json();
 	}
 
-	async #weigh(model: SplitterModel): Promise<void> {
+	static async #weigh(catalog: SplitterCatalog, model: SplitterModel): Promise<void> {
 		try {
 			const weights = StemWeights.import(await Splitter.#fetch(Splitter.#manifest(model)), "model");
-			this.#sizes.set(model, weights.length);
+			catalog.weigh(model, weights.length);
 		} catch (reason) {
 			console.error(`Failed to read the size of the '${model.name}' model cause:\n${Error.from(reason)}`);
 		}
 	}
 
-	async #open(): Promise<SplitterCatalog | null> {
-		try {
-			const catalog = SplitterCatalog.import(await Splitter.#fetch(Splitter.#source), "catalog");
-			await Promise.all(catalog.models.map(this.#weigh.bind(this)));
-			return catalog;
-		} catch (reason) {
-			this.#mark(new UnavailableStatus(Error.from(reason).message));
-			return null;
-		}
+	async #open(): Promise<SplitterCatalog> {
+		const catalog = SplitterCatalog.import(await Splitter.#fetch(Splitter.#source), "catalog");
+		await Promise.all(catalog.models.map(Splitter.#weigh.bind(Splitter, catalog)));
+		return catalog;
 	}
 
 	static #read(command: StatusMaskCommand): SplitterStatus {

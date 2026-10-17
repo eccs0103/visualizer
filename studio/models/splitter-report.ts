@@ -2,6 +2,8 @@
 
 import "adaptive-extender/core";
 import { Model, Field, Nullable } from "adaptive-extender/core";
+import { type SplitterModel } from "./splitter-catalog.js";
+import { type ActiveStatus, type UnavailableStatus } from "./splitter-status.js";
 
 //#region Splitter report
 export interface SplitterReportScheme {
@@ -62,6 +64,14 @@ export class SplitterReport extends Model {
 		this.fps = fps;
 		this.software = software;
 		this.recording = recording;
+	}
+
+	static active(model: SplitterModel, status: ActiveStatus, fps: number, accelerated: boolean, recording: boolean): SplitterReport {
+		return new SplitterReport(model.folder, status.device, status.milliseconds, status.rate, status.slowed, null, fps, !accelerated, recording);
+	}
+
+	static unavailable(model: SplitterModel | null, status: UnavailableStatus, fps: number, accelerated: boolean, recording: boolean): SplitterReport {
+		return new SplitterReport(model?.folder ?? null, null, null, null, false, status.reason, fps, !accelerated, recording);
 	}
 }
 //#endregion

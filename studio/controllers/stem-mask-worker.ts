@@ -90,14 +90,17 @@ class StemMaskWorker extends Controller {
 
 	#unload(): void {
 		this.#slot.unload();
-		this.#masks?.publish(this.#smoother.reset(), performance.timeOrigin + performance.now());
-		this.#report(new StatusMaskCommand(false, null, null, null, null, false));
+		this.#idle(new StatusMaskCommand(false, null, null, null, null, false));
 	}
 
 	#disable(reason: unknown): void {
 		this.#slot.clear();
+		this.#idle(new StatusMaskCommand(false, Error.from(reason).message, null, null, null, false));
+	}
+
+	#idle(status: StatusMaskCommand): void {
 		this.#masks?.publish(this.#smoother.reset(), performance.timeOrigin + performance.now());
-		this.#report(new StatusMaskCommand(false, Error.from(reason).message, null, null, null, false));
+		this.#report(status);
 	}
 
 	#report(status: StatusMaskCommand): void {

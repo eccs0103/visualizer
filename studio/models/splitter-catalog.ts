@@ -44,6 +44,8 @@ export class SplitterCatalog extends Model {
 	@Field(Array.Of(SplitterModel), { name: "models" })
 	models: SplitterModel[];
 
+	#sizes: Map<SplitterModel, number> = new Map();
+
 	constructor();
 	constructor(models: SplitterModel[]);
 	constructor(models?: SplitterModel[]) {
@@ -64,6 +66,14 @@ export class SplitterCatalog extends Model {
 
 	find(folder: string): SplitterModel | null {
 		return this.models.find(model => model.folder === folder) ?? null;
+	}
+
+	size(model: SplitterModel): number | null {
+		return this.#sizes.get(model) ?? null;
+	}
+
+	weigh(model: SplitterModel, size: number): void {
+		this.#sizes.set(model, size);
 	}
 }
 //#endregion

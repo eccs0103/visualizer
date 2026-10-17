@@ -2,8 +2,9 @@
 
 import "adaptive-extender/web";
 import { type Visualizer } from "./visualizer.js";
+import { RateWindow } from "./rate-window.js";
 
-const { max, round } = Math;
+const { max } = Math;
 
 //#region Frame rate
 export class FrameRate {
@@ -18,6 +19,10 @@ export class FrameRate {
 	get fps(): number { return this.#fps; }
 	get normal(): number { return this.#normal; }
 
+	get summary(): string {
+		return `${this.#fps} of normal ${this.#normal}\nframes/s`;
+	}
+
 	falls(share: number): boolean {
 		return this.#fps < this.#normal * share;
 	}
@@ -30,18 +35,15 @@ export interface SmoothnessEventMap {
 }
 
 export class Smoothness extends EventTarget {
-	static #window: number = 1000;
+	static #length: number = 1000;
 	static #share: number = 0.8;
 	static #freeze: number = 100;
 	static #patience: number = 1000;
 	static #warmup: number = 3000;
-	static #renderers: RegExp = /SwiftShader|Basic Render/i;
 
 	#visualizer: Visualizer;
-	#software: boolean = Smoothness.#detect();
+	#window: RateWindow = new RateWindow(Smoothness.#length);
 	#previous: number | null = null;
-	#opened: number | null = null;
-	#ticks: number = 0;
 	#gap: number = 0;
 	#started: number | null = null;
 	#rate: number | null = null;
@@ -68,39 +70,16 @@ export class Smoothness extends EventTarget {
 		return super.removeEventListener(type, listener, options);
 	}
 
-	get software(): boolean { return this.#software; }
 	get slow(): boolean { return this.#slow; }
-
-	static #detect(): boolean {
-		const context = document.createElement("canvas").getContext("webgl");
-		if (context === null) return true;
-		try {
-			const info = context.getExtension("WEBGL_debug_renderer_info");
-			if (info === null) return false;
-			return Smoothness.#renderers.test(String(context.getParameter(info.UNMASKED_RENDERER_WEBGL)));
-		} finally {
-			context.getExtension("WEBGL_lose_context")?.loseContext();
-		}
-	}
 
 	#onUpdate(now: number): void {
 		const previous = this.#previous;
 		this.#previous = now;
 		if (previous !== null) this.#gap = max(this.#gap, now - previous);
-		const opened = this.#opened;
-		if (opened === null) {
-			this.#opened = now;
-			this.#ticks = 0;
-			return;
-		}
-		const ticks = ++this.#ticks;
-		const elapsed = now - opened;
-		if (elapsed < Smoothness.#window) return;
+		const fps = this.#window.count(now);
+		if (fps === null) return;
 		const gap = this.#gap;
-		this.#opened = now;
-		this.#ticks = 0;
 		this.#gap = 0;
-		const fps = round(ticks * 1000 / elapsed);
 		this.#measure(new FrameRate(fps, this.#raise(fps)), gap, now);
 	}
 
@@ -136,7 +115,7 @@ export class Smoothness extends EventTarget {
 
 	#reset(): void {
 		this.#previous = null;
-		this.#opened = null;
+		this.#window.reset();
 		this.#gap = 0;
 		this.#started = null;
 		this.#normal = 0;

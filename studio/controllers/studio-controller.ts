@@ -65,7 +65,7 @@ class StudioController extends Controller {
 		const smoothness = new Smoothness(visualizer);
 
 		const settings = cell.content;
-		const catalog = ReferenceError.suppress(await visualizer.splitter.catalog, "The splitter catalog could not be loaded");
+		const catalog = await visualizer.splitter.catalog;
 		settings.reconcile(catalog);
 		visualizer.rate = settings.rate;
 		visualizer.visualization = settings.visualization;
@@ -94,9 +94,9 @@ class StudioController extends Controller {
 		await AudioController.launch(guard, player, audioPlayer, divInterface, buttonPlaybackPrevious, buttonPlaybackNext, bPlaybackTitle, bPlaybackTime, inputPlaybackTrack);
 		await ClipController.launch(guard, visualizer, recorder, buttonClipToggle, bClipTime);
 		await LyricsController.launch(cell, player, audioPlayer, visualizer, inputLyricsToggle, inputShake, inputLyricsLookupToggle);
-		await VisualizerSettingsController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
+		await VisualizerSettingsController.launch(cell, visualizer, smoothness, dialogConfigurator, selectVisualizerVisualization);
 		await SplitterController.launch(developer, cell, catalog, visualizer, dialogConfigurator);
-		await NoticeController.launch(visualizer, smoothness, recorder, buttonNotice, dialogConfigurator);
+		await NoticeController.launch(visualizer, smoothness, recorder, buttonNotice);
 		void SplitterCollector.launch(visualizer, smoothness, recorder);
 		await LayersController.launch(cell, visualizer, dialogConfigurator, selectVisualizerVisualization);
 		await PanelController.launch(cell, dialogPlaylist, dialogConfigurator, buttonOpenPlaylist, buttonClosePlaylist, buttonOpenConfigurator, buttonCloseConfigurator, buttonNotice);

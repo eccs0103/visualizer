@@ -22,6 +22,8 @@ export class Visualizer extends EventTarget {
 	static #tick = Command.export(new TickCommand());
 	static #minRate: number = 30;
 	static #maxRate: number = 1200;
+	static #renderers: RegExp = /SwiftShader|Basic Render/i;
+	#accelerated: boolean = Visualizer.#detect();
 	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
 	#engine: WebEngine = new FastEngine();
 	#visualization: string;
@@ -84,8 +86,21 @@ export class Visualizer extends EventTarget {
 		this.#engine.limit = value;
 	}
 
+	get accelerated(): boolean { return this.#accelerated; }
 	get manager(): AudiosetManager { return this.#manager; }
 	get splitter(): Splitter { return this.#splitter; }
+
+	static #detect(): boolean {
+		const context = document.createElement("canvas").getContext("webgl");
+		if (context === null) return false;
+		try {
+			const info = context.getExtension("WEBGL_debug_renderer_info");
+			if (info === null) return true;
+			return !Visualizer.#renderers.test(String(context.getParameter(info.UNMASKED_RENDERER_WEBGL)));
+		} finally {
+			context.getExtension("WEBGL_lose_context")?.loseContext();
+		}
+	}
 
 	weigh(gains: StemGains): void {
 		this.#worker.postMessage(Command.export(new GainsRenderCommand(gains)));

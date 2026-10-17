@@ -3,7 +3,7 @@
 import "adaptive-extender/web";
 import { Controller } from "adaptive-extender/web";
 import { type Visualizer } from "../services/visualizer.js";
-import { type Smoothness, type FrameRate } from "../services/smoothness.js";
+import { type Smoothness } from "../services/smoothness.js";
 import { type ClipRecorder } from "../services/clip-recorder.js";
 import { UnavailableStatus } from "../models/splitter-status.js";
 
@@ -14,14 +14,15 @@ enum NoticeKind {
 	unavailable,
 }
 
-export class NoticeController extends Controller<[Visualizer, Smoothness, ClipRecorder, HTMLButtonElement, HTMLDialogElement]> {
+export class NoticeController extends Controller<[Visualizer, Smoothness, ClipRecorder, HTMLButtonElement]> {
+	static #priority: readonly NoticeKind[] = [NoticeKind.software, NoticeKind.slow, NoticeKind.unavailable];
+
 	#details: Map<NoticeKind, string> = new Map();
 	#visualizer: Visualizer;
 	#smoothness: Smoothness;
 	#recorder: ClipRecorder;
 	#buttonNotice: HTMLButtonElement;
 	#bNoticeText: HTMLElement;
-	#outputVisualizerSmoothness: HTMLOutputElement;
 
 	#label(kind: NoticeKind): string {
 		switch (kind) {
@@ -35,15 +36,15 @@ export class NoticeController extends Controller<[Visualizer, Smoothness, ClipRe
 	#render(): void {
 		const buttonNotice = this.#buttonNotice;
 		const details = this.#details;
-		const [kind] = details.keys();
-		buttonNotice.hidden = kind === undefined;
-		if (kind === undefined) return buttonNotice.removeAttribute("title");
-		this.#bNoticeText.innerText = this.#label(kind);
-		buttonNotice.title = Array.from(details.values()).join("\n\n");
+		const kinds = NoticeController.#priority.filter(kind => details.has(kind));
+		buttonNotice.hidden = kinds.length < 1;
+		if (kinds.length < 1) return buttonNotice.removeAttribute("title");
+		this.#bNoticeText.innerText = this.#label(kinds[0]);
+		buttonNotice.title = kinds.map(kind => details.get(kind)).join("\n\n");
 	}
 
 	#judgeSoftware(): void {
-		if (!this.#smoothness.software) return;
+		if (this.#visualizer.accelerated) return;
 		this.#details.set(NoticeKind.software, "Graphics acceleration is off, so the browser draws everything on the processor. Turn on \"Use graphics acceleration when available\" in the browser settings and restart the browser.");
 	}
 
@@ -63,15 +64,8 @@ export class NoticeController extends Controller<[Visualizer, Smoothness, ClipRe
 		details.set(NoticeKind.unavailable, `The AI can't run here. ${status.reason}`);
 	}
 
-	#refreshFrames(frames: FrameRate): void {
-		const outputVisualizerSmoothness = this.#outputVisualizerSmoothness;
-		outputVisualizerSmoothness.classList.toggle("warn", this.#smoothness.slow);
-		outputVisualizerSmoothness.value = `${frames.fps} of normal ${frames.normal}\nframes/s`;
-	}
-
 	#refreshSlow(): void {
 		this.#judgeSlow();
-		this.#outputVisualizerSmoothness.classList.toggle("warn", this.#smoothness.slow);
 		this.#render();
 	}
 
@@ -80,15 +74,13 @@ export class NoticeController extends Controller<[Visualizer, Smoothness, ClipRe
 		this.#render();
 	}
 
-	async run(visualizer: Visualizer, smoothness: Smoothness, recorder: ClipRecorder, buttonNotice: HTMLButtonElement, dialogConfigurator: HTMLDialogElement): Promise<void> {
+	async run(visualizer: Visualizer, smoothness: Smoothness, recorder: ClipRecorder, buttonNotice: HTMLButtonElement): Promise<void> {
 		this.#visualizer = visualizer;
 		this.#smoothness = smoothness;
 		this.#recorder = recorder;
 		this.#buttonNotice = buttonNotice;
 		this.#bNoticeText = buttonNotice.getElement(HTMLElement, "b#notice-text");
-		this.#outputVisualizerSmoothness = dialogConfigurator.getElement(HTMLOutputElement, "output#visualizer-smoothness");
 
-		smoothness.addEventListener("measure", event => this.#refreshFrames(event.detail));
 		smoothness.addEventListener("change", event => this.#refreshSlow());
 		visualizer.splitter.addEventListener("status", event => this.#refreshSplitter());
 		recorder.addEventListener("start", event => this.#refreshSlow());

@@ -37,6 +37,7 @@ export class NetworkSlot {
 	}
 
 	clear(): void {
+		this.#network?.destroy();
 		this.#network = null;
 	}
 
