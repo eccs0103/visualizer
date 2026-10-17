@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Color, Random, Vector2D } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Color, Random, Vector2D } from "adaptive-extender/worker";
 import { Blend } from "../../models/blend.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 import { type Host } from "../../models/visualization.js";

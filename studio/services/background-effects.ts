@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Random, Vector2D } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Random, Vector2D } from "adaptive-extender/worker";
 import { BackgroundEffectKind } from "../models/layer-settings.js";
 import { type Stage } from "./stage.js";
 

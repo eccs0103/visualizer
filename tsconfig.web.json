@@ -4,15 +4,26 @@
 		"lib": [ "DOM", "DOM.Iterable", "ES2025", "ESNext.Array", "ESNext.Collection" ]
 	},
 	"include": [
-		"environment/models/**/*.ts",
 		"environment/controllers/**/*.ts",
 		"environment/services/**/*.ts",
-		"studio/**/*.ts"
+		"studio/controllers/*-controller.ts",
+		"studio/services/audioset-manager.ts",
+		"studio/services/clip-recorder.ts",
+		"studio/services/file-drop.ts",
+		"studio/services/legacy-stores.ts",
+		"studio/services/lyrics-finder.ts",
+		"studio/services/model-tap.ts",
+		"studio/services/playlist-player.ts",
+		"studio/services/splitter.ts",
+		"studio/services/visualizer.ts",
+		"studio/services/wake-guard.ts",
+		"studio/view/arrow-keys.ts",
+		"studio/view/dom-builder.ts",
+		"studio/view/layers-view.ts",
+		"studio/view/playlist-view.ts",
+		"studio/view/row-drag.ts"
 	],
 	"exclude": [
-		"environment/controllers/coi-worker.ts",
-		"studio/controllers/stem-mask-worker.ts",
-		"studio/controllers/visualization-worker.ts",
-		"studio/controllers/clip-accumulator-worker.ts"
+		"environment/controllers/coi-worker.ts"
 	]
 }

@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Color, Random, Vector2D } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Color, Random, Vector2D } from "adaptive-extender/worker";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 import { type Host } from "../../models/visualization.js";
 import { AutoRange, HueDrift, Shaper, SpectrumAnalysis, StemMix } from "../../services/visualization-tools.js";

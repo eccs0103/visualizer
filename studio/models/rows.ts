@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Field, Model } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Field, Model } from "adaptive-extender/worker";
 import { BlobPortable } from "./portables.js";
 
 //#region Row

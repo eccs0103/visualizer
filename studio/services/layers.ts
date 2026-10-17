@@ -1,6 +1,6 @@
 "use strict";
 
-import "adaptive-extender/core";
+import "adaptive-extender/worker";
 import { Blend } from "../models/blend.js";
 import { type Stage } from "./stage.js";
 import { type Host } from "../models/visualization.js";

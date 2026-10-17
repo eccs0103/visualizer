@@ -1,6 +1,6 @@
 "use strict";
 
-import "adaptive-extender/core";
+import "adaptive-extender/worker";
 import { SabLayout, MaskChannel } from "../models/audio-features.js";
 import { Stems, StemGains, type Stem } from "../models/stem.js";
 

@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Color } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Color } from "adaptive-extender/worker";
 import { BackgroundEffectKind, BackgroundFit, BackgroundSettings, type LayerSettings } from "../models/layer-settings.js";
 import { type Stage } from "./stage.js";
 import { type Host } from "../models/visualization.js";

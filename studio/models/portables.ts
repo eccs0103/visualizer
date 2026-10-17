@@ -1,6 +1,6 @@
 "use strict";
 
-import "adaptive-extender/core";
+import "adaptive-extender/worker";
 
 //#region Shared array buffer portable
 export class SharedArrayBufferPortable {

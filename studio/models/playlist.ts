@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Model, Field, Enum, Random, Nullable } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Model, Field, Enum, Random, Nullable } from "adaptive-extender/worker";
 import { type Reorder } from "./reorder.js";
 
 //#region Track

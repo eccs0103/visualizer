@@ -15,7 +15,7 @@ A visualization is a class with two functions, `rebuild(host)` and `update(host)
 ```typescript
 "use strict";
 
-import "adaptive-extender/core";
+import "adaptive-extender/worker";
 import { Blend } from "../../models/blend.js";
 import { type Host } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";

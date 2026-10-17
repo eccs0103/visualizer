@@ -1,5 +1,7 @@
 "use strict";
 
+import "adaptive-extender/core";
+
 //#region Blend
 export enum Blend {
 	normal = "source-over",

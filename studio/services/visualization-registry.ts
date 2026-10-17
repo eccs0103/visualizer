@@ -1,6 +1,6 @@
 "use strict";
 
-import "adaptive-extender/core";
+import "adaptive-extender/worker";
 import { CodeLayer, type Layer, type LayerOptions, type LayerPainter } from "./layers.js";
 import { type Host } from "../models/visualization.js";
 

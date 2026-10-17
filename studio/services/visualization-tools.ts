@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Color } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Color } from "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
 import { type Audioset } from "../models/visualization.js";
 

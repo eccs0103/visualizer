@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Model, Field, Enum, Nullable } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Model, Field, Enum, Nullable } from "adaptive-extender/worker";
 import { Blend } from "./blend.js";
 import { type Layer } from "../services/layers.js";
 

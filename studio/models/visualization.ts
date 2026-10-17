@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { type Color } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { type Color } from "adaptive-extender/worker";
 
 //#region Audioset
 export interface Audioset {

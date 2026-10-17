@@ -9,7 +9,7 @@
 		"node": ">=22"
 	},
 	"scripts": {
-		"typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.cloudflare.json",
+		"typecheck": "tsc -p tsconfig.core.json && tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.cloudflare.json",
 		"dev": "vite",
 		"build": "vite build",
 		"preview": "npm run build && vite preview",

@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Model, Field, Enum, Optional } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Model, Field, Enum, Optional } from "adaptive-extender/worker";
 import { Registry } from "../services/visualization-registry.js";
 import { type Layer } from "../services/layers.js";
 import { LayerSettings, BackgroundEffectKind, BackgroundFit, BackgroundSettings } from "./layer-settings.js";

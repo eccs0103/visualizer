@@ -1,0 +1,19 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"lib": [ "ES2025", "ESNext.Array", "ESNext.Collection" ],
+		"types": [ ]
+	},
+	"include": [
+		"environment/models/**/*.ts",
+		"studio/models/audio-features.ts",
+		"studio/models/blend.ts",
+		"studio/models/lrclib-result.ts",
+		"studio/models/lyrics.ts",
+		"studio/models/reorder.ts",
+		"studio/models/stem.ts",
+		"studio/models/stem-layers.ts",
+		"studio/models/stem-weights.ts",
+		"studio/services/text-expert.ts"
+	]
+}

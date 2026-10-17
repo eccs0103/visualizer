@@ -206,7 +206,7 @@ export class StemNetwork {
 	}
 
 	static async #download(weights: StemWeights, model: Readonly<URL>): Promise<StemTensors> {
-		const parts = await Promise.all(weights.files(model).map(StemNetwork.#blob));
+		const parts = await Promise.all(weights.paths.map(path => StemNetwork.#blob(new URL(path, model))));
 		return weights.tensors(await new Blob(parts).arrayBuffer());
 	}
 

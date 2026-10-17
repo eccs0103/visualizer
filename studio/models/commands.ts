@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/worker";
 import { LayerSettings, BackgroundSettings } from "./layer-settings.js";
 import { StemGains } from "./stem.js";
 import { SharedArrayBufferPortable, BlobPortable, OffscreenCanvasPortable } from "./portables.js";

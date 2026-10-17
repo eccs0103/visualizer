@@ -1,7 +1,7 @@
 "use strict";
 
-import "adaptive-extender/core";
-import { Color } from "adaptive-extender/core";
+import "adaptive-extender/worker";
+import { Color } from "adaptive-extender/worker";
 import { SabLayout, Signal } from "../models/audio-features.js";
 import { Stem, type StemGains } from "../models/stem.js";
 import { type Audioset, type Environment, type LyricsWindow } from "../models/visualization.js";
