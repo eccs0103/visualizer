@@ -19,7 +19,6 @@ export interface VisualizerEventMap {
 }
 
 export class Visualizer extends EventTarget {
-	static #tick = Command.export(new TickCommand());
 	static #minRate: number = 30;
 	static #maxRate: number = 1200;
 	static #depth: number = 2;
@@ -148,7 +147,7 @@ export class Visualizer extends EventTarget {
 		const fresh = this.#fresh = ((posted - manager.signal.drawn) | 0) < Visualizer.#depth;
 		if (fresh) {
 			this.#posted = (posted + 1) | 0;
-			this.#worker.postMessage(Visualizer.#tick);
+			this.#worker.postMessage(Command.export(new TickCommand()));
 		}
 		this.dispatchEvent(new Event("update"));
 	}

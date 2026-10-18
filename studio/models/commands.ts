@@ -149,10 +149,6 @@ export class StatusMaskCommand extends Command {
 		this.milliseconds = milliseconds;
 		this.slowed = slowed;
 	}
-
-	equals(other: StatusMaskCommand): boolean {
-		return this.available === other.available && this.reason === other.reason && this.device === other.device && this.rate === other.rate && this.milliseconds === other.milliseconds && this.slowed === other.slowed;
-	}
 }
 //#endregion
 //#region Initialize render command

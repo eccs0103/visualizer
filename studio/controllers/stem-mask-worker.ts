@@ -19,7 +19,6 @@ class StemMaskWorker extends Controller {
 	#history: TapHistory | null = null;
 	#smoother: MaskSmoother = new MaskSmoother();
 	#pace: InferencePace = new InferencePace();
-	#status: StatusMaskCommand | null = null;
 	#pending: number = 0;
 
 	#capture(tap: Float32Array, masks: MaskChannel, network: StemNetwork, history: TapHistory): void {
@@ -38,7 +37,7 @@ class StemMaskWorker extends Controller {
 			const predicted = await network.infer(history);
 			const now = performance.now();
 			masks.publish(this.#smoother.smooth(predicted, now), performance.timeOrigin + now);
-			if (pace.finish(network.duration ?? now - begun, now)) this.#report(new StatusMaskCommand(true, null, network.adapter, pace.rate, network.duration, pace.slowed));
+			if (pace.finish(network.duration ?? now - begun, now)) this.#report(true, null, network.adapter, pace.rate, network.duration, pace.slowed);
 		} catch (reason) {
 			if (this.#slot.network !== network) return;
 			this.#disable(reason);
@@ -59,7 +58,6 @@ class StemMaskWorker extends Controller {
 
 		if (command instanceof ModelMaskCommand) {
 			const { urlModel } = command;
-			this.#status = null;
 			if (urlModel === null) return this.#unload();
 			void this.#load(urlModel);
 			return;
@@ -81,7 +79,7 @@ class StemMaskWorker extends Controller {
 			if (network === null) return;
 			this.#pace = new InferencePace();
 			if (this.#history?.frames !== network.frames) this.#history = new TapHistory(network.frames);
-			this.#report(new StatusMaskCommand(true, null, network.adapter, null, null, false));
+			this.#report(true, null, network.adapter, null, null, false);
 			const loss = await slot.watch(network);
 			if (loss === null) return;
 			this.#disable(loss);
@@ -92,24 +90,21 @@ class StemMaskWorker extends Controller {
 
 	#unload(): void {
 		this.#slot.unload();
-		this.#idle(new StatusMaskCommand(false, null, null, null, null, false));
+		this.#idle(null);
 	}
 
 	#disable(reason: unknown): void {
 		this.#slot.clear();
-		this.#idle(new StatusMaskCommand(false, Error.from(reason).message, null, null, null, false));
+		this.#idle(Error.from(reason).message);
 	}
 
-	#idle(status: StatusMaskCommand): void {
+	#idle(reason: string | null): void {
 		this.#masks?.publish(this.#smoother.reset(), performance.timeOrigin + performance.now());
-		this.#report(status);
+		this.#report(false, reason, null, null, null, false);
 	}
 
-	#report(status: StatusMaskCommand): void {
-		const previous = this.#status;
-		if (previous !== null && previous.equals(status)) return;
-		this.#status = status;
-		self.postMessage(Command.export(status));
+	#report(available: boolean, reason: string | null, device: string | null, rate: number | null, milliseconds: number | null, slowed: boolean): void {
+		self.postMessage(Command.export(new StatusMaskCommand(available, reason, device, rate, milliseconds, slowed)));
 	}
 
 	async run(): Promise<void> {

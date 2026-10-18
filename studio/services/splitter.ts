@@ -15,7 +15,6 @@ export interface SplitterEventMap {
 }
 
 export class Splitter extends EventTarget {
-	static #tick = Command.export(new TickCommand());
 	static #source: URL = new URL("../models.json", baseURI);
 	#worker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
 	#masks: MaskChannel = MaskChannel.create();
@@ -56,7 +55,7 @@ export class Splitter extends EventTarget {
 	}
 
 	tick(): void {
-		this.#worker.postMessage(Splitter.#tick);
+		this.#worker.postMessage(Command.export(new TickCommand()));
 	}
 
 	static #manifest(model: SplitterModel): URL {
@@ -84,13 +83,6 @@ export class Splitter extends EventTarget {
 		return catalog;
 	}
 
-	static #read(command: StatusMaskCommand): SplitterStatus {
-		const { available, reason, device, rate, milliseconds, slowed } = command;
-		if (available) return new ActiveStatus(device, rate, milliseconds, slowed);
-		if (reason !== null) return new UnavailableStatus(reason);
-		return new OffStatus();
-	}
-
 	#mark(status: SplitterStatus): void {
 		this.#status = status;
 		this.dispatchEvent(new Event("status"));
@@ -99,7 +91,10 @@ export class Splitter extends EventTarget {
 	#onMessage(event: MessageEvent): void {
 		const command = Command.import(event.data, "command");
 		if (!(command instanceof StatusMaskCommand)) return;
-		this.#mark(Splitter.#read(command));
+		const { available, reason, device, rate, milliseconds, slowed } = command;
+		if (available) return this.#mark(new ActiveStatus(device, rate, milliseconds, slowed));
+		if (reason !== null) return this.#mark(new UnavailableStatus(reason));
+		this.#mark(new OffStatus());
 	}
 }
 //#endregion
