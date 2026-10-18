@@ -1,3 +1,19 @@
+## 3.7.0 (18.10.2026)
+- Added an **AI** section to the configurator for the AIs that listen to the song, each with its own settings under it. Its first entry is **Stem separation**: a switch turns the AI on or off, **Status** shows whether it runs, on which graphics card and how many times per second it updates (with a hint when the chosen model is too heavy for this computer), and **Model** picks the trained model with its size and a short description; <kbd>Shift</kbd> + <kbd>↑</kbd>/<kbd>↓</kbd> cycles through the models. Both choices are remembered.
+- Added the **Deep listening** model, which follows how every sound changes over time. New visitors start with it; **Standard** stays available.
+- Added **Smoothness** to the configurator: how many frames per second are drawn now, out of the most the Rate and the screen allow. A freeze or a drop is marked at once, and the mark stays until the page has run smoothly for a few seconds.
+- Added a warning button next to the configurator button on the main screen. It appears when graphics acceleration is off, the page runs slowly, a recording stutters or the AI can't run. Its tooltip explains each problem and how to fix it, and clicking it opens the configurator.
+- The **Visualizer** section of the configurator is renamed **Engine**, and the Stem separation status moved into the new AI section.
+- **Rate** is now reached. Before, a Rate of 60 drew only about 40 frames per second on a 60 Hz screen and 48 on a 144 Hz one; now it draws 60 on both. The picture is never drawn more often than the screen shows.
+- When the computer can't draw every frame, the picture now skips frames instead of falling further and further behind, so setting changes also take effect at once instead of seconds later.
+- The instrument sliders (**Drums ×** … **Other ×**) are now in the AI section and appear when the address ends with `?for=developers` instead of `?developer`. The Developer section and its test models are removed.
+- Without WebGPU the AI status now says "This browser can't run the AI.", and when the browser blocks the graphics card it explains how to turn graphics acceleration on, instead of showing a raw error.
+- The AI status no longer stays on "Loading…" after switching from one model that can't run to another that fails the same way, and a newly chosen model is no longer marked as too slow because of the previous one.
+- Recorded clips no longer stay in memory after they are downloaded.
+- Durations of a day or longer are shown correctly; before, a day counted as 24 minutes.
+- The page description for search engines now describes stem separation instead of the removed self-teaching DJ.
+- The visualization example in [CONTRIBUTING.md](./CONTRIBUTING.md) now imports `adaptive-extender/worker`, the environment visualizations run in.
+
 ## 3.6.0 (13.10.2026)
 - Added a **Stem separation (AI)** row to the configurator. It shows whether the AI that splits the song into instruments is active, which graphics card it runs on and how many times per second it updates, with a hint when it runs slower than it should on this computer.
 - Added a **Developer** section, shown when the address ends with `?developer`: pick which trained stem model runs (<kbd>Shift</kbd> + <kbd>↑</kbd>/<kbd>↓</kbd> cycles it) and make each instrument stronger or weaker for the visuals. Nothing in it is saved.

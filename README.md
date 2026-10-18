@@ -10,7 +10,7 @@ Add one or more songs to visualize them. Reorder, drop new files onto the page, 
 
 Open the configurator with <kbd>Tab</kbd> and the playlist with <kbd>Shift</kbd> + <kbd>Tab</kbd>. Use <kbd>Space</kbd> to play/pause, <kbd>←</kbd>/<kbd>→</kbd> to seek, <kbd>Shift</kbd> + <kbd>←</kbd>/<kbd>→</kbd> to switch tracks, and <kbd>↑</kbd>/<kbd>↓</kbd> to cycle visualizations. Focus a track's drag handle and use <kbd>↑</kbd>/<kbd>↓</kbd> to reorder it.
 
-An AI splits every song into drums, bass, vocals, guitar, keys and the rest, so the visuals can follow each instrument. It runs on the graphics card and needs a browser with WebGPU; the configurator's **Stem separation (AI)** row shows whether it is active.
+An AI splits every song into drums, bass, vocals, guitar, keys and the rest, so the visuals can follow each instrument. It runs on the graphics card and needs a browser with WebGPU. In the configurator's **AI** section, **Stem separation** turns it on or off, shows whether it is active, and picks the model (<kbd>Shift</kbd> + <kbd>↑</kbd>/<kbd>↓</kbd> cycles them). The **Engine** section's **Smoothness** shows how smoothly the page draws, and a warning on the main screen explains what to change when it can't keep up.
 
 In the configurator's **Layers** section, every visualization lists the layers it is drawn from. Drag a layer to reorder it, lower its opacity to fade it out, or pick a blend mode to change how it mixes with the layers below. Your arrangement is remembered per visualization. The **Lyrics** layer on top and the **Background** layer at the bottom are added by the engine and stay in place; each visualization keeps its own settings for them, and its background can show an image you upload, with an optional effect (shake, beat pulse or parallax).
 
@@ -21,7 +21,7 @@ Each visualization is one file in [`studio/view/visualizations/`](./studio/view/
 Below is an example of how to create and attach a custom visualization:
 
 ```typescript
-import "adaptive-extender/core";
+import "adaptive-extender/worker";
 import { type Host } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 
