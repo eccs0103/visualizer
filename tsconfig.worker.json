@@ -12,7 +12,6 @@
 		"studio/models/commands.ts",
 		"studio/models/layer-settings.ts",
 		"studio/models/playlist.ts",
-		"studio/models/portables.ts",
 		"studio/models/rows.ts",
 		"studio/models/settings.ts",
 		"studio/models/visualization.ts",

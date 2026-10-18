@@ -1,8 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { Field, Model } from "adaptive-extender/worker";
-import { BlobPortable } from "./portables.js";
+import { Any, Field, Model } from "adaptive-extender/worker";
 
 //#region Row
 export interface RowScheme {
@@ -38,7 +37,7 @@ export interface FileRowScheme extends RowScheme {
 }
 
 export class FileRow extends Row {
-	@Field(BlobPortable, { name: "file" })
+	@Field(Any.ByReference(Blob), { name: "file" })
 	file: Blob;
 
 	constructor();

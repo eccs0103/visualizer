@@ -1,10 +1,9 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/worker";
+import { Any, Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/worker";
 import { LayerSettings, BackgroundSettings } from "./layer-settings.js";
 import { StemGains } from "./stem.js";
-import { SharedArrayBufferPortable, BlobPortable, OffscreenCanvasPortable } from "./portables.js";
 
 //#region Command
 export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, GainsRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
@@ -48,10 +47,10 @@ export interface InitializeMaskCommandScheme extends CommandScheme {
 }
 
 export class InitializeMaskCommand extends Command {
-	@Field(SharedArrayBufferPortable)
+	@Field(Any.ByReference(SharedArrayBuffer))
 	sabSignal: SharedArrayBuffer;
 
-	@Field(SharedArrayBufferPortable)
+	@Field(Any.ByReference(SharedArrayBuffer))
 	sabMask: SharedArrayBuffer;
 
 	@Field(String)
@@ -165,16 +164,16 @@ export interface InitializeRenderCommandScheme extends CommandScheme {
 }
 
 export class InitializeRenderCommand extends Command {
-	@Field(SharedArrayBufferPortable)
+	@Field(Any.ByReference(SharedArrayBuffer))
 	sabSignal: SharedArrayBuffer;
 
-	@Field(SharedArrayBufferPortable)
+	@Field(Any.ByReference(SharedArrayBuffer))
 	sabMask: SharedArrayBuffer;
 
 	@Field(Number)
 	sampleRate: number;
 
-	@Field(OffscreenCanvasPortable)
+	@Field(Any.ByReference(OffscreenCanvas))
 	canvas: OffscreenCanvas;
 
 	constructor();
@@ -405,7 +404,7 @@ export class ImageRenderCommand extends Command {
 	@Field(String)
 	visualization: string;
 
-	@Field(Nullable.Of(BlobPortable))
+	@Field(Nullable.Of(Any.ByReference(Blob)))
 	image: Blob | null;
 
 	constructor();
@@ -433,7 +432,7 @@ export interface ChunkCommandScheme extends CommandScheme {
 }
 
 export class ChunkCommand extends Command {
-	@Field(BlobPortable)
+	@Field(Any.ByReference(Blob))
 	data: Blob;
 
 	constructor();
@@ -487,7 +486,7 @@ export interface DoneCommandScheme extends CommandScheme {
 }
 
 export class DoneCommand extends Command {
-	@Field(BlobPortable)
+	@Field(Any.ByReference(Blob))
 	blob: Blob;
 
 	constructor();
