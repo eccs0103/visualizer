@@ -3,12 +3,12 @@
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 import { SabLayout, Signal, MaskChannel } from "../models/audio-features.js";
-import { Command, InitializeMaskCommand, ModelMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
+import { Command, InitializeMaskCommand, ModelMaskCommand, PaceMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
 import { type StemNetwork } from "../services/stem-network.js";
 import { NetworkSlot } from "../services/network-slot.js";
 import { TapHistory } from "../services/tap-history.js";
 import { MaskSmoother } from "../services/mask-smoother.js";
-import { InferencePace } from "../services/inference-pace.js";
+import { InferenceBudget, InferencePace } from "../services/inference-pace.js";
 
 //#region Stem mask worker
 class StemMaskWorker extends Controller {
@@ -18,7 +18,8 @@ class StemMaskWorker extends Controller {
 	#slot: NetworkSlot = new NetworkSlot();
 	#history: TapHistory | null = null;
 	#smoother: MaskSmoother = new MaskSmoother();
-	#pace: InferencePace = new InferencePace();
+	#budget: InferenceBudget = new InferenceBudget();
+	#pace: InferencePace = new InferencePace(this.#budget);
 	#pending: number = 0;
 
 	#capture(tap: Float32Array, masks: MaskChannel, network: StemNetwork, history: TapHistory): void {
@@ -63,6 +64,11 @@ class StemMaskWorker extends Controller {
 			return;
 		}
 
+		if (command instanceof PaceMaskCommand) {
+			this.#budget.adapt(command.lagging, this.#pace.share(performance.now()));
+			return;
+		}
+
 		if (command instanceof TickCommand) {
 			const signal = this.#signal, masks = this.#masks, network = this.#slot.network, history = this.#history;
 			if (signal === null || masks === null || network === null || history === null) return;
@@ -77,7 +83,7 @@ class StemMaskWorker extends Controller {
 			if (shaders === null) throw new ReferenceError("The splitter has no shaders before it is initialized");
 			const network = await slot.load(url, shaders, SabLayout.bins, SabLayout.stems);
 			if (network === null) return;
-			this.#pace = new InferencePace();
+			this.#pace = new InferencePace(this.#budget);
 			if (this.#history?.frames !== network.frames) this.#history = new TapHistory(network.frames);
 			this.#report(true, null, network.adapter, null, null, false);
 			const loss = await slot.watch(network);

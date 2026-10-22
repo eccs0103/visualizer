@@ -67,6 +67,7 @@ class StudioController extends Controller {
 		const player = new PlaylistPlayer(audioPlayer, store, lyrics, playlist);
 		const recorder = new ClipRecorder(canvasDisplay, audioPlayer);
 		const smoothness = new Smoothness(visualizer);
+		smoothness.addEventListener("measure", event => visualizer.splitter.pace(event.detail));
 
 		const settings = cell.content;
 		const catalog = await visualizer.splitter.catalog;

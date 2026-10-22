@@ -2,10 +2,11 @@
 
 import "adaptive-extender/web";
 import { MaskChannel } from "../models/audio-features.js";
-import { Command, InitializeMaskCommand, ModelMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
+import { Command, InitializeMaskCommand, ModelMaskCommand, PaceMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
 import { SplitterCatalog, type SplitterModel } from "../models/splitter-catalog.js";
 import { type SplitterStatus, LoadingStatus, OffStatus, ActiveStatus, UnavailableStatus } from "../models/splitter-status.js";
 import { StemWeights } from "../models/stem-weights.js";
+import { type FrameRate } from "./smoothness.js";
 
 const { baseURI } = document;
 
@@ -56,6 +57,10 @@ export class Splitter extends EventTarget {
 
 	tick(): void {
 		this.#worker.postMessage(Command.export(new TickCommand()));
+	}
+
+	pace(frames: FrameRate): void {
+		this.#worker.postMessage(Command.export(new PaceMaskCommand(frames.falls(1))));
 	}
 
 	static #manifest(model: SplitterModel): URL {

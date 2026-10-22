@@ -6,7 +6,7 @@ import { LayerSettings, BackgroundSettings } from "./layer-settings.js";
 import { StemGains } from "./stem.js";
 
 //#region Command
-export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, GainsRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, PaceMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, GainsRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
 }
 
 export interface CommandScheme {
@@ -15,6 +15,7 @@ export interface CommandScheme {
 
 @Descendant(Deferred(_ => InitializeMaskCommand))
 @Descendant(Deferred(_ => ModelMaskCommand))
+@Descendant(Deferred(_ => PaceMaskCommand))
 @Descendant(Deferred(_ => StatusMaskCommand))
 @Descendant(Deferred(_ => InitializeRenderCommand))
 @Descendant(Deferred(_ => TickCommand))
@@ -95,6 +96,33 @@ export class ModelMaskCommand extends Command {
 
 		super();
 		this.urlModel = urlModel;
+	}
+}
+//#endregion
+//#region Pace mask command
+export interface PaceMaskCommandDiscriminator {
+	"PaceMaskCommand": PaceMaskCommand;
+}
+
+export interface PaceMaskCommandScheme extends CommandScheme {
+	$type: keyof PaceMaskCommandDiscriminator;
+	lagging: boolean;
+}
+
+export class PaceMaskCommand extends Command {
+	@Field(Boolean)
+	lagging: boolean;
+
+	constructor();
+	constructor(lagging: boolean);
+	constructor(lagging?: boolean) {
+		if (lagging === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.lagging = lagging;
 	}
 }
 //#endregion
