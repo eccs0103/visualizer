@@ -35,6 +35,7 @@ abstract class StemTopology {
 	get output(): GpuActivation { return this.#output; }
 
 	abstract get frames(): number;
+	abstract get settle(): number;
 
 	abstract feed(queue: GPUQueue, history: TapHistory): void;
 
@@ -68,6 +69,7 @@ class StemUNet extends StemTopology {
 	}
 
 	get frames(): number { return this.input.channels; }
+	get settle(): number { return this.frames; }
 
 	feed(queue: GPUQueue, history: TapHistory): void {
 		const { buffer } = this.input;
@@ -107,6 +109,7 @@ class TimeUNet extends StemTopology {
 	}
 
 	get frames(): number { return this.graph.batch; }
+	get settle(): number { return this.graph.memory + this.input.depth; }
 
 	feed(queue: GPUQueue, history: TapHistory): void {
 		const { fresh, steps } = history;
@@ -165,6 +168,7 @@ export class StemNetwork {
 	#stems: number;
 	#result: Float32Array;
 	#duration: number | null = null;
+	#settled: boolean = false;
 
 	constructor(device: GPUDevice, topology: StemTopology, stems: number, timer: PassTimer | null) {
 		const { buffer, span } = topology.output;
@@ -244,12 +248,17 @@ export class StemNetwork {
 	}
 
 	async infer(history: TapHistory): Promise<Float32Array> {
+		const topology = this.#topology;
+		const settled = history.silent > topology.settle;
+		if (settled && this.#settled) {
+			history.pack();
+			return this.#result;
+		}
 		const device = this.#device;
 		const readbacks = this.#readbacks;
 		const cursor = this.#cursor;
 		const readback = readbacks[cursor];
 		this.#cursor = (cursor + 1) % readbacks.length;
-		const topology = this.#topology;
 		const timer = this.#timer;
 		const { queue } = device;
 		const { buffer } = topology.output;
@@ -268,6 +277,7 @@ export class StemNetwork {
 		this.#fold(new Float32Array(range, 0, buffer.size / Float32Array.BYTES_PER_ELEMENT));
 		this.#duration = timer?.read(range) ?? null;
 		readback.unmap();
+		this.#settled = settled;
 		return this.#result;
 	}
 

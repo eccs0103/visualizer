@@ -189,7 +189,7 @@ export class AudiosetManager {
 		this.punch = configuration.punch;
 	}
 
-	capture(): void {
+	capture(splitting: boolean): void {
 		const signal = this.#signal;
 		const bytes = this.#bytes;
 		const { frequency, temporal, model } = signal;
@@ -207,7 +207,7 @@ export class AudiosetManager {
 			summary += sqpw(datum * 2 - 1);
 		}
 
-		this.#tap.capture(model);
+		if (splitting) this.#tap.capture(model);
 
 		signal.publish(length, sqrt(summary / length), performance.timeOrigin + performance.now());
 	}

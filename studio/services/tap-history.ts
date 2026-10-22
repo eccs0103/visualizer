@@ -16,6 +16,7 @@ export class TapHistory {
 	#origin: number | null = null;
 	#steps: number = 0;
 	#fresh: number = 0;
+	#silent: number = 0;
 	#previous: Float32Array = new Float32Array(SabLayout.bins);
 	#frame: Float32Array = new Float32Array(SabLayout.bins);
 
@@ -28,6 +29,7 @@ export class TapHistory {
 	get frames(): number { return this.#frames; }
 	get steps(): number { return this.#steps; }
 	get fresh(): number { return this.#fresh; }
+	get silent(): number { return this.#silent; }
 
 	capture(tap: Float32Array, now: number): boolean {
 		const origin = this.#origin;
@@ -41,7 +43,9 @@ export class TapHistory {
 		if (count <= 0) return false;
 		this.#advance(tap, count);
 		this.#steps = due;
-		this.#fresh = min(this.#fresh + count, this.#frames);
+		const fresh = this.#fresh + count;
+		this.#fresh = min(fresh, this.#frames);
+		this.#silent = fresh <= this.#frames && tap.every(value => value === 0) ? this.#silent + 1 : 0;
 		return true;
 	}
 

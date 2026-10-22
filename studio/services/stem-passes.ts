@@ -54,6 +54,7 @@ export class ConvolutionPass {
 		const { batch } = graph;
 		const history = (taps - 1) * dilation + batch;
 		if (history > source.depth || history > skip.depth) throw new TypeError(`A kernel reaching ${history} frames back needs rings of at least that depth`);
+		graph.remember((taps - 1) * dilation);
 		const skipped = input === ConvolutionInput.joined ? skip.channels : 0;
 		const weights = layer.pack(source.channels + skipped);
 		const result = graph.activation(filters, span, depth);

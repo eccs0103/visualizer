@@ -25,11 +25,10 @@ struct Clock {
 @group(0) @binding(4) var<storage, read_write> result: array<f32>;
 @group(0) @binding(5) var<uniform> clock: Clock;
 
-fn gather(channel: u32, position: u32, time: u32) -> f32 {
+fn gather(channel: u32, position: u32, slot: u32, slot2: u32) -> f32 {
 	const pooled = 1u;
 	const joined = 2u;
 	let span = shape.span;
-	let slot = time % shape.sources;
 	if (shape.mode == pooled) {
 		let base = (slot * shape.inputs + channel) * span * 2u + position * 2u;
 		return max(source[base], source[base + 1u]);
@@ -38,7 +37,7 @@ fn gather(channel: u32, position: u32, time: u32) -> f32 {
 		if (channel < shape.inputs) {
 			return source[(slot * shape.inputs + channel) * (span / 2u) + position / 2u];
 		}
-		return skip[((time % shape.skips) * shape.skipped + channel - shape.inputs) * span + position];
+		return skip[(slot2 * shape.skipped + channel - shape.inputs) * span + position];
 	}
 	return source[(slot * shape.inputs + channel) * span + position];
 }
@@ -68,6 +67,10 @@ fn main(@builtin(workgroup_id) group: vec3<u32>, @builtin(local_invocation_id) l
 	let window = width + shape.kernel - 1u;
 	let span = i32(shape.span);
 	var sums: array<f32, 16>;
+	let first_row = local / window;
+	let first_column = local % window;
+	let step_row = 64u / window;
+	let step_column = 64u % window;
 
 	for (var delay = 0u; delay < shape.taps; delay++) {
 		let lag = delay * shape.dilation;
@@ -75,15 +78,25 @@ fn main(@builtin(workgroup_id) group: vec3<u32>, @builtin(local_invocation_id) l
 			continue;
 		}
 		let time = now - lag;
+		let slot = time % shape.sources;
+		let slot2 = time % shape.skips;
 		for (var base = 0u; base < channels; base += chunk) {
+			var row = first_row;
+			var column = first_column;
 			for (var index = local; index < chunk * window; index += 64u) {
-				let channel = base + index / window;
-				let at = i32(start + index % window) - half;
+				let channel = base + row;
+				let at = i32(start + column) - half;
 				var value = 0.0;
 				if (channel < channels && at >= 0 && at < span) {
-					value = gather(channel, u32(at), time);
+					value = gather(channel, u32(at), slot, slot2);
 				}
 				strip[index] = value;
+				row += step_row;
+				column += step_column;
+				if (column >= window) {
+					column -= window;
+					row += 1u;
+				}
 			}
 			for (var index = local; index < shape.kernel * chunk * height; index += 64u) {
 				let tap = index / (chunk * height);

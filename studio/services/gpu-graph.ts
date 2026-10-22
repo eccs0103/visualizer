@@ -69,6 +69,7 @@ export class GpuGraph {
 	#device: GPUDevice;
 	#batch: number;
 	#steps: GpuStep[] = [];
+	#memory: number = 0;
 	#clock: GPUBuffer;
 	#time: Uint32Array<ArrayBuffer> = new Uint32Array(2);
 
@@ -85,6 +86,11 @@ export class GpuGraph {
 
 	get batch(): number { return this.#batch; }
 	get clock(): GPUBuffer { return this.#clock; }
+	get memory(): number { return this.#memory; }
+
+	remember(frames: number): void {
+		this.#memory += frames;
+	}
 
 	activation(channels: number, span: number, depth: number = 1): GpuActivation {
 		return new GpuActivation(this.#device, channels, span, depth);
