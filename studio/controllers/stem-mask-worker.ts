@@ -65,7 +65,7 @@ class StemMaskWorker extends Controller {
 		}
 
 		if (command instanceof PaceMaskCommand) {
-			this.#budget.adapt(command.lagging, this.#pace.share(performance.now()));
+			this.#budget.adapt(command.loss, this.#pace.share(performance.now()));
 			return;
 		}
 

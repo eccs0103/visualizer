@@ -60,7 +60,7 @@ export class Splitter extends EventTarget {
 	}
 
 	pace(frames: FrameRate): void {
-		this.#worker.postMessage(Command.export(new PaceMaskCommand(frames.falls(1))));
+		this.#worker.postMessage(Command.export(new PaceMaskCommand(frames.loss)));
 	}
 
 	static #manifest(model: SplitterModel): URL {

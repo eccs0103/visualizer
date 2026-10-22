@@ -106,23 +106,23 @@ export interface PaceMaskCommandDiscriminator {
 
 export interface PaceMaskCommandScheme extends CommandScheme {
 	$type: keyof PaceMaskCommandDiscriminator;
-	lagging: boolean;
+	loss: number;
 }
 
 export class PaceMaskCommand extends Command {
-	@Field(Boolean)
-	lagging: boolean;
+	@Field(Number)
+	loss: number;
 
 	constructor();
-	constructor(lagging: boolean);
-	constructor(lagging?: boolean) {
-		if (lagging === undefined) {
+	constructor(loss: number);
+	constructor(loss?: number) {
+		if (loss === undefined) {
 			super();
 			return;
 		}
 
 		super();
-		this.lagging = lagging;
+		this.loss = loss;
 	}
 }
 //#endregion

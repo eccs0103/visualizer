@@ -16,6 +16,7 @@ export class FrameRate {
 	}
 
 	get fps(): number { return this.#fps; }
+	get loss(): number { return max(0, 1 - this.#fps / this.#normal); }
 
 	get summary(): string {
 		return `${this.#fps} of ${this.#normal}\nframes/s`;
