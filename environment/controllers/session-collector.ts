@@ -24,13 +24,16 @@ export class SessionCollector {
 		return fresh;
 	}
 
-	/** The visitor id lives in a cookie on the whole eccs.dev domain, so every subdomain shares it; the site worker refreshes it server-side. An id still in this origin's localStorage (the old storage) is adopted once, so existing visitors keep theirs. */
+	/** The visitor id lives in a cookie on the whole eccs.dev domain, so every subdomain shares it; the site worker refreshes it server-side. An id still in this origin's localStorage (the old storage) is adopted only when no shared cookie exists yet, so it can never overwrite the shared id. */
 	static #loadUser(): string {
 		const key = SessionCollector.#keyUser;
+		const existing = CookieJar.read(key);
+		if (existing !== null) {
+			localStorage.removeItem(key);
+			return existing;
+		}
 		const legacy = localStorage.getItem(key);
 		if (legacy !== null) return SessionCollector.#adopt(key, legacy);
-		const existing = CookieJar.read(key);
-		if (existing !== null) return existing;
 		return SessionCollector.#adopt(key, crypto.randomUUID());
 	}
 

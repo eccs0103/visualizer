@@ -65,7 +65,8 @@ export class AnalyticsService {
 	#event(name: string, params: object): void {
 		const session = this.#session;
 		const identity = new SessionIdentity(session.userFingerprint, session.sessionFingerprint);
-		window.gtag("event", name, Object.assign(SessionIdentity.export(identity), params));
+		const traffic = new TrafficContext(AnalyticsService.#resolveTraffic(), AnalyticsService.#resolveNetwork());
+		window.gtag("event", name, Object.assign(SessionIdentity.export(identity), TrafficContext.export(traffic), params));
 	}
 
 	dispatch(name: string): void;
