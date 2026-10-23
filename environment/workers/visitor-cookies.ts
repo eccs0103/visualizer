@@ -21,7 +21,10 @@ export class VisitorCookies {
 		this.#scope = VisitorCookies.#attributes(request);
 	}
 
-	static #read(request: Request, name: string): string | null {
+	get user(): string { return this.#user; }
+	get network(): string | null { return this.#network; }
+
+	static read(request: Request, name: string): string | null {
 		const header = request.headers.get("Cookie");
 		if (header === null) return null;
 		const prefix = `${name}=`;
@@ -30,9 +33,8 @@ export class VisitorCookies {
 		return entry.slice(prefix.length);
 	}
 
-	/** Keeps a well-formed existing id and re-issues it server-side, so Safari's 7-day cap on script-written cookies never applies; anything else is replaced by a fresh random id. */
 	static #identify(request: Request): string {
-		const existing = VisitorCookies.#read(request, VisitorCookies.#keyUser);
+		const existing = VisitorCookies.read(request, VisitorCookies.#keyUser);
 		if (existing === null) return crypto.randomUUID();
 		if (!VisitorCookies.#pattern.test(existing)) return crypto.randomUUID();
 		return existing;
