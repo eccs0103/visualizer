@@ -20,7 +20,7 @@
 		"@cloudflare/workers-types": "^5.20261003.1",
 		"@types/node": "^24.19.1",
 		"typescript": "^7.0.2",
-		"vite": "^7.3.6",
+		"vite": "^7.3.7",
 		"wrangler": "^4.149.0"
 	},
 	"dependencies": {
@@ -28,5 +28,8 @@
 	},
 	"allowScripts": {
 		"esbuild": true
+	},
+	"overrides": {
+		"undici": "^7.30.1"
 	}
 }
