@@ -45,7 +45,8 @@ class Flow {
 class Thread {
 	static #spacing: number = 0.12;
 	static #calm: number = 1;
-	static #rush: number = 10;
+	static #rush: number = 40;
+	static #stride: number = 0.45;
 	static #sparks: number = 5;
 	static #lag: number = 0.15;
 	static #faint: number = 0.1;
@@ -177,7 +178,7 @@ class Thread {
 
 		intensity.push(level, volume, delta);
 		if (!Number.isFinite(delta) || delta <= 0) return;
-		this.#phase += delta * intensity.level.lerp(0, 1, Thread.#calm, Thread.#rush);
+		this.#phase += min(Thread.#stride, delta * intensity.level.lerp(0, 1, Thread.#calm, Thread.#rush));
 	}
 
 	#trace(): void {
