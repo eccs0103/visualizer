@@ -105,6 +105,8 @@ class Thread {
 	static #ghost: number = 0.85;
 	static #journey: number = 1.2;
 	static #crest: number = 0.365;
+	static #glare: number = 5;
+	static #bloom: number = 0.35;
 	static #shaper: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 
 	#name: string;
@@ -113,8 +115,11 @@ class Thread {
 	#direction: number;
 	#part: StemMix;
 	#gain: number;
+	#calm: number;
+	#loud: number;
 	#share: number = 0;
 	#level: number = 0;
+	#heat: number = 0;
 	#rise: number = 0;
 	#previous: Float32Array = new Float32Array(0);
 	#trail: Trail = new Trail(Thread.#journey);
@@ -139,13 +144,15 @@ class Thread {
 	#sleeve: Path2D = new Path2D();
 	#spots: Path2D = new Path2D();
 
-	constructor(name: string, base: Color, lane: number, direction: number, part: StemMix, gain: number) {
+	constructor(name: string, base: Color, lane: number, direction: number, part: StemMix, gain: number, calm: number, loud: number) {
 		this.#name = name;
 		this.#base = base;
 		this.#lane = lane;
 		this.#direction = direction;
 		this.#part = part;
 		this.#gain = gain;
+		this.#calm = calm;
+		this.#loud = loud;
 	}
 
 	get name(): string { return this.#name; }
@@ -211,6 +218,15 @@ class Thread {
 		const share = total > 0 ? sum / total : 0;
 		const step = Number.isFinite(delta) && delta > 0 ? 1 - exp(-delta / Thread.#lag) : 0;
 		this.#share = previous + (share - previous) * step;
+	}
+
+	#warm(delta: number): void {
+		const calm = this.#calm;
+		const loud = this.#loud;
+		const previous = this.#heat;
+		const target = Shaper.smoothstep.apply(this.#level.clamp(calm, loud).lerp(calm, loud));
+		const step = Number.isFinite(delta) && delta > 0 ? 1 - exp(-delta / Thread.#lag) : 0;
+		this.#heat = previous + (target - previous) * step;
 	}
 
 	#measure(spectrum: Float32Array): number {
@@ -309,6 +325,7 @@ class Thread {
 		this.#follow(spectrum, total, delta);
 		this.#level = this.#measure(spectrum);
 		this.#rise = this.#climb(spectrum);
+		this.#warm(delta);
 	}
 
 	#obtainGradient(context: OffscreenCanvasRenderingContext2D): CanvasGradient {
@@ -326,17 +343,27 @@ class Thread {
 
 	draw(host: Host): void {
 		const presence = this.#presence;
+		const line = this.#line;
+		const width = this.#width;
 		const { context } = host;
+		const alpha = presence.lerp(0, 1, Thread.#ghost, 1);
+		const halo = alpha * this.#heat * Thread.#bloom;
 
-		context.globalAlpha = presence.lerp(0, 1, Thread.#ghost, 1);
+		context.globalAlpha = alpha;
 		context.fillStyle = this.#shade;
 		context.fill(this.#sleeve);
-		context.lineWidth = this.#width;
 		context.lineJoin = "round";
 		context.strokeStyle = this.#obtainGradient(context);
 		context.shadowColor = this.#glow;
 		context.shadowBlur = this.#blur;
-		context.stroke(this.#line);
+		if (halo * 255 >= 1) {
+			context.globalAlpha = halo;
+			context.lineWidth = width * Thread.#glare;
+			context.stroke(line);
+			context.globalAlpha = alpha;
+		}
+		context.lineWidth = width;
+		context.stroke(line);
 		context.fillStyle = this.#stroke;
 		context.fill(this.#spots);
 	}
@@ -374,15 +401,15 @@ class Thread {
 //#endregion
 //#region Stems
 Registry.attach("Stems", class extends Visualization {
-	#mix: Thread = new Thread("Mix", Color.fromHSL(0, 0, 95), 0, -1, new StemMix(1, 1, 1, 1, 1, 1, 1), 1);
-	#drums: Thread = new Thread("Drums", Color.fromHSL(35, 100, 62), 0.18, 1, new StemMix(1, 0, 0, 0, 0, 0, 1), 2);
+	#mix: Thread = new Thread("Mix", Color.fromHSL(0, 0, 95), 0, -1, new StemMix(1, 1, 1, 1, 1, 1, 1), 1, 0.499, 0.776);
+	#drums: Thread = new Thread("Drums", Color.fromHSL(35, 100, 62), 0.18, 1, new StemMix(1, 0, 0, 0, 0, 0, 1), 2, 0.221, 0.608);
 	#stems: Thread[] = [
-		new Thread("Vocals", Color.fromHSL(320, 100, 62), -0.30, 1, new StemMix(0, 0, 1, 0, 0, 0, 1), 2),
-		new Thread("Guitar", Color.fromHSL(130, 100, 62), -0.18, 1, new StemMix(0, 0, 0, 1, 0, 0, 1), 2),
-		new Thread("Keys", Color.fromHSL(190, 100, 62), -0.06, 1, new StemMix(0, 0, 0, 0, 1, 0, 1), 2),
-		new Thread("Other", Color.fromHSL(0, 0, 62), 0.06, 1, new StemMix(0, 0, 0, 0, 0, 1, 1), 2),
+		new Thread("Vocals", Color.fromHSL(320, 100, 62), -0.30, 1, new StemMix(0, 0, 1, 0, 0, 0, 1), 2, 0.072, 0.557),
+		new Thread("Guitar", Color.fromHSL(130, 100, 62), -0.18, 1, new StemMix(0, 0, 0, 1, 0, 0, 1), 2, 0.200, 0.565),
+		new Thread("Keys", Color.fromHSL(190, 100, 62), -0.06, 1, new StemMix(0, 0, 0, 0, 1, 0, 1), 2, 0.121, 0.292),
+		new Thread("Other", Color.fromHSL(0, 0, 62), 0.06, 1, new StemMix(0, 0, 0, 0, 0, 1, 1), 2, 0.039, 0.183),
 		this.#drums,
-		new Thread("Bass", Color.fromHSL(260, 100, 62), 0.30, 1, new StemMix(0, 1, 0, 0, 0, 0, 1), 2),
+		new Thread("Bass", Color.fromHSL(260, 100, 62), 0.30, 1, new StemMix(0, 1, 0, 0, 0, 0, 1), 2, 0.073, 0.111),
 	];
 	#idle: number = 0.033;
 	#busy: number = 0.693;
