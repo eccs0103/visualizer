@@ -8,7 +8,7 @@ A visualization is one file in [`studio/view/visualizations/`](./studio/view/vis
 import "./visualizations/my-visualization.js";
 ```
 
-The built-in [`pulsar.ts`](./studio/view/visualizations/pulsar.ts) and [`spectrogram.ts`](./studio/view/visualizations/spectrogram.ts) are the reference scripts.
+The built-in [`pulsar.ts`](./studio/view/visualizations/pulsar.ts), [`spectrogram.ts`](./studio/view/visualizations/spectrogram.ts), [`stems.ts`](./studio/view/visualizations/stems.ts) and [`threads.ts`](./studio/view/visualizations/threads.ts) are the reference scripts.
 
 A visualization is a class with two functions, `rebuild(host)` and `update(host)`, plus its layers, which are functions of the same `host`. Everything in `host` is read-only; the only thing a visualization writes is `host.context`. What a visualization sees is defined in one file, [`models/visualization.ts`](./studio/models/visualization.ts).
 
