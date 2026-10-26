@@ -4,7 +4,7 @@ import "adaptive-extender/worker";
 import { Color } from "adaptive-extender/worker";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 import { type Audioset, type Host } from "../../models/visualization.js";
-import { AutoRange, Shaper, StemMix } from "../../services/visualization-tools.js";
+import { Shaper, StemMix } from "../../services/visualization-tools.js";
 
 const { min, max, exp, sin, trunc, PI } = Math;
 
@@ -300,15 +300,17 @@ class Thread {
 //#region Stems
 Registry.attach("Stems", class extends Visualization {
 	#mix: Thread = new Thread("Mix", Color.fromHSL(0, 0, 95), 0, -1, new StemMix(1, 1, 1, 1, 1, 1, 1), 1);
+	#drums: Thread = new Thread("Drums", Color.fromHSL(35, 100, 62), 0.18, 1, new StemMix(1, 0, 0, 0, 0, 0, 1), 2);
 	#stems: Thread[] = [
 		new Thread("Vocals", Color.fromHSL(320, 100, 62), -0.30, 1, new StemMix(0, 0, 1, 0, 0, 0, 1), 2),
 		new Thread("Guitar", Color.fromHSL(130, 100, 62), -0.18, 1, new StemMix(0, 0, 0, 1, 0, 0, 1), 2),
 		new Thread("Keys", Color.fromHSL(190, 100, 62), -0.06, 1, new StemMix(0, 0, 0, 0, 1, 0, 1), 2),
 		new Thread("Other", Color.fromHSL(0, 0, 62), 0.06, 1, new StemMix(0, 0, 0, 0, 0, 1, 1), 2),
-		new Thread("Drums", Color.fromHSL(35, 100, 62), 0.18, 1, new StemMix(1, 0, 0, 0, 0, 0, 1), 2),
+		this.#drums,
 		new Thread("Bass", Color.fromHSL(260, 100, 62), 0.30, 1, new StemMix(0, 1, 0, 0, 0, 0, 1), 2),
 	];
-	#intensity: AutoRange = new AutoRange(0.05, 0.4);
+	#idle: number = 0.033;
+	#busy: number = 0.693;
 	#calm: number = 1;
 	#rush: number = 40;
 	#stride: number = 0.45;
@@ -370,16 +372,16 @@ Registry.attach("Stems", class extends Visualization {
 	}
 
 	#runPace(host: Host): void {
-		const intensity = this.#intensity;
 		const typical = this.#typical;
 		const onset = this.#onset;
+		const idle = this.#idle;
+		const busy = this.#busy;
 		const { audioset, environment } = host;
 		const { volume } = audioset;
 		const { delta } = environment;
 
-		intensity.push(this.#mix.level, volume, delta);
 		if (!Number.isFinite(delta) || delta <= 0) return;
-		const { level } = intensity;
+		const level = this.#drums.level.clamp(idle, busy).lerp(idle, busy);
 		const previous = this.#loudness;
 		const loudness = this.#loudness = previous + (volume - previous) * (1 - exp(-delta / this.#settle));
 		const before = this.#peak;
