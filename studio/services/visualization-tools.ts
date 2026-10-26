@@ -280,12 +280,77 @@ export class SpectrumAnalysis {
 	}
 }
 //#endregion
+//#region Trail
+export class Trail {
+	#interval: number;
+	#values: Float32Array;
+	#cursor: number = 0;
+	#count: number = 0;
+	#wait: number = 0;
+	#held: number = 0;
+
+	constructor(seconds: number, interval: number = 0.01) {
+		this.#interval = interval;
+		this.#values = new Float32Array(trunc(seconds / interval) + 2);
+	}
+
+	get size(): number { return this.#values.length; }
+	get count(): number { return this.#count; }
+
+	push(value: number, delta: number): void {
+		const values = this.#values;
+		const interval = this.#interval;
+		const { length } = values;
+		let cursor = this.#cursor;
+		let count = this.#count;
+		let held = max(this.#held, value);
+		let wait = this.#wait - min(delta, interval * length);
+		while (wait <= 0) {
+			cursor = (cursor + 1) % length;
+			values[cursor] = held;
+			held = value;
+			wait += interval;
+			count++;
+		}
+		this.#cursor = cursor;
+		this.#count = min(count, length);
+		this.#held = held;
+		this.#wait = wait;
+	}
+
+	at(seconds: number): number {
+		const values = this.#values;
+		const cursor = this.#cursor;
+		const { length } = values;
+		const position = seconds / this.#interval;
+		const step = trunc(position);
+		const newer = values[(cursor - step).mod(length)];
+		const older = values[(cursor - step - 1).mod(length)];
+		return newer + (older - newer) * (position - step);
+	}
+
+	copy(target: Float64Array): Float64Array {
+		const values = this.#values;
+		const count = this.#count;
+		const copied = target.subarray(0, count);
+		copied.set(count < values.length ? values.subarray(1, count + 1) : values);
+		return copied;
+	}
+
+	clear(): void {
+		this.#cursor = 0;
+		this.#count = 0;
+		this.#wait = 0;
+		this.#held = 0;
+	}
+}
+//#endregion
 //#region Auto range
 /**
  * The quiet-to-loud range of one input in the song that is playing: its 5th and 95th percentiles over the last ~30 seconds, sampled on the clock so the window is the same at any frame rate. Until enough of the song has been heard it leans on a prior range (measured over MUSDB18HQ), and the span never shrinks below a fraction of the prior span, so a quiet passage is not blown up into noise.
  */
 export class AutoRange {
-	static #capacity: number = 256; // samples, ~32 s
+	static #seconds: number = 32; // s of history
 	static #interval: number = 0.125; // s between samples
 	static #refresh: number = 0.5; // s between percentile updates
 	static #warmup: number = 40; // samples (~5 s) before the song's own range is fully trusted
@@ -295,11 +360,8 @@ export class AutoRange {
 
 	#lowPrior: number;
 	#highPrior: number;
-	#window: Float64Array = new Float64Array(AutoRange.#capacity);
-	#sorted: Float64Array = new Float64Array(AutoRange.#capacity);
-	#count: number = 0;
-	#cursor: number = 0;
-	#untilSample: number = 0;
+	#trail: Trail = new Trail(AutoRange.#seconds, AutoRange.#interval);
+	#sorted: Float64Array = new Float64Array(this.#trail.size);
 	#untilRefresh: number = 0;
 	#silent: number = 0;
 	#low: number;
@@ -316,8 +378,7 @@ export class AutoRange {
 	get level(): number { return this.#level; }
 
 	#reset(): void {
-		this.#count = 0;
-		this.#cursor = 0;
+		this.#trail.clear();
 		this.#low = this.#lowPrior;
 		this.#high = this.#highPrior;
 	}
@@ -335,26 +396,17 @@ export class AutoRange {
 	}
 
 	#sample(value: number, delta: number): void {
-		this.#untilSample -= delta;
+		this.#trail.push(value, delta);
 		this.#untilRefresh -= delta;
-		if (this.#untilSample <= 0) {
-			const capacity = AutoRange.#capacity;
-			const cursor = this.#cursor;
-			this.#untilSample += AutoRange.#interval;
-			this.#window[cursor] = value;
-			this.#cursor = (cursor + 1) % capacity;
-			this.#count = min(this.#count + 1, capacity);
-		}
 		if (this.#untilRefresh > 0) return;
 		this.#untilRefresh += AutoRange.#refresh;
 		this.#refit();
 	}
 
 	#refit(): void {
-		const count = this.#count;
+		const sorted = this.#trail.copy(this.#sorted);
+		const { length: count } = sorted;
 		if (count < 8) return;
-		const sorted = this.#sorted.subarray(0, count);
-		sorted.set(this.#window.subarray(0, count));
 		sorted.sort();
 		let low = sorted[trunc(count * 0.05)], high = sorted[min(count - 1, trunc(count * 0.95))];
 		const lowPrior = this.#lowPrior;
@@ -403,49 +455,6 @@ export class Smoother {
 
 	raise(floor: number): void {
 		this.#value = max(floor, this.#value);
-	}
-}
-//#endregion
-//#region Trail
-export class Trail {
-	static #interval: number = 0.01;
-
-	#values: Float32Array;
-	#cursor: number = 0;
-	#wait: number = 0;
-	#held: number = 0;
-
-	constructor(seconds: number) {
-		this.#values = new Float32Array(trunc(seconds / Trail.#interval) + 2);
-	}
-
-	push(value: number, delta: number): void {
-		const values = this.#values;
-		const interval = Trail.#interval;
-		const { length } = values;
-		let cursor = this.#cursor;
-		let held = max(this.#held, value);
-		let wait = this.#wait - min(delta, interval * length);
-		while (wait <= 0) {
-			cursor = (cursor + 1) % length;
-			values[cursor] = held;
-			held = value;
-			wait += interval;
-		}
-		this.#cursor = cursor;
-		this.#held = held;
-		this.#wait = wait;
-	}
-
-	at(seconds: number): number {
-		const values = this.#values;
-		const cursor = this.#cursor;
-		const { length } = values;
-		const position = seconds / Trail.#interval;
-		const step = trunc(position);
-		const newer = values[(cursor - step).mod(length)];
-		const older = values[(cursor - step - 1).mod(length)];
-		return newer + (older - newer) * (position - step);
 	}
 }
 //#endregion

@@ -30,6 +30,9 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 	#normLightness: number = 0;
 	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1, 1, 1.03); // drums at half weight, the gain lets the ridge's peaks reach the mix's height
 	#instruments: StemMix = new StemMix(0, 0, 0, 1, 1, 1, 1); // guitar + keys + other: everything but drums, bass and vocals, the "other" these levels were tuned on
+	#kit: StemMix = new StemMix(1, 0, 0, 0, 0, 0, 1);
+	#bassline: StemMix = new StemMix(0, 1, 0, 0, 0, 0, 1);
+	#voice: StemMix = new StemMix(0, 0, 1, 0, 0, 0, 1);
 	#drums: SpectrumAnalysis = new SpectrumAnalysis();
 	#bass: SpectrumAnalysis = new SpectrumAnalysis();
 	#vocals: SpectrumAnalysis = new SpectrumAnalysis();
@@ -72,9 +75,9 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 		const vocals = this.#vocals;
 		const other = this.#other;
 
-		drums.analyze(audioset.dataDrums, audioset);
-		bass.analyze(audioset.dataBass, audioset);
-		vocals.analyze(audioset.dataVocals, audioset);
+		drums.analyze(this.#kit.mix(audioset), audioset);
+		bass.analyze(this.#bassline.mix(audioset), audioset);
+		vocals.analyze(this.#voice.mix(audioset), audioset);
 		other.analyze(this.#instruments.mix(audioset), audioset);
 		this.#drop.push(min(1, drums.percussiveness * 3) * subBass, host);
 		this.#percussiveness.push(drums.percussiveness, host);

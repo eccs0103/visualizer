@@ -4,7 +4,7 @@ import "adaptive-extender/worker";
 import { Color } from "adaptive-extender/worker";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 import { type Audioset, type Host } from "../../models/visualization.js";
-import { Shaper, Smoother, StemMix, Trail } from "../../services/visualization-tools.js";
+import { Shaper, Smoother, SpectrumAnalysis, StemMix, Trail } from "../../services/visualization-tools.js";
 
 const { min, max, abs, sin, trunc, PI } = Math;
 
@@ -79,8 +79,7 @@ class Thread {
 	#warmth: Shaper;
 	#share: Smoother = new Smoother(Thread.#lag);
 	#heat: Smoother = new Smoother(Thread.#lag);
-	#rise: number = 0;
-	#previous: Float32Array = new Float32Array(0);
+	#analysis: SpectrumAnalysis = new SpectrumAnalysis();
 	#trail: Trail = new Trail(Thread.#journey);
 	#color: Color;
 	#stroke: string;
@@ -116,7 +115,7 @@ class Thread {
 	get name(): string { return this.#name; }
 	get share(): number { return this.#share.value; }
 	get heat(): number { return this.#heat.value; }
-	get rise(): number { return this.#rise; }
+	get rise(): number { return this.#analysis.spectralFlux; }
 	get color(): Color { return this.#color; }
 
 	get #alpha(): number {
@@ -190,16 +189,6 @@ class Thread {
 		return weight > 0 ? sum / weight : 0;
 	}
 
-	#climb(spectrum: Float32Array): number {
-		let previous = this.#previous;
-		const { length } = spectrum;
-		if (previous.length !== length) previous = this.#previous = new Float32Array(length);
-		let sum = 0;
-		for (let index = 0; index < length; index++) sum += max(0, spectrum[index] - previous[index]);
-		previous.set(spectrum);
-		return sum;
-	}
-
 	listen(pulse: number, delta: number): void {
 		const trail = this.#trail;
 		const delays = this.#delays;
@@ -255,7 +244,7 @@ class Thread {
 		for (let index = 0; index < spectrum.length; index++) sum += spectrum[index];
 		this.#share.push(total > 0 ? sum / total : 0, delta);
 		this.#heat.push(this.#warmth.apply(this.#measure(spectrum)), delta);
-		this.#rise = this.#climb(spectrum);
+		this.#analysis.analyze(spectrum, audioset);
 	}
 
 	#obtainGradient(context: OffscreenCanvasRenderingContext2D): CanvasGradient {
