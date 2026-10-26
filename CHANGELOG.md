@@ -1,3 +1,14 @@
+## 3.8.0 (27.10.2026)
+- Added the **Stems** visualization, shown when the address ends with `?for=developers`.
+- The browser console now shows the address with `?for=developers` that opens the developer settings.
+- Added `Smoother`, `Trail`, `Shaper.exponential(steepness)`, `shaper.between(low, high)` and `SpectrumAnalysis.centroid(...analyses)` to [visualization-tools](./studio/services/visualization-tools.ts) — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+- Added [stems.ts](./studio/view/visualizations/stems.ts) as a third reference script. [CONTRIBUTING.md](./CONTRIBUTING.md) now asks to name the visualization's class and keep every fixed number, curve and colour as a `static #` field.
+- **Spectrogram**'s beat zoom now relaxes within a quarter of a second after each beat. Before, it hardly faded, so the picture stayed zoomed in.
+- **Pulsar** and **Spectrogram** no longer learn a song's quiet-to-loud range from silence, so their effects react correctly right after a pause or at the start of a new song.
+- **Pulsar** takes about a third less time per frame and **Spectrogram** about an eighth less, drawing exactly the same picture.
+- **Breaking:** `HueDrift` now holds its colour: create it with `new HueDrift(color, rate)`, call `tick(environment.delta, factor)` once per frame and read `color`, instead of `tick(color, rate, delta, factor)`.
+- **Breaking:** `AutoRange.push(value, volume, delta)` is now `push(value, host)`. Pass the `host` your `update()` receives.
+
 ## 3.7.0 (18.10.2026)
 - Added an **AI** section to the configurator for the AIs that listen to the song, each with its own settings under it. Its first entry is **Stem separation**: a switch turns the AI on or off, **Status** shows whether it runs, on which graphics card and how many times per second it updates (with a hint when the chosen model is too heavy for this computer), and **Model** picks the trained model with its size and a short description; <kbd>Shift</kbd> + <kbd>↑</kbd>/<kbd>↓</kbd> cycles through the models. Both choices are remembered.
 - Added the **Deep listening** model, which follows how every sound changes over time. New visitors start with it; **Standard** stays available.

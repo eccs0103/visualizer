@@ -25,7 +25,9 @@ import "adaptive-extender/worker";
 import { type Host } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 
-Registry.attach("My custom title", class extends Visualization {
+Registry.attach("My custom title", class MyVisualization extends Visualization {
+	static #zoom: number = 0.1;
+
 	constructor() {
 		super();
 		// Layers are declared bottom to top; the engine adds the background and the lyrics itself.
@@ -34,7 +36,7 @@ Registry.attach("My custom title", class extends Visualization {
 
 	// Called on every frame, before any layer is painted. The context's transform is the camera.
 	update(host: Host): void {
-		const zoom = 1 + host.audioset.bassLevel * 0.1;
+		const zoom = 1 + host.audioset.bassLevel * MyVisualization.#zoom;
 		host.context.scale(zoom, zoom);
 	}
 
