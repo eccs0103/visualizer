@@ -7,6 +7,7 @@ import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, Ly
 import { Stage } from "../services/stage.js";
 import { Scene } from "../services/scene.js";
 import "../view/visualizations.js";
+import "../view/visualizations/stems.js";
 
 //#region Visualization worker
 class VisualizationWorker extends Controller {

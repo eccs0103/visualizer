@@ -42,7 +42,11 @@ class StudioController extends Controller {
 		});
 		void AnalyticsController.launch();
 
-		const developer = new URL(location.href).searchParams.get("for") === "developers";
+		const url = new URL(location.href);
+		const developer = url.searchParams.get("for") === "developers";
+		if (developer) await import("../view/visualizations/stems.js");
+		url.searchParams.set("for", "developers");
+		if (!developer) console.log(`Are you a developer? Try ${url} for developer settings!`);
 		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Studio\\Settings", Settings, new Settings());
 		const { playlist: inherited } = localStorage.openPortableCell(cell.key, LegacySettings, new LegacySettings()).content;
 		const playlist: BufferedCell<typeof Playlist> = localStorage.openBufferedCell("Visualizer\\Studio\\Playlist", Playlist, inherited ?? new Playlist());
