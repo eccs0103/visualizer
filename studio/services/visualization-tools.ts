@@ -30,7 +30,8 @@ export class Shaper {
 	}
 
 	static exponential(steepness: number): Shaper {
-		return new Shaper(x => (exp(x * steepness) - 1) / (exp(steepness) - 1));
+		const range = exp(steepness) - 1;
+		return new Shaper(x => (exp(x * steepness) - 1) / range);
 	}
 
 	apply(value: number): number {
@@ -39,7 +40,8 @@ export class Shaper {
 
 	then(next: Shaper): Shaper {
 		const callback = this.#callback;
-		return new Shaper(x => next.apply(callback(x)));
+		const following = next.#callback;
+		return new Shaper(x => following(callback(x)));
 	}
 
 	between(low: number, high: number): Shaper {
@@ -230,18 +232,25 @@ export class SpectrumAnalysis {
 	#computeFluxStats(time: number): void {
 		const fluxHistory = this.#fluxHistory;
 		const timeHistory = this.#timeHistory;
-		const filled = min(this.#fluxCursor, SpectrumAnalysis.#capacity);
+		const capacity = SpectrumAnalysis.#capacity;
+		const cursor = this.#fluxCursor;
+		const filled = min(cursor, capacity);
 		const window = SpectrumAnalysis.#window;
-		let mean = 0, count = 0;
-		for (let index = 0; index < filled; index++) {
-			if (time - timeHistory[index] >= window) continue;
-			mean += fluxHistory[index];
-			count++;
-		}
+		let count = 0;
+		while (count < filled && time - timeHistory[(cursor - 1 - count) % capacity] < window) count++;
+		const start = (cursor - count) % capacity;
+		const end = cursor % capacity;
+		const wraps = count > 0 && start >= end;
+		let mean = 0;
+		for (let index = wraps ? 0 : start; index < end; index++) mean += fluxHistory[index];
+		if (wraps) for (let index = start; index < capacity; index++) mean += fluxHistory[index];
 		mean /= max(1, count);
 		let variance = 0;
-		for (let index = 0; index < filled; index++) {
-			if (time - timeHistory[index] >= window) continue;
+		for (let index = wraps ? 0 : start; index < end; index++) {
+			const diff = fluxHistory[index] - mean;
+			variance += diff * diff;
+		}
+		if (wraps) for (let index = start; index < capacity; index++) {
 			const diff = fluxHistory[index] - mean;
 			variance += diff * diff;
 		}

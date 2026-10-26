@@ -99,12 +99,12 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 
 		this.#gradientHalo = null;
 		stops.length = 0;
+		const { hue } = colorHaloOuter;
+		const colorStop = new Color(colorHaloOuter).illuminate(normIllumination);
 		for (let index = 0; index < countStops; index++) {
 			const normEdge = abs(index.lerp(0, countStops) - 0.5) * 2;
-			stops.push(new Color(colorHaloOuter)
-				.rotate(180 * normEdge + hueBias)
-				.illuminate(normIllumination)
-				.toString());
+			colorStop.hue = hue + (180 * normEdge + hueBias);
+			stops.push(colorStop.toString());
 		}
 
 		const path = this.#pathHalo = new Path2D();
@@ -196,9 +196,10 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 		const { context } = host;
 
 		const gradientShadow = context.createRadialGradient(0, 0, 0, 0, 0, radius);
-		gradientShadow.addColorStop(0, new Color(colorShadow).pass(1).toString());
-		gradientShadow.addColorStop(0.5, new Color(colorShadow).pass(SQRT1_2).toString());
-		gradientShadow.addColorStop(1, new Color(colorShadow).pass(0).toString());
+		const colorStop = new Color(colorShadow);
+		gradientShadow.addColorStop(0, colorStop.pass(1).toString());
+		gradientShadow.addColorStop(0.5, colorStop.pass(SQRT1_2).toString());
+		gradientShadow.addColorStop(1, colorStop.pass(0).toString());
 		context.fillStyle = gradientShadow;
 		context.fill(this.#pathWave);
 	}

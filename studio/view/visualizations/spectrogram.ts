@@ -162,12 +162,12 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 		const { width } = context.canvas;
 
 		const gradientRidge = context.createLinearGradient(-width / 2, 0, width / 2, 0);
+		const { hue } = colorRidgeSeed;
+		const colorStop = new Color(colorRidgeSeed).illuminate(normLightness);
 		for (let index = 0; index <= countStops; index++) {
 			const normProgress = index.lerp(0, countStops);
-			gradientRidge.addColorStop(normProgress, new Color(colorRidgeSeed)
-				.rotate(hueSpread * normProgress + hueBias)
-				.illuminate(normLightness)
-				.toString());
+			colorStop.hue = hue + (hueSpread * normProgress + hueBias);
+			gradientRidge.addColorStop(normProgress, colorStop.toString());
 		}
 		context.fillStyle = gradientRidge;
 		const blurRidge = trunc(this.#bassLevel.level.lerp(0, 1, lineWidth * 2, lineWidth * 10) / 2);
