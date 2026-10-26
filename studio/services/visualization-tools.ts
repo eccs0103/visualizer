@@ -359,7 +359,7 @@ export class AutoRange {
 	push(value: number, volume: number, delta: number): void {
 		if (!Number.isFinite(delta) || delta < 0) delta = 0;
 		this.#watchSilence(volume, delta);
-		this.#sample(value, delta);
+		if (volume >= AutoRange.#silence) this.#sample(value, delta);
 		const low = this.#low;
 		const high = max(this.#high, low + 1e-9);
 		this.#level = value.clamp(low, high).lerp(low, high, 0, 1);

@@ -312,8 +312,13 @@ Registry.attach("Stems", class extends Visualization {
 	#calm: number = 1;
 	#rush: number = 40;
 	#stride: number = 0.45;
-	#stretch: number = 0.9;
-	#settle: number = 0.5;
+	#stretch: number = 8;
+	#settle: number = 1;
+	#typical: number = 0.274;
+	#onset: number = 0.6;
+	#memory: number = 60;
+	#loudness: number = 0;
+	#peak: number = this.#typical;
 	#tempo: number = 0;
 	#phase: number = 0;
 	#travel: number = 0;
@@ -366,14 +371,20 @@ Registry.attach("Stems", class extends Visualization {
 
 	#runPace(host: Host): void {
 		const intensity = this.#intensity;
-		const previous = this.#tempo;
+		const typical = this.#typical;
+		const onset = this.#onset;
 		const { audioset, environment } = host;
+		const { volume } = audioset;
 		const { delta } = environment;
 
-		intensity.push(this.#mix.level, audioset.volume, delta);
+		intensity.push(this.#mix.level, volume, delta);
 		if (!Number.isFinite(delta) || delta <= 0) return;
 		const { level } = intensity;
-		this.#tempo = previous + (level - previous) * (1 - exp(-delta / this.#settle));
+		const previous = this.#loudness;
+		const loudness = this.#loudness = previous + (volume - previous) * (1 - exp(-delta / this.#settle));
+		const before = this.#peak;
+		const peak = this.#peak = max(loudness, before + (typical - before) * (1 - exp(-delta / this.#memory)));
+		this.#tempo = Shaper.smoothstep.apply(max(0, loudness / peak - onset) / (1 - onset));
 		const step = min(this.#stride, delta * level.lerp(0, 1, this.#calm, this.#rush));
 		this.#phase += step;
 		this.#travel += step * this.#wavelength;
