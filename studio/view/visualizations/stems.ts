@@ -6,7 +6,7 @@ import { Registry, Visualization } from "../../services/visualization-registry.j
 import { type Audioset, type Host } from "../../models/visualization.js";
 import { Shaper, StemMix } from "../../services/visualization-tools.js";
 
-const { min, max, exp, sin, trunc, PI } = Math;
+const { min, max, abs, exp, sin, trunc, PI } = Math;
 
 //#region Flow
 class Flow {
@@ -51,6 +51,49 @@ class Flow {
 	}
 }
 //#endregion
+//#region Trail
+class Trail {
+	static #interval: number = 0.01;
+
+	#values: Float32Array;
+	#cursor: number = 0;
+	#wait: number = 0;
+	#held: number = 0;
+
+	constructor(seconds: number) {
+		this.#values = new Float32Array(trunc(seconds / Trail.#interval) + 2);
+	}
+
+	push(value: number, delta: number): void {
+		const values = this.#values;
+		const interval = Trail.#interval;
+		const { length } = values;
+		let cursor = this.#cursor;
+		let held = max(this.#held, value);
+		let wait = this.#wait - min(delta, interval * length);
+		while (wait <= 0) {
+			cursor = (cursor + 1) % length;
+			values[cursor] = held;
+			held = value;
+			wait += interval;
+		}
+		this.#cursor = cursor;
+		this.#held = held;
+		this.#wait = wait;
+	}
+
+	at(seconds: number): number {
+		const values = this.#values;
+		const cursor = this.#cursor;
+		const { length } = values;
+		const position = seconds / Trail.#interval;
+		const step = trunc(position);
+		const newer = values[(cursor - step).mod(length)];
+		const older = values[(cursor - step - 1).mod(length)];
+		return newer + (older - newer) * (position - step);
+	}
+}
+//#endregion
 //#region Thread
 class Thread {
 	static #spacing: number = 0.12;
@@ -60,6 +103,8 @@ class Thread {
 	static #faint: number = 0.1;
 	static #clear: number = 0.35;
 	static #ghost: number = 0.85;
+	static #journey: number = 1.2;
+	static #crest: number = 0.365;
 	static #shaper: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 
 	#name: string;
@@ -70,6 +115,9 @@ class Thread {
 	#gain: number;
 	#share: number = 0;
 	#level: number = 0;
+	#rise: number = 0;
+	#previous: Float32Array = new Float32Array(0);
+	#trail: Trail = new Trail(Thread.#journey);
 	#color: Color;
 	#stroke: string;
 	#glow: string;
@@ -86,6 +134,7 @@ class Thread {
 	#fractions: Float32Array = new Float32Array(0);
 	#tapers: Float32Array = new Float32Array(0);
 	#envelopes: Float32Array = new Float32Array(0);
+	#delays: Float32Array = new Float32Array(0);
 	#line: Path2D = new Path2D();
 	#sleeve: Path2D = new Path2D();
 	#spots: Path2D = new Path2D();
@@ -102,6 +151,7 @@ class Thread {
 	get name(): string { return this.#name; }
 	get share(): number { return this.#share; }
 	get level(): number { return this.#level; }
+	get rise(): number { return this.#rise; }
 	get color(): Color { return this.#color; }
 
 	get #presence(): number {
@@ -124,13 +174,16 @@ class Thread {
 	fit(flow: Flow, source: Color, dark: boolean): void {
 		const { side, breadth, bend, end } = flow;
 		const split = Thread.#split;
-		const plain = this.#direction < 0 ? bend * split / (1 - split) : bend;
+		const journey = Thread.#journey;
+		const direction = this.#direction;
+		const plain = direction < 0 ? bend * split / (1 - split) : bend;
 		const across = this.#lane * breadth;
 		const count = max(32, trunc(end / 3));
 		const alongs = this.#alongs = new Float32Array(count);
 		const acrosses = this.#acrosses = new Float32Array(count);
 		const fractions = this.#fractions = new Float32Array(count);
 		const tapers = this.#tapers = new Float32Array(count);
+		const delays = this.#delays = new Float32Array(count);
 		const smoothstep = Shaper.smoothstep;
 
 		this.#flow = flow;
@@ -147,6 +200,7 @@ class Thread {
 			acrosses[index] = across * smoothstep.apply(min(1, along / bend));
 			fractions[index] = (exp(lane / (end - plain) * 3) - 1) / (exp(3) - 1);
 			tapers[index] = smoothstep.apply(min(1, lane / (plain / 4)));
+			delays[index] = journey * (end + direction * along) / (2 * end);
 		}
 	}
 
@@ -179,6 +233,26 @@ class Thread {
 			weight += taper;
 		}
 		return weight > 0 ? sum / weight : 0;
+	}
+
+	#climb(spectrum: Float32Array): number {
+		let previous = this.#previous;
+		const { length } = spectrum;
+		if (previous.length !== length) previous = this.#previous = new Float32Array(length);
+		let sum = 0;
+		for (let index = 0; index < length; index++) sum += max(0, spectrum[index] - previous[index]);
+		previous.set(spectrum);
+		return sum;
+	}
+
+	listen(pulse: number, delta: number): void {
+		const trail = this.#trail;
+		const delays = this.#delays;
+		const envelopes = this.#envelopes;
+		const crest = Thread.#crest;
+
+		trail.push(pulse, delta);
+		for (let index = 0; index < envelopes.length; index++) envelopes[index] *= 1 + min(1, trail.at(delays[index]) / crest);
 	}
 
 	trace(phase: number, travel: number, wavelength: number): void {
@@ -234,6 +308,7 @@ class Thread {
 		const spectrum = this.#part.mix(audioset);
 		this.#follow(spectrum, total, delta);
 		this.#level = this.#measure(spectrum);
+		this.#rise = this.#climb(spectrum);
 	}
 
 	#obtainGradient(context: OffscreenCanvasRenderingContext2D): CanvasGradient {
@@ -321,6 +396,8 @@ Registry.attach("Stems", class extends Visualization {
 	#memory: number = 60;
 	#loudness: number = 0;
 	#peak: number = this.#typical;
+	#span: number = 0.3;
+	#baseline: number = 0;
 	#tempo: number = 0;
 	#phase: number = 0;
 	#travel: number = 0;
@@ -371,6 +448,24 @@ Registry.attach("Stems", class extends Visualization {
 		for (const stem of this.#stems) stem.update(audioset, total, delta);
 	}
 
+	#runPulse(host: Host): void {
+		const stems = this.#stems;
+		const { audioset, environment } = host;
+		const { dataTemporal } = audioset;
+		const { delta } = environment;
+
+		if (!Number.isFinite(delta) || delta <= 0) return;
+		let peak = 0;
+		for (let index = 0; index < dataTemporal.length; index++) peak = max(peak, abs(dataTemporal[index] * 2 - 1));
+		const baseline = this.#baseline;
+		const pulse = max(0, peak - baseline);
+		this.#baseline = baseline + (peak - baseline) * (1 - exp(-delta / this.#span));
+		this.#mix.listen(pulse, delta);
+		let sum = 0;
+		for (const stem of stems) sum += stem.rise;
+		for (const stem of stems) stem.listen(sum > 0 ? pulse * stem.rise / sum : 0, delta);
+	}
+
 	#runPace(host: Host): void {
 		const typical = this.#typical;
 		const onset = this.#onset;
@@ -417,6 +512,7 @@ Registry.attach("Stems", class extends Visualization {
 	update(host: Host): void {
 		if (host.audioset.length === 0) return;
 		this.#runThreads(host);
+		this.#runPulse(host);
 		this.#runPace(host);
 		this.#runTraces();
 		this.#runAmbient();
