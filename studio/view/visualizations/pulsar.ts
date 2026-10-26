@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { Color, Random, Vector2D } from "adaptive-extender/worker";
+import { Color, Random } from "adaptive-extender/worker";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 import { type Host } from "../../models/visualization.js";
 import { AutoRange, HueDrift, Shaper, SpectrumAnalysis, StemMix } from "../../services/visualization-tools.js";
@@ -10,17 +10,16 @@ const { min, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
 const random = Random.global;
 
 //#region Pulsar
-Registry.attach("Pulsar", class extends Visualization {
-	#countStops: number = 96;
+Registry.attach("Pulsar", class Pulsar extends Visualization {
+	static #countStops: number = 96;
+	static #shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
+
 	#radius: number;
-	#colorHaloOuter: Color = Color.fromHSL(0, 100, 60);
-	#colorHaloInner: Color;
 	#stopsHalo: string[] = [];
 	#gradientHalo: CanvasGradient | null = null;
 	#pathHalo: Path2D = new Path2D();
 	#pathWave: Path2D = new Path2D();
-	#shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
-	#drift: HueDrift = new HueDrift();
+	#drift: HueDrift = new HueDrift(Color.fromHSL(0, 100, 60), 360 / 6);
 	#colorShadow: Color;
 	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1, 1, 1.03); // drums at half weight, the gain lets the ring's peaks reach the mix's height
 	#instruments: StemMix = new StemMix(0, 0, 0, 1, 1, 1, 1); // guitar + keys + other: everything but drums, bass and vocals, the "other" these levels were tuned on
@@ -47,15 +46,13 @@ Registry.attach("Pulsar", class extends Visualization {
 		const { hue, saturation, lightness } = environment.colorBackground;
 
 		this.#radius = min(width, height) / 2;
-		this.#colorHaloInner = Color.fromHSL(hue, saturation, lightness.snap(100));
 		this.#colorShadow = Color.fromHSL(hue, saturation, lightness.snap(100));
 	}
 	//#endregion
 	//#region Update
 	#runLevels(host: Host): void {
-		const { audioset, environment } = host;
-		const { delta } = environment;
-		const { volume, subBass } = audioset;
+		const { audioset } = host;
+		const { subBass } = audioset;
 		const drums = this.#drums;
 		const bass = this.#bass;
 		const vocals = this.#vocals;
@@ -65,13 +62,10 @@ Registry.attach("Pulsar", class extends Visualization {
 		bass.analyze(audioset.dataBass, audioset);
 		vocals.analyze(audioset.dataVocals, audioset);
 		other.analyze(this.#instruments.mix(audioset), audioset);
-		const energy = vocals.energy + other.energy;
-		let centroid = 0;
-		if (energy > 0) centroid = (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy;
-		this.#drop.push(min(1, drums.percussiveness * 3) * subBass, volume, delta);
-		this.#percussiveness.push(drums.percussiveness, volume, delta);
-		this.#bassLevel.push(bass.bassLevel, volume, delta);
-		this.#centroid.push(centroid, volume, delta);
+		this.#drop.push(min(1, drums.percussiveness * 3) * subBass, host);
+		this.#percussiveness.push(drums.percussiveness, host);
+		this.#bassLevel.push(bass.bassLevel, host);
+		this.#centroid.push(SpectrumAnalysis.centroid(vocals, other), host);
 	}
 
 	#runCameraUpdate(host: Host): void {
@@ -83,16 +77,15 @@ Registry.attach("Pulsar", class extends Visualization {
 
 	#runHaloRotation(host: Host): void {
 		const { audioset, environment } = host;
-		const { delta } = environment;
 
-		this.#drift.tick(this.#colorHaloOuter, 360 / 6, delta, audioset.volume);
+		this.#drift.tick(environment.delta, audioset.volume);
 	}
 
 	#runHaloBuilding(host: Host): void {
 		const radius = this.#radius;
-		const countStops = this.#countStops;
-		const colorHaloOuter = this.#colorHaloOuter;
-		const shaperFrequency = this.#shaperFrequency;
+		const countStops = Pulsar.#countStops;
+		const colorHaloOuter = this.#drift.color;
+		const shaperFrequency = Pulsar.#shaperFrequency;
 		const stops = this.#stopsHalo;
 		const { audioset } = host;
 		const { volume, bassLevel, length } = audioset; // brightness stays on production's own scale
@@ -112,15 +105,12 @@ Registry.attach("Pulsar", class extends Visualization {
 		}
 
 		const path = this.#pathHalo = new Path2D();
-		const position = Vector2D.newNaN;
 		for (let index = 0; index < length; index++) {
 			const normProgress = index.lerp(0, length);
 			const normOffset = abs(index - semiLength).lerp(0, semiLength + 1);
 			const normScale = shaperFrequency.apply(dataFrequency[trunc(normOffset * semiLength)]);
 			const distance = normScale.lerp(0, 1, 0.6, 1.0) * radius;
-			position.x = distance * sin(normProgress * 2 * PI);
-			position.y = distance * cos(normProgress * 2 * PI);
-			path.lineTo(position.x, position.y);
+			path.lineTo(distance * sin(normProgress * 2 * PI), distance * cos(normProgress * 2 * PI));
 		}
 		path.closePath();
 	}
@@ -134,14 +124,11 @@ Registry.attach("Pulsar", class extends Visualization {
 
 		const path = this.#pathWave = new Path2D();
 		path.moveTo(-width / 2, 0);
-		const position = Vector2D.newNaN;
 		for (let index = 0; index < length; index++) {
 			const normProgress = index.lerp(0, length);
 			const normDatumTemporal = dataTemporal[trunc(normProgress * length)].lerp(0, 1, -1, 1);
 			const normScale = normDatumTemporal * volume * scalePercussive;
-			position.x = width * (normProgress - 0.5);
-			position.y = radius * normScale;
-			path.lineTo(position.x, position.y);
+			path.lineTo(width * (normProgress - 0.5), radius * normScale);
 		}
 		path.lineTo(width / 2, 0);
 	}
@@ -169,12 +156,12 @@ Registry.attach("Pulsar", class extends Visualization {
 
 	#drawHalo(host: Host): void {
 		const radius = this.#radius;
-		const colorHaloInner = this.#colorHaloInner;
+		const colorShadow = this.#colorShadow;
 		const pathHalo = this.#pathHalo;
 		const { context } = host;
 
 		context.lineWidth = radius >> 7;
-		context.fillStyle = colorHaloInner.toString();
+		context.fillStyle = colorShadow.toString();
 		context.fill(pathHalo);
 		context.strokeStyle = this.#obtainGradientHalo(context);
 		const blurHalo = trunc(this.#bassLevel.level.lerp(0, 1, radius >> 6, radius >> 3) / 2);
@@ -206,9 +193,9 @@ Registry.attach("Pulsar", class extends Visualization {
 		const { context } = host;
 
 		const gradientShadow = context.createRadialGradient(0, 0, 0, 0, 0, radius);
-		gradientShadow.addColorStop(0, colorShadow.pass(1).toString());
-		gradientShadow.addColorStop(0.5, colorShadow.pass(SQRT1_2).toString());
-		gradientShadow.addColorStop(1, colorShadow.pass(0).toString());
+		gradientShadow.addColorStop(0, new Color(colorShadow).pass(1).toString());
+		gradientShadow.addColorStop(0.5, new Color(colorShadow).pass(SQRT1_2).toString());
+		gradientShadow.addColorStop(1, new Color(colorShadow).pass(0).toString());
 		context.fillStyle = gradientShadow;
 		context.fill(this.#pathWave);
 	}

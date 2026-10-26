@@ -4,9 +4,9 @@ import "adaptive-extender/worker";
 import { Color } from "adaptive-extender/worker";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 import { type Audioset, type Host } from "../../models/visualization.js";
-import { Shaper, StemMix } from "../../services/visualization-tools.js";
+import { Shaper, Smoother, StemMix, Trail } from "../../services/visualization-tools.js";
 
-const { min, max, abs, exp, sin, trunc, PI } = Math;
+const { min, max, abs, sin, trunc, PI } = Math;
 
 //#region Flow
 class Flow {
@@ -49,48 +49,9 @@ class Flow {
 	y(along: number, across: number): number {
 		return this.#turned ? this.#shift - along : across;
 	}
-}
-//#endregion
-//#region Trail
-class Trail {
-	static #interval: number = 0.01;
 
-	#values: Float32Array;
-	#cursor: number = 0;
-	#wait: number = 0;
-	#held: number = 0;
-
-	constructor(seconds: number) {
-		this.#values = new Float32Array(trunc(seconds / Trail.#interval) + 2);
-	}
-
-	push(value: number, delta: number): void {
-		const values = this.#values;
-		const interval = Trail.#interval;
-		const { length } = values;
-		let cursor = this.#cursor;
-		let held = max(this.#held, value);
-		let wait = this.#wait - min(delta, interval * length);
-		while (wait <= 0) {
-			cursor = (cursor + 1) % length;
-			values[cursor] = held;
-			held = value;
-			wait += interval;
-		}
-		this.#cursor = cursor;
-		this.#held = held;
-		this.#wait = wait;
-	}
-
-	at(seconds: number): number {
-		const values = this.#values;
-		const cursor = this.#cursor;
-		const { length } = values;
-		const position = seconds / Trail.#interval;
-		const step = trunc(position);
-		const newer = values[(cursor - step).mod(length)];
-		const older = values[(cursor - step - 1).mod(length)];
-		return newer + (older - newer) * (position - step);
+	lineTo(path: Path2D, along: number, across: number): void {
+		path.lineTo(this.x(along, across), this.y(along, across));
 	}
 }
 //#endregion
@@ -100,14 +61,14 @@ class Thread {
 	static #split: number = 0.2;
 	static #sparks: number = 5;
 	static #lag: number = 0.15;
-	static #faint: number = 0.1;
-	static #clear: number = 0.35;
 	static #ghost: number = 0.85;
 	static #journey: number = 1.2;
 	static #crest: number = 0.365;
 	static #glare: number = 5;
 	static #bloom: number = 0.35;
 	static #shaper: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
+	static #presence: Shaper = Shaper.smoothstep.between(0.1, 0.35);
+	static #bins: Shaper = Shaper.exponential(3);
 
 	#name: string;
 	#base: Color;
@@ -115,11 +76,9 @@ class Thread {
 	#direction: number;
 	#part: StemMix;
 	#gain: number;
-	#calm: number;
-	#loud: number;
-	#share: number = 0;
-	#level: number = 0;
-	#heat: number = 0;
+	#warmth: Shaper;
+	#share: Smoother = new Smoother(Thread.#lag);
+	#heat: Smoother = new Smoother(Thread.#lag);
 	#rise: number = 0;
 	#previous: Float32Array = new Float32Array(0);
 	#trail: Trail = new Trail(Thread.#journey);
@@ -151,20 +110,17 @@ class Thread {
 		this.#direction = direction;
 		this.#part = part;
 		this.#gain = gain;
-		this.#calm = calm;
-		this.#loud = loud;
+		this.#warmth = Shaper.smoothstep.between(calm, loud);
 	}
 
 	get name(): string { return this.#name; }
-	get share(): number { return this.#share; }
-	get heat(): number { return this.#heat; }
+	get share(): number { return this.#share.value; }
+	get heat(): number { return this.#heat.value; }
 	get rise(): number { return this.#rise; }
 	get color(): Color { return this.#color; }
 
-	get #presence(): number {
-		const faint = Thread.#faint;
-		const clear = Thread.#clear;
-		return Shaper.smoothstep.apply(this.#share.clamp(faint, clear).lerp(faint, clear));
+	get #alpha(): number {
+		return Thread.#presence.apply(this.#share.value).lerp(0, 1, Thread.#ghost, 1);
 	}
 
 	paint(dark: boolean): void {
@@ -192,6 +148,7 @@ class Thread {
 		const tapers = this.#tapers = new Float32Array(count);
 		const delays = this.#delays = new Float32Array(count);
 		const smoothstep = Shaper.smoothstep;
+		const bins = Thread.#bins;
 
 		this.#flow = flow;
 		this.#origin = source.toString();
@@ -205,28 +162,10 @@ class Thread {
 			const along = alongs[index] = index.lerp(0, count - 1) * end;
 			const lane = max(0, along - plain);
 			acrosses[index] = across * smoothstep.apply(min(1, along / bend));
-			fractions[index] = (exp(lane / (end - plain) * 3) - 1) / (exp(3) - 1);
+			fractions[index] = bins.apply(lane / (end - plain));
 			tapers[index] = smoothstep.apply(min(1, lane / (plain / 4)));
 			delays[index] = journey * (end + direction * along) / (2 * end);
 		}
-	}
-
-	#follow(spectrum: Float32Array, total: number, delta: number): void {
-		const previous = this.#share;
-		let sum = 0;
-		for (let index = 0; index < spectrum.length; index++) sum += spectrum[index];
-		const share = total > 0 ? sum / total : 0;
-		const step = Number.isFinite(delta) && delta > 0 ? 1 - exp(-delta / Thread.#lag) : 0;
-		this.#share = previous + (share - previous) * step;
-	}
-
-	#warm(delta: number): void {
-		const calm = this.#calm;
-		const loud = this.#loud;
-		const previous = this.#heat;
-		const target = Shaper.smoothstep.apply(this.#level.clamp(calm, loud).lerp(calm, loud));
-		const step = Number.isFinite(delta) && delta > 0 ? 1 - exp(-delta / Thread.#lag) : 0;
-		this.#heat = previous + (target - previous) * step;
 	}
 
 	#measure(spectrum: Float32Array): number {
@@ -286,22 +225,12 @@ class Thread {
 		const line = this.#line = new Path2D();
 		for (let index = 0; index < count; index++) {
 			const envelope = envelopes[index];
-			const along = alongs[index] * direction;
-			const across = acrosses[index] + envelope * sin(wavenumber * alongs[index] - shift);
-			line.lineTo(flow.x(along, across), flow.y(along, across));
+			flow.lineTo(line, alongs[index] * direction, acrosses[index] + envelope * sin(wavenumber * alongs[index] - shift));
 		}
 
 		const sleeve = this.#sleeve = new Path2D();
-		for (let index = 0; index < count; index++) {
-			const along = alongs[index] * direction;
-			const across = acrosses[index] + envelopes[index];
-			sleeve.lineTo(flow.x(along, across), flow.y(along, across));
-		}
-		for (let index = count - 1; index >= 0; index--) {
-			const along = alongs[index] * direction;
-			const across = acrosses[index] - envelopes[index];
-			sleeve.lineTo(flow.x(along, across), flow.y(along, across));
-		}
+		for (let index = 0; index < count; index++) flow.lineTo(sleeve, alongs[index] * direction, acrosses[index] + envelopes[index]);
+		for (let index = count - 1; index >= 0; index--) flow.lineTo(sleeve, alongs[index] * direction, acrosses[index] - envelopes[index]);
 		sleeve.closePath();
 
 		const sparks = Thread.#sparks;
@@ -322,10 +251,11 @@ class Thread {
 
 	update(audioset: Audioset, total: number, delta: number): void {
 		const spectrum = this.#part.mix(audioset);
-		this.#follow(spectrum, total, delta);
-		this.#level = this.#measure(spectrum);
+		let sum = 0;
+		for (let index = 0; index < spectrum.length; index++) sum += spectrum[index];
+		this.#share.push(total > 0 ? sum / total : 0, delta);
+		this.#heat.push(this.#warmth.apply(this.#measure(spectrum)), delta);
 		this.#rise = this.#climb(spectrum);
-		this.#warm(delta);
 	}
 
 	#obtainGradient(context: OffscreenCanvasRenderingContext2D): CanvasGradient {
@@ -342,12 +272,11 @@ class Thread {
 	}
 
 	draw(host: Host): void {
-		const presence = this.#presence;
+		const alpha = this.#alpha;
 		const line = this.#line;
 		const width = this.#width;
 		const { context } = host;
-		const alpha = presence.lerp(0, 1, Thread.#ghost, 1);
-		const halo = alpha * this.#heat * Thread.#bloom;
+		const halo = alpha * this.#heat.value * Thread.#bloom;
 
 		context.globalAlpha = alpha;
 		context.fillStyle = this.#shade;
@@ -368,6 +297,11 @@ class Thread {
 		context.fill(this.#spots);
 	}
 
+	#ink(context: OffscreenCanvasRenderingContext2D): void {
+		context.globalAlpha = this.#alpha;
+		context.fillStyle = this.#stroke;
+	}
+
 	label(context: OffscreenCanvasRenderingContext2D): void {
 		const flow = this.#flow;
 		const direction = this.#direction;
@@ -381,26 +315,30 @@ class Thread {
 			context.textAlign = "center";
 			context.textBaseline = ahead ? "bottom" : "top";
 		}
-		context.globalAlpha = this.#presence.lerp(0, 1, Thread.#ghost, 1);
-		context.fillStyle = this.#stroke;
+		this.#ink(context);
 		context.fillText(this.#name, flow.x(along, across), flow.y(along, across));
 	}
 
 	mark(context: OffscreenCanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
-		context.globalAlpha = this.#presence.lerp(0, 1, Thread.#ghost, 1);
-		context.fillStyle = this.#stroke;
+		this.#ink(context);
 		context.fillRect(x, y, width, height);
 	}
 
 	caption(context: OffscreenCanvasRenderingContext2D, x: number, y: number): void {
-		context.globalAlpha = this.#presence.lerp(0, 1, Thread.#ghost, 1);
-		context.fillStyle = this.#stroke;
+		this.#ink(context);
 		context.fillText(this.#name, x, y);
 	}
 }
 //#endregion
 //#region Stems
-Registry.attach("Stems", class extends Visualization {
+Registry.attach("Stems", class Stems extends Visualization {
+	static #calm: number = 1;
+	static #rush: number = 40;
+	static #stride: number = 0.45;
+	static #stretch: number = 8;
+	static #typical: number = 0.274;
+	static #swell: Shaper = Shaper.smoothstep.between(0.6, 1);
+
 	#mix: Thread = new Thread("Mix", Color.fromHSL(0, 0, 95), 0, -1, new StemMix(1, 1, 1, 1, 1, 1, 1), 1, 0.499, 0.776);
 	#backing: Thread = new Thread("Backing", Color.fromHSL(0, 0, 50), 0, 1, new StemMix(1, 1, 0, 1, 1, 1, 1), 1, 0.241, 0.744);
 	#stems: Thread[] = [
@@ -411,18 +349,9 @@ Registry.attach("Stems", class extends Visualization {
 		new Thread("Drums", Color.fromHSL(35, 100, 62), 0.18, 1, new StemMix(1, 0, 0, 0, 0, 0, 1), 2, 0.221, 0.608),
 		new Thread("Bass", Color.fromHSL(260, 100, 62), 0.30, 1, new StemMix(0, 1, 0, 0, 0, 0, 1), 2, 0.073, 0.111),
 	];
-	#calm: number = 1;
-	#rush: number = 40;
-	#stride: number = 0.45;
-	#stretch: number = 8;
-	#settle: number = 1;
-	#typical: number = 0.274;
-	#onset: number = 0.6;
-	#memory: number = 60;
-	#loudness: number = 0;
-	#peak: number = this.#typical;
-	#span: number = 0.3;
-	#baseline: number = 0;
+	#loudness: Smoother = new Smoother(1);
+	#peak: Smoother = new Smoother(60, Stems.#typical);
+	#baseline: Smoother = new Smoother(0.3);
 	#tempo: number = 0;
 	#phase: number = 0;
 	#travel: number = 0;
@@ -441,7 +370,7 @@ Registry.attach("Stems", class extends Visualization {
 	}
 
 	get #wavelength(): number {
-		return this.#flow.side / 20 * (1 + (this.#stretch - 1) * this.#tempo);
+		return this.#flow.side / 20 * (1 + (Stems.#stretch - 1) * this.#tempo);
 	}
 
 	//#region Rebuild
@@ -477,6 +406,7 @@ Registry.attach("Stems", class extends Visualization {
 
 	#runPulse(host: Host): void {
 		const stems = this.#stems;
+		const baseline = this.#baseline;
 		const { audioset, environment } = host;
 		const { dataTemporal } = audioset;
 		const { delta } = environment;
@@ -484,9 +414,8 @@ Registry.attach("Stems", class extends Visualization {
 		if (!Number.isFinite(delta) || delta <= 0) return;
 		let peak = 0;
 		for (let index = 0; index < dataTemporal.length; index++) peak = max(peak, abs(dataTemporal[index] * 2 - 1));
-		const baseline = this.#baseline;
-		const pulse = max(0, peak - baseline);
-		this.#baseline = baseline + (peak - baseline) * (1 - exp(-delta / this.#span));
+		const pulse = max(0, peak - baseline.value);
+		baseline.push(peak, delta);
 		this.#mix.listen(pulse, delta);
 		let sum = 0;
 		for (const stem of stems) sum += stem.rise;
@@ -494,20 +423,19 @@ Registry.attach("Stems", class extends Visualization {
 	}
 
 	#runPace(host: Host): void {
-		const typical = this.#typical;
-		const onset = this.#onset;
+		const loudness = this.#loudness;
+		const peak = this.#peak;
 		const { audioset, environment } = host;
 		const { volume } = audioset;
 		const { delta } = environment;
 
 		if (!Number.isFinite(delta) || delta <= 0) return;
 		const level = this.#backing.heat;
-		const previous = this.#loudness;
-		const loudness = this.#loudness = previous + (volume - previous) * (1 - exp(-delta / this.#settle));
-		const before = this.#peak;
-		const peak = this.#peak = max(loudness, before + (typical - before) * (1 - exp(-delta / this.#memory)));
-		this.#tempo = Shaper.smoothstep.apply(max(0, loudness / peak - onset) / (1 - onset));
-		const step = min(this.#stride, delta * level.lerp(0, 1, this.#calm, this.#rush));
+		loudness.push(volume, delta);
+		peak.push(Stems.#typical, delta);
+		peak.raise(loudness.value);
+		this.#tempo = Stems.#swell.apply(loudness.value / peak.value);
+		const step = min(Stems.#stride, delta * level.lerp(0, 1, Stems.#calm, Stems.#rush));
 		this.#phase += step;
 		this.#travel += step * this.#wavelength;
 	}

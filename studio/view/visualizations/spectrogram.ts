@@ -1,33 +1,33 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { Color, Random, Vector2D } from "adaptive-extender/worker";
+import { Color, Random } from "adaptive-extender/worker";
 import { Blend } from "../../models/blend.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 import { type Host } from "../../models/visualization.js";
 import { AutoRange, HueDrift, Shaper, SpectrumAnalysis, StemMix } from "../../services/visualization-tools.js";
 
-const { min, sign, PI, abs, trunc, exp, meanGeometric } = Math;
+const { min, sign, PI, abs, trunc, meanGeometric } = Math;
 const random = Random.global;
 
 //#region Spectrogram
-Registry.attach("Spectrogram", class extends Visualization {
-	#countStops: number = 64;
+Registry.attach("Spectrogram", class Spectrogram extends Visualization {
+	static #countStops: number = 64;
+	static #normHeightFactor: number = 0.4;
+	static #hueSpread: number = 120;
+	static #colorShadow: Color = Color.newBlack;
+	static #shaperFrequency: Shaper = Shaper.sigmoid(6, 0.55).then(Shaper.smoothstep);
+	static #bins: Shaper = Shaper.exponential(3);
+
 	#side: number;
 	#lineWidth: number;
 	#normPulseEnergy: number = 0;
 	#count: number;
-	#shaperFrequency: Shaper = Shaper.sigmoid(6, 0.55).then(Shaper.smoothstep);
-	#normHeightFactor: number = 0.4;
-	#colorRidgeSeed: Color = Color.fromHSL(0, 100, 50);
-	#colorRidgeMid: Color = this.#colorRidgeSeed;
+	#drift: HueDrift = new HueDrift(Color.fromHSL(0, 100, 50), 360 / 6);
+	#colorRidgeMid: Color = this.#drift.color;
 	#pathRidge: Path2D = new Path2D();
-	#hueSpread: number = 0;
 	#hueBias: number = 0;
 	#normLightness: number = 0;
-	#drift: HueDrift = new HueDrift();
-	#deltaRotation: number = 360 / 6;
-	#colorShadow: Color = Color.newBlack;
 	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1, 1, 1.03); // drums at half weight, the gain lets the ridge's peaks reach the mix's height
 	#instruments: StemMix = new StemMix(0, 0, 0, 1, 1, 1, 1); // guitar + keys + other: everything but drums, bass and vocals, the "other" these levels were tuned on
 	#drums: SpectrumAnalysis = new SpectrumAnalysis();
@@ -65,8 +65,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	//#endregion
 	//#region Update
 	#runLevels(host: Host): void {
-		const { audioset, environment } = host;
-		const { delta } = environment;
+		const { audioset } = host;
 		const { volume, subBass } = audioset;
 		const drums = this.#drums;
 		const bass = this.#bass;
@@ -77,25 +76,21 @@ Registry.attach("Spectrogram", class extends Visualization {
 		bass.analyze(audioset.dataBass, audioset);
 		vocals.analyze(audioset.dataVocals, audioset);
 		other.analyze(this.#instruments.mix(audioset), audioset);
-		const energy = vocals.energy + other.energy;
-		let centroid = 0;
-		if (energy > 0) centroid = (vocals.spectralCentroid * vocals.energy + other.spectralCentroid * other.energy) / energy;
-		this.#drop.push(min(1, drums.percussiveness * 3) * subBass, volume, delta);
-		this.#percussiveness.push(drums.percussiveness, volume, delta);
-		this.#bassLevel.push(bass.bassLevel, volume, delta);
-		this.#subBass.push(bass.subBass, volume, delta);
-		this.#centroid.push(centroid, volume, delta);
-		this.#high.push(drums.high, volume, delta);
-		this.#highMid.push(drums.highMid, volume, delta);
-		this.#flux.push(vocals.spectralFlux + other.spectralFlux, volume, delta);
-		this.#volume.push(volume, volume, delta);
+		this.#drop.push(min(1, drums.percussiveness * 3) * subBass, host);
+		this.#percussiveness.push(drums.percussiveness, host);
+		this.#bassLevel.push(bass.bassLevel, host);
+		this.#subBass.push(bass.subBass, host);
+		this.#centroid.push(SpectrumAnalysis.centroid(vocals, other), host);
+		this.#high.push(drums.high, host);
+		this.#highMid.push(drums.highMid, host);
+		this.#flux.push(vocals.spectralFlux + other.spectralFlux, host);
+		this.#volume.push(volume, host);
 	}
 
 	#runRidgeRotation(host: Host): void {
 		const { audioset, environment } = host;
-		const { delta } = environment;
 
-		this.#drift.tick(this.#colorRidgeSeed, this.#deltaRotation, delta, audioset.volume);
+		this.#drift.tick(environment.delta, audioset.volume);
 	}
 
 	#runCameraUpdate(host: Host): void {
@@ -104,7 +99,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const { delta } = environment;
 		const { beatDetected } = audioset;
 
-		this.#normPulseEnergy = (this.#normPulseEnergy - delta * 0.004).clamp(0, Infinity);
+		this.#normPulseEnergy = (this.#normPulseEnergy - delta * 4).clamp(0, Infinity);
 		if (beatDetected) this.#normPulseEnergy = 1;
 
 		const pulse = 1 + this.#normPulseEnergy * this.#percussiveness.level.lerp(0, 1, 0.03, 0.08);
@@ -115,34 +110,31 @@ Registry.attach("Spectrogram", class extends Visualization {
 
 	#runRidgeBuilding(host: Host): void {
 		const count = this.#count;
-		const shaper = this.#shaperFrequency;
-		const peak = this.#side * this.#normHeightFactor;
-		const colorRidgeSeed = this.#colorRidgeSeed;
+		const shaper = Spectrogram.#shaperFrequency;
+		const bins = Spectrogram.#bins;
+		const peak = this.#side * Spectrogram.#normHeightFactor;
+		const colorRidgeSeed = this.#drift.color;
 		const { context, audioset } = host;
 		const { width } = context.canvas;
 		const { volume, spectralCentroid, length } = audioset; // brightness stays on production's own scale
 		const dataFrequency = this.#silhouette.mix(audioset);
 		const loudness = this.#volume.level;
 		const focusBin = (length - 1) / 2;
-		const hueSpread = this.#hueSpread = 120;
 		const hueBias = this.#hueBias = this.#centroid.level.lerp(0, 1, -40, 40);
 		const normLightness = this.#normLightness = meanGeometric(volume.lerp(0, 1, 0.25, 0.75), spectralCentroid.clamp(0, 0.45).lerp(0, 0.45, 0.3, 0.8));
 		const envelope = meanGeometric(loudness.lerp(0, 1, 0.7, 1.3), loudness.lerp(0, 1, 0.8, 1.2));
-		this.#colorRidgeMid = new Color(colorRidgeSeed).rotate(hueSpread * 0.5 + hueBias).illuminate(normLightness);
+		this.#colorRidgeMid = new Color(colorRidgeSeed).rotate(Spectrogram.#hueSpread * 0.5 + hueBias).illuminate(normLightness);
 
 		const path = this.#pathRidge = new Path2D();
-		const position = Vector2D.newNaN;
 		for (let index = 1 - count; index < count; index++) {
 			const direction = sign(index).insteadZero(-1);
 			const normProgress = index.lerp(0, direction * (count - 1));
 			const normEdge = abs(normProgress - 0.5) * 2;
-			const dataIndex = trunc((exp(normEdge * 3) - 1) / (exp(3) - 1) * (length - 1));
+			const dataIndex = trunc(bins.apply(normEdge) * (length - 1));
 			const focusWeight = 1 - abs(dataIndex - focusBin).lerp(0, length, 0, 1) * 0.3;
 			const magnitude = (dataFrequency[dataIndex] * normEdge.lerp(0, 1, 1.0, 2.4)).lerp(0, 1.8);
 			const normScale = shaper.apply(magnitude) * envelope * focusWeight;
-			position.x = width * (normProgress - 0.5);
-			position.y = direction * normScale * peak;
-			path.lineTo(position.x, position.y);
+			path.lineTo(width * (normProgress - 0.5), direction * normScale * peak);
 		}
 		path.closePath();
 	}
@@ -157,11 +149,11 @@ Registry.attach("Spectrogram", class extends Visualization {
 	//#region Layers
 	#drawRidge(host: Host): void {
 		const lineWidth = this.#lineWidth;
-		const countStops = this.#countStops;
-		const hueSpread = this.#hueSpread;
+		const countStops = Spectrogram.#countStops;
+		const hueSpread = Spectrogram.#hueSpread;
 		const hueBias = this.#hueBias;
 		const normLightness = this.#normLightness;
-		const colorRidgeSeed = this.#colorRidgeSeed;
+		const colorRidgeSeed = this.#drift.color;
 		const pathRidge = this.#pathRidge;
 		const { context } = host;
 		const { width } = context.canvas;
@@ -207,20 +199,19 @@ Registry.attach("Spectrogram", class extends Visualization {
 		const { context, audioset } = host;
 		const { dataTemporal, volume, length } = audioset;
 		const { width } = context.canvas;
-		const peak = this.#side * this.#normHeightFactor;
+		const peak = this.#side * Spectrogram.#normHeightFactor;
 		const sparkle = meanGeometric(this.#high.level, this.#highMid.level);
 		const shimmer = this.#flux.level.lerp(0, 1, 0.5, 1);
 
 		context.beginPath();
-		const position = Vector2D.newNaN;
 		for (let index = 0; index < count; index++) {
 			const normProgress = index.lerp(0, count - 1);
 			const dataIndex = trunc(normProgress.lerp(0, 1, 0, length - 1));
 			const normDatumTemporal = dataTemporal[dataIndex].lerp(0, 1, -1, 1);
-			position.x = width * (normProgress - 0.5);
-			position.y = normDatumTemporal * volume * peak * 0.6;
-			if (index === 0) context.moveTo(position.x, position.y);
-			else context.lineTo(position.x, position.y);
+			const x = width * (normProgress - 0.5);
+			const y = normDatumTemporal * volume * peak * 0.6;
+			if (index === 0) context.moveTo(x, y);
+			else context.lineTo(x, y);
 		}
 		context.strokeStyle = new Color(colorRidgeMid).pass(shimmer.lerp(0, 1, 0.5, 0.9)).toString();
 		context.lineWidth = lineWidth * 0.5;
@@ -230,7 +221,7 @@ Registry.attach("Spectrogram", class extends Visualization {
 	}
 
 	#drawVignette(host: Host): void {
-		const colorShadow = this.#colorShadow;
+		const colorShadow = Spectrogram.#colorShadow;
 		const { context } = host;
 		const { width, height } = context.canvas;
 

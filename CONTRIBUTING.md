@@ -20,7 +20,9 @@ import { Blend } from "../../models/blend.js";
 import { type Host } from "../../models/visualization.js";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 
-Registry.attach("My visualization", class extends Visualization {
+Registry.attach("My visualization", class MyVisualization extends Visualization {
+	static #zoom: number = 0.1;
+
 	#radius: number;
 
 	constructor() {
@@ -38,7 +40,7 @@ Registry.attach("My visualization", class extends Visualization {
 
 	// Called on every frame, before any layer is painted. The context's transform is the camera: it moves every layer.
 	update(host: Host): void {
-		const zoom = 1 + host.audioset.bassLevel * 0.1;
+		const zoom = 1 + host.audioset.bassLevel * MyVisualization.#zoom;
 		host.context.scale(zoom, zoom);
 	}
 
@@ -143,6 +145,7 @@ Both are pinned: the user can change their opacity and blend mode but cannot mov
 - **Share data through the visualization, never through the canvas.** Compute paths, colours and metrics in `rebuild()` and `update()` and keep them in `#private` fields. `update()` always runs before the layers, whatever order the user puts them in. If one layer must be masked by another's shape, share the `Path2D` and use `context.clip()`.
 - **The camera is `update`'s context transform.** Translate or scale `host.context` in `update()` to shake or zoom every layer at once; the background's shake and parallax effects follow it too.
 - **Gradients can be shared.** A `CanvasGradient` made on one layer's context works on another's, so build it once per frame.
+- **Constants are static.** Name the class (`class MyVisualization extends Visualization`) and keep every fixed number, curve and colour as a `static #` field. Instance fields hold only the tools and what changes between calls.
 - **Heavy work goes in `rebuild()`.** It runs almost only once, so precompute sizes, colours, gradient stops, tables and buffers there. `update()` and the layers run every frame: give them only what truly changes per frame, and avoid allocating inside loops over `audioset.length`.
 - **Failures stay local.** If `update()` throws, your layers stop and the engine layers keep drawing; if a painter throws, only that layer stops. Both are logged once and recover on the next rebuild.
 - **Registration is validated.** A visualization that declares no layers, repeats a layer name, uses a reserved name, or repeats another visualization's name is rejected with a console message.
@@ -151,12 +154,14 @@ Both are pinned: the user can change their opacity and blend mode but cannot mov
 
 [`services/visualization-tools.ts`](./studio/services/visualization-tools.ts) holds small, universal classes a visualization keeps in its fields between calls:
 
-| Tool               | Use                                                                                                                                                                                                                                                                                               |
-| :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Shaper`           | A `[0, 1] → [0, 1]` curve: `Shaper.sigmoid(steepness, center)`, `Shaper.arcsinSaturate`, `Shaper.smoothstep`, chained with `.then(next)` and applied with `.apply(value)`.                                                                                                                        |
-| `HueDrift`         | Turns a colour's hue at `rate` degrees per second, by whole degrees: `tick(color, rate, environment.delta, factor)`.                                                                                                                                                                              |
-| `StemMix`          | The spectrum rebuilt from the stems with one weight each: `new StemMix(drums, bass, vocals, guitar, keys, other, gain).mix(audioset)`. `new StemMix(0.5, 1, 1, 1, 1, 1, 1)` is the mix with the drums at half; `new StemMix(0, 0, 0, 1, 1, 1, 1)` is every instrument but drums, bass and vocals. |
-| `SpectrumAnalysis` | The same analysis the engine runs on the mix, for any spectrum: `analyze(audioset.dataDrums, audioset)` once per frame, then read `percussiveness`, `bassLevel`, the bands, `energy`, and so on.                                                                                                  |
-| `AutoRange`        | A value relative to the song that is playing: `new AutoRange(low, high)` with a typical range, `push(value, audioset.volume, environment.delta)` once per frame, then `level` is `0`–`1` of this song's last ~30 s. Silence of 1.5 s starts a new song.                                           |
+| Tool               | Use                                                                                                                                                                                                                                                                                                                       |
+| :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Shaper`           | A `[0, 1] → [0, 1]` curve: `Shaper.sigmoid(steepness, center)`, `Shaper.exponential(steepness)`, `Shaper.arcsinSaturate`, `Shaper.smoothstep`, chained with `.then(next)`, narrowed with `.between(low, high)` (the curve of where a value sits between `low` and `high`) and applied with `.apply(value)`.               |
+| `HueDrift`         | A colour whose hue turns at `rate` degrees per second, by whole degrees: `new HueDrift(color, rate)`, `tick(environment.delta, factor)` once per frame, then read `color`.                                                                                                                                                |
+| `StemMix`          | The spectrum rebuilt from the stems with one weight each: `new StemMix(drums, bass, vocals, guitar, keys, other, gain).mix(audioset)`. `new StemMix(0.5, 1, 1, 1, 1, 1, 1)` is the mix with the drums at half; `new StemMix(0, 0, 0, 1, 1, 1, 1)` is every instrument but drums, bass and vocals.                         |
+| `SpectrumAnalysis` | The same analysis the engine runs on the mix, for any spectrum: `analyze(audioset.dataDrums, audioset)` once per frame, then read `percussiveness`, `bassLevel`, the bands, `energy`, and so on. `SpectrumAnalysis.centroid(vocals, other)` is the centroid of several analysed parts together, weighted by their energy. |
+| `AutoRange`        | A value relative to the song that is playing: `new AutoRange(low, high)` with a typical range, `push(value, host)` once per frame, then `level` is `0`–`1` of this song's last ~30 s. Silence of 1.5 s starts a new song.                                                                                                 |
+| `Smoother`         | A value that follows its target with a time constant in seconds: `new Smoother(seconds, start)`, `push(target, environment.delta)` once per frame, `raise(floor)` to hold it at least at `floor`, then read `value`.                                                                                                      |
+| `Trail`            | What a value was some seconds ago: `new Trail(seconds)`, `push(value, environment.delta)` once per frame, then `at(seconds)`. Sampled every 10 ms, so it is the same at any frame rate.                                                                                                                                   |
 
 Do not feed a full-range input into a colour's lightness: `Color.illuminate(1)` is white.

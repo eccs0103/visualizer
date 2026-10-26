@@ -3,7 +3,7 @@
 import "adaptive-extender/worker";
 import { Color } from "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
-import { type Audioset } from "../models/visualization.js";
+import { type Audioset, type Host } from "../models/visualization.js";
 
 const { split, PI, exp, sqrt, asin, min, max, round, trunc } = Math;
 
@@ -29,6 +29,10 @@ export class Shaper {
 		return new Shaper(x => 1 / (1 + exp(-(steepness * (x - center)))));
 	}
 
+	static exponential(steepness: number): Shaper {
+		return new Shaper(x => (exp(x * steepness) - 1) / (exp(steepness) - 1));
+	}
+
 	apply(value: number): number {
 		return this.#callback(value);
 	}
@@ -37,16 +41,30 @@ export class Shaper {
 		const callback = this.#callback;
 		return new Shaper(x => next.apply(callback(x)));
 	}
+
+	between(low: number, high: number): Shaper {
+		const callback = this.#callback;
+		return new Shaper(x => callback(x.clamp(low, high).lerp(low, high)));
+	}
 }
 //#endregion
 //#region Hue drift
 export class HueDrift {
+	#color: Color;
+	#rate: number;
 	#offset: number = 0;
 
-	tick(color: Color, rate: number, delta: number, factor: number = 1): void {
+	constructor(color: Color, rate: number) {
+		this.#color = color;
+		this.#rate = rate;
+	}
+
+	get color(): Color { return this.#color; }
+
+	tick(delta: number, factor: number = 1): void {
 		if (!Number.isFinite(delta)) return;
-		const [integer, fractional] = split(this.#offset + rate * delta * factor);
-		color.rotate(integer);
+		const [integer, fractional] = split(this.#offset + this.#rate * delta * factor);
+		this.#color.rotate(integer);
 		this.#offset = fractional;
 	}
 }
@@ -99,27 +117,19 @@ export class StemMix {
 }
 //#endregion
 //#region Spectrum analysis
-class FluxStats {
-	#mean: number;
-	#standardDeviation: number;
-
-	constructor(mean: number, standardDeviation: number) {
-		this.#mean = mean;
-		this.#standardDeviation = standardDeviation;
-	}
-
-	get mean(): number { return this.#mean; }
-
-	onsetThreshold(multiplier: number): number {
-		return this.#mean + multiplier * this.#standardDeviation;
-	}
-}
-
 export class SpectrumAnalysis {
 	static #capacity: number = 1280;
 	static #multiplier: number = 1.5;
 	static #window: number = 63.5 / 60 * 1000;
 	static #gap: number = 3.5 / 60 * 1000;
+	static #bands: [number, number][] = [
+		[20, 60],
+		[60, 250],
+		[250, 500],
+		[500, 2000],
+		[2000, 6000],
+		[6000, 20000],
+	];
 
 	#previous: Float32Array = new Float32Array(SabLayout.maxLength);
 	#fluxHistory: Float32Array = new Float32Array(SpectrumAnalysis.#capacity);
@@ -131,6 +141,8 @@ export class SpectrumAnalysis {
 	#cachedSampleRate: number = 0;
 	#time: number | null = null;
 	#values: Float32Array = new Float32Array(12);
+	#mean: number = 0;
+	#deviation: number = 0;
 
 	get spectralFlux(): number { return this.#values[0]; }
 	get subBass(): number { return this.#values[1]; }
@@ -150,17 +162,19 @@ export class SpectrumAnalysis {
 		return values[1] + values[2] + values[3] + values[4] + values[5] + values[6];
 	}
 
+	static centroid(...analyses: SpectrumAnalysis[]): number {
+		let weighted = 0, total = 0;
+		for (const { spectralCentroid, energy } of analyses) {
+			weighted += spectralCentroid * energy;
+			total += energy;
+		}
+		if (total > 0) return weighted / total;
+		return 0;
+	}
+
 	#computeBins(length: number, sampleRate: number): [number, number][] {
 		const binWidth = (sampleRate / 2) / length;
-		const bands: [number, number][] = [
-			[20, 60],
-			[60, 250],
-			[250, 500],
-			[500, 2000],
-			[2000, 6000],
-			[6000, 20000],
-		];
-		return bands.map(([low, high]) => [
+		return SpectrumAnalysis.#bands.map(([low, high]) => [
 			max(0, round(low / binWidth)),
 			min(length - 1, round(high / binWidth)),
 		]);
@@ -191,16 +205,16 @@ export class SpectrumAnalysis {
 		return flux;
 	}
 
-	#computeBandEnergies(frequency: ArrayLike<number>, bins: [number, number][]): Float32Array {
-		const energies = new Float32Array(6);
+	#computeBandEnergies(frequency: ArrayLike<number>, bins: [number, number][]): void {
+		const values = this.#values;
 		for (let bandIndex = 0; bandIndex < 6; bandIndex++) {
 			const [low, high] = bins[bandIndex];
+			values[1 + bandIndex] = 0;
 			if (low >= high) continue;
 			let sum = 0;
 			for (let binIndex = low; binIndex <= high; binIndex++) sum += frequency[binIndex];
-			energies[bandIndex] = sum / (high - low + 1);
+			values[1 + bandIndex] = sum / (high - low + 1);
 		}
-		return energies;
 	}
 
 	#computeSpectralCentroid(frequency: ArrayLike<number>, length: number): number {
@@ -213,7 +227,7 @@ export class SpectrumAnalysis {
 		return 0;
 	}
 
-	#computeFluxStats(time: number): FluxStats {
+	#computeFluxStats(time: number): void {
 		const fluxHistory = this.#fluxHistory;
 		const timeHistory = this.#timeHistory;
 		const filled = min(this.#fluxCursor, SpectrumAnalysis.#capacity);
@@ -231,11 +245,12 @@ export class SpectrumAnalysis {
 			const diff = fluxHistory[index] - mean;
 			variance += diff * diff;
 		}
-		return new FluxStats(mean, sqrt(variance / max(1, count)));
+		this.#mean = mean;
+		this.#deviation = sqrt(variance / max(1, count));
 	}
 
-	#detectBeat(flux: number, stats: FluxStats, time: number): boolean {
-		const detected = flux > stats.onsetThreshold(SpectrumAnalysis.#multiplier) && time - this.#lastBeat >= SpectrumAnalysis.#gap;
+	#detectBeat(flux: number, time: number): boolean {
+		const detected = flux > this.#mean + SpectrumAnalysis.#multiplier * this.#deviation && time - this.#lastBeat >= SpectrumAnalysis.#gap;
 		if (detected) this.#lastBeat = time;
 		return detected;
 	}
@@ -248,21 +263,20 @@ export class SpectrumAnalysis {
 
 		const bins = this.#obtainBins(length, sampleRate);
 		const flux = this.#computeSpectralFlux(spectrum, length, time);
-		const bandEnergies = this.#computeBandEnergies(spectrum, bins);
+		this.#computeBandEnergies(spectrum, bins);
 		const centroid = this.#computeSpectralCentroid(spectrum, length);
 
-		const fluxStats = this.#computeFluxStats(time);
-		const percussiveness = min(1, flux / (fluxStats.mean + 0.001));
-		const beatDetected = this.#detectBeat(flux, fluxStats, time);
+		this.#computeFluxStats(time);
+		const percussiveness = min(1, flux / (this.#mean + 0.001));
+		const beatDetected = this.#detectBeat(flux, time);
 
 		const values = this.#values;
 		values[0] = flux;
-		for (let bandIndex = 0; bandIndex < 6; bandIndex++) values[1 + bandIndex] = bandEnergies[bandIndex];
 		values[7] = centroid;
 		values[8] = percussiveness;
 		values[9] = Number(beatDetected);
-		values[10] = min(1, percussiveness * 3) * bandEnergies[0];
-		values[11] = bandEnergies[0] * 0.4 + bandEnergies[1] * 0.6;
+		values[10] = min(1, percussiveness * 3) * values[1];
+		values[11] = values[1] * 0.4 + values[2] * 0.6;
 	}
 }
 //#endregion
@@ -356,13 +370,82 @@ export class AutoRange {
 		this.#high = highPrior + (high - highPrior) * trust;
 	}
 
-	push(value: number, volume: number, delta: number): void {
+	push(value: number, host: Host): void {
+		const { audioset, environment } = host;
+		const { volume } = audioset;
+		let { delta } = environment;
 		if (!Number.isFinite(delta) || delta < 0) delta = 0;
 		this.#watchSilence(volume, delta);
 		if (volume >= AutoRange.#silence) this.#sample(value, delta);
 		const low = this.#low;
 		const high = max(this.#high, low + 1e-9);
 		this.#level = value.clamp(low, high).lerp(low, high, 0, 1);
+	}
+}
+//#endregion
+//#region Smoother
+export class Smoother {
+	#seconds: number;
+	#value: number;
+
+	constructor(seconds: number, value: number = 0) {
+		this.#seconds = seconds;
+		this.#value = value;
+	}
+
+	get value(): number { return this.#value; }
+
+	push(target: number, delta: number): void {
+		if (!Number.isFinite(delta) || delta <= 0) return;
+		const value = this.#value;
+		this.#value = value + (target - value) * (1 - exp(-delta / this.#seconds));
+	}
+
+	raise(floor: number): void {
+		this.#value = max(floor, this.#value);
+	}
+}
+//#endregion
+//#region Trail
+export class Trail {
+	static #interval: number = 0.01;
+
+	#values: Float32Array;
+	#cursor: number = 0;
+	#wait: number = 0;
+	#held: number = 0;
+
+	constructor(seconds: number) {
+		this.#values = new Float32Array(trunc(seconds / Trail.#interval) + 2);
+	}
+
+	push(value: number, delta: number): void {
+		const values = this.#values;
+		const interval = Trail.#interval;
+		const { length } = values;
+		let cursor = this.#cursor;
+		let held = max(this.#held, value);
+		let wait = this.#wait - min(delta, interval * length);
+		while (wait <= 0) {
+			cursor = (cursor + 1) % length;
+			values[cursor] = held;
+			held = value;
+			wait += interval;
+		}
+		this.#cursor = cursor;
+		this.#held = held;
+		this.#wait = wait;
+	}
+
+	at(seconds: number): number {
+		const values = this.#values;
+		const cursor = this.#cursor;
+		const { length } = values;
+		const position = seconds / Trail.#interval;
+		const step = trunc(position);
+		const newer = values[(cursor - step).mod(length)];
+		const older = values[(cursor - step - 1).mod(length)];
+		return newer + (older - newer) * (position - step);
 	}
 }
 //#endregion
