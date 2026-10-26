@@ -10,40 +10,51 @@ const { min, max, exp, sin, trunc, PI } = Math;
 
 //#region Flow
 class Flow {
-	static #bend: number = 0.2;
+	static #bend: number = 0.1;
+	static #depth: number = 0.425;
+	static #floor: number = 0.34;
+	static #room: number = 0.07;
 
 	#turned: boolean;
 	#half: number;
 	#breadth: number;
 	#side: number;
-	#margin: number;
+	#end: number;
+	#shift: number;
+	#legend: number;
 
 	constructor(width: number, height: number) {
 		const turned = this.#turned = height > width;
 		const side = this.#side = min(width, height);
-		this.#half = (turned ? height : width) / 2;
+		const half = this.#half = (turned ? height : width) / 2;
 		this.#breadth = turned ? width : height;
-		this.#margin = side * (turned ? 0.2 : 0.14);
+		const legend = this.#legend = turned ? height / 2 - side * Flow.#floor : side * Flow.#depth;
+		const head = half - side * (turned ? 0.2 : 0.14);
+		const tail = turned ? legend - side * Flow.#room : head;
+		this.#end = (head + tail) / 2;
+		this.#shift = (tail - head) / 2;
 	}
 
 	get turned(): boolean { return this.#turned; }
 	get side(): number { return this.#side; }
 	get breadth(): number { return this.#breadth; }
 	get bend(): number { return this.#half * Flow.#bend; }
-	get end(): number { return this.#half - this.#margin; }
+	get end(): number { return this.#end; }
+	get legend(): number { return this.#legend; }
 
 	x(along: number, across: number): number {
 		return this.#turned ? across : along;
 	}
 
 	y(along: number, across: number): number {
-		return this.#turned ? -along : across;
+		return this.#turned ? this.#shift - along : across;
 	}
 }
 //#endregion
 //#region Thread
 class Thread {
 	static #spacing: number = 0.12;
+	static #split: number = 0.2;
 	static #sparks: number = 5;
 	static #lag: number = 0.15;
 	static #faint: number = 0.1;
@@ -112,6 +123,8 @@ class Thread {
 
 	fit(flow: Flow, source: Color, dark: boolean): void {
 		const { side, breadth, bend, end } = flow;
+		const split = Thread.#split;
+		const plain = this.#direction < 0 ? bend * split / (1 - split) : bend;
 		const across = this.#lane * breadth;
 		const count = max(32, trunc(end / 3));
 		const alongs = this.#alongs = new Float32Array(count);
@@ -130,10 +143,10 @@ class Thread {
 		this.#envelopes = new Float32Array(count);
 		for (let index = 0; index < count; index++) {
 			const along = alongs[index] = index.lerp(0, count - 1) * end;
-			const lane = max(0, along - bend);
+			const lane = max(0, along - plain);
 			acrosses[index] = across * smoothstep.apply(min(1, along / bend));
-			fractions[index] = (exp(lane / (end - bend) * 3) - 1) / (exp(3) - 1);
-			tapers[index] = smoothstep.apply(min(1, lane / (bend / 4)));
+			fractions[index] = (exp(lane / (end - plain) * 3) - 1) / (exp(3) - 1);
+			tapers[index] = smoothstep.apply(min(1, lane / (plain / 4)));
 		}
 	}
 
@@ -230,7 +243,7 @@ class Thread {
 		const along = this.#direction * flow.bend;
 		const across = this.#lane * flow.breadth;
 
-		const gradient = this.#gradient = context.createLinearGradient(0, 0, flow.x(along, across), flow.y(along, across));
+		const gradient = this.#gradient = context.createLinearGradient(flow.x(0, 0), flow.y(0, 0), flow.x(along, across), flow.y(along, across));
 		gradient.addColorStop(0, this.#origin);
 		gradient.addColorStop(1, this.#stroke);
 		return gradient;
@@ -299,12 +312,12 @@ Registry.attach("Stems", class extends Visualization {
 	#calm: number = 1;
 	#rush: number = 40;
 	#stride: number = 0.45;
-	#squeeze: number = 0.4;
+	#stretch: number = 0.9;
 	#settle: number = 0.5;
 	#tempo: number = 0;
 	#phase: number = 0;
 	#travel: number = 0;
-	#side: number;
+	#flow: Flow;
 	#haze: number;
 	#color: Color | null = null;
 
@@ -319,7 +332,7 @@ Registry.attach("Stems", class extends Visualization {
 	}
 
 	get #wavelength(): number {
-		return this.#side / 20 * this.#tempo.lerp(0, 1, 1, this.#squeeze);
+		return this.#flow.side / 20 * this.#tempo.lerp(0, 1, 1, this.#stretch);
 	}
 
 	//#region Rebuild
@@ -329,9 +342,8 @@ Registry.attach("Stems", class extends Visualization {
 		const { context, environment } = host;
 		const { width, height } = context.canvas;
 		const dark = environment.colorBackground.lightness < 50;
-		const flow = new Flow(width, height);
+		const flow = this.#flow = new Flow(width, height);
 
-		this.#side = flow.side;
 		this.#haze = dark ? 0.25 : 0.12;
 		mix.paint(dark);
 		for (const stem of stems) stem.paint(dark);
@@ -414,20 +426,20 @@ Registry.attach("Stems", class extends Visualization {
 	#drawNames(host: Host): void {
 		const { context } = host;
 
-		context.font = `${trunc(this.#side / 36)}px sans-serif`;
+		context.font = `${trunc(this.#flow.side / 36)}px sans-serif`;
 		this.#mix.label(context);
 		for (const stem of this.#stems) stem.label(context);
 	}
 
 	#drawLegend(host: Host): void {
 		const stems = this.#stems;
-		const side = this.#side;
+		const { side, legend } = this.#flow;
 		const { context } = host;
 		const { width, height } = context.canvas;
 		const span = side * 0.9;
 		const left = (width - span) / 2;
 		const middle = height / 2;
-		const top = middle + side * 0.425;
+		const top = middle + legend;
 		const thickness = max(2, side >> 7);
 		const slot = span / stems.length;
 
@@ -439,7 +451,7 @@ Registry.attach("Stems", class extends Visualization {
 			const stem = stems[index];
 			const segment = stem.share * span;
 			stem.mark(context, x, top, segment, thickness);
-			stem.caption(context, left + slot * (index + 0.5), middle + side * 0.47);
+			stem.caption(context, left + slot * (index + 0.5), top + side * 0.045);
 			x += segment;
 		}
 	}
