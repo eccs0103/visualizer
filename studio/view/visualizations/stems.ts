@@ -157,7 +157,7 @@ class Thread {
 
 	get name(): string { return this.#name; }
 	get share(): number { return this.#share; }
-	get level(): number { return this.#level; }
+	get heat(): number { return this.#heat; }
 	get rise(): number { return this.#rise; }
 	get color(): Color { return this.#color; }
 
@@ -402,17 +402,15 @@ class Thread {
 //#region Stems
 Registry.attach("Stems", class extends Visualization {
 	#mix: Thread = new Thread("Mix", Color.fromHSL(0, 0, 95), 0, -1, new StemMix(1, 1, 1, 1, 1, 1, 1), 1, 0.499, 0.776);
-	#drums: Thread = new Thread("Drums", Color.fromHSL(35, 100, 62), 0.18, 1, new StemMix(1, 0, 0, 0, 0, 0, 1), 2, 0.221, 0.608);
+	#backing: Thread = new Thread("Backing", Color.fromHSL(0, 0, 50), 0, 1, new StemMix(1, 1, 0, 1, 1, 1, 1), 1, 0.241, 0.744);
 	#stems: Thread[] = [
 		new Thread("Vocals", Color.fromHSL(320, 100, 62), -0.30, 1, new StemMix(0, 0, 1, 0, 0, 0, 1), 2, 0.072, 0.557),
 		new Thread("Guitar", Color.fromHSL(130, 100, 62), -0.18, 1, new StemMix(0, 0, 0, 1, 0, 0, 1), 2, 0.200, 0.565),
 		new Thread("Keys", Color.fromHSL(190, 100, 62), -0.06, 1, new StemMix(0, 0, 0, 0, 1, 0, 1), 2, 0.121, 0.292),
 		new Thread("Other", Color.fromHSL(0, 0, 62), 0.06, 1, new StemMix(0, 0, 0, 0, 0, 1, 1), 2, 0.039, 0.183),
-		this.#drums,
+		new Thread("Drums", Color.fromHSL(35, 100, 62), 0.18, 1, new StemMix(1, 0, 0, 0, 0, 0, 1), 2, 0.221, 0.608),
 		new Thread("Bass", Color.fromHSL(260, 100, 62), 0.30, 1, new StemMix(0, 1, 0, 0, 0, 0, 1), 2, 0.073, 0.111),
 	];
-	#idle: number = 0.033;
-	#busy: number = 0.693;
 	#calm: number = 1;
 	#rush: number = 40;
 	#stride: number = 0.45;
@@ -461,6 +459,7 @@ Registry.attach("Stems", class extends Visualization {
 		const source = mix.color;
 		mix.fit(flow, source, dark);
 		for (const stem of stems) stem.fit(flow, source, dark);
+		this.#backing.fit(flow, source, dark);
 	}
 	//#endregion
 	//#region Update
@@ -473,6 +472,7 @@ Registry.attach("Stems", class extends Visualization {
 		for (let index = 0; index < length; index++) total += dataFrequency[index];
 		this.#mix.update(audioset, total, delta);
 		for (const stem of this.#stems) stem.update(audioset, total, delta);
+		this.#backing.update(audioset, total, delta);
 	}
 
 	#runPulse(host: Host): void {
@@ -496,14 +496,12 @@ Registry.attach("Stems", class extends Visualization {
 	#runPace(host: Host): void {
 		const typical = this.#typical;
 		const onset = this.#onset;
-		const idle = this.#idle;
-		const busy = this.#busy;
 		const { audioset, environment } = host;
 		const { volume } = audioset;
 		const { delta } = environment;
 
 		if (!Number.isFinite(delta) || delta <= 0) return;
-		const level = this.#drums.level.clamp(idle, busy).lerp(idle, busy);
+		const level = this.#backing.heat;
 		const previous = this.#loudness;
 		const loudness = this.#loudness = previous + (volume - previous) * (1 - exp(-delta / this.#settle));
 		const before = this.#peak;
