@@ -332,7 +332,7 @@ Registry.attach("Stems", class extends Visualization {
 	}
 
 	get #wavelength(): number {
-		return this.#flow.side / 20 * this.#tempo.lerp(0, 1, 1, this.#stretch);
+		return this.#flow.side / 20 * (1 + (this.#stretch - 1) * this.#tempo);
 	}
 
 	//#region Rebuild
