@@ -11,7 +11,7 @@ interface SiteServices {
 }
 type SiteBindings = Environment & SiteServices;
 
-/** Serves the static site unchanged and only adds the visitor cookies to page responses. Tagging can never break the site: on any failure the untouched file is returned. */
+/** Tagging can never break the site: on any failure the untouched file is returned. */
 class SiteWorker extends CloudflareWorker<SiteBindings> {
 	async run(request: Request, environment: SiteBindings, context: ExecutionContext): Promise<Response> {
 		void context;

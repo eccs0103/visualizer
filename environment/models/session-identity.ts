@@ -10,11 +10,9 @@ export interface SessionIdentityScheme {
 }
 
 export class SessionIdentity extends Model {
-	/** GA4 native User-ID. Persisted UUID for this browser (localStorage). Stable across page loads and browser restarts; resets only if the user clears storage. Enables User-ID reporting in GA4 and links all sessions from the same browser. */
 	@Field(String, { name: "user_id" })
 	userId: string;
 
-	/** Per-tab UUID (sessionStorage). Created fresh when the tab opens and discarded when the tab closes. Groups all events from a single visit together. */
 	@Field(String, { name: "session_fingerprint" })
 	sessionFingerprint: string;
 

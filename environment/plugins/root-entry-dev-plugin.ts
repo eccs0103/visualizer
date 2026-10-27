@@ -6,7 +6,6 @@ import { type ServerResponse } from "node:http";
 import { VitePlugin } from "./vite-plugin.js";
 
 //#region Root entry dev plugin
-/** Serves root-level entries (e.g. a service worker) transformed on the fly during `vite dev`, mirroring the `[name].js` filenames `ViteConfig` gives them at build time. */
 export class RootEntryDevPlugin extends VitePlugin {
 	#entries: ReadonlyMap<string, string>;
 
