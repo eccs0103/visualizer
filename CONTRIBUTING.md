@@ -127,7 +127,7 @@ The six stem arrays come from a small neural model that decides, for every bin, 
 | `opacity` | `number` | `1`            | `0` hides the layer, `1` is fully opaque.                                      |
 | `blend`   | `Blend`  | `Blend.normal` | How the layer mixes with the layers below it. Imported from `models/blend.js`. |
 
-`Blend` values: `normal`, `lighter`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `difference`.
+`Blend` values: `normal`, `lighter`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `difference`, `dodge`, `burn`, `hardLight`, `softLight`, `exclusion`, `hue`, `saturation`, `color`, `luminosity`.
 
 Every visualization also gets two layers that the engine adds and owns; the names `Background` and `Lyrics` are reserved:
 

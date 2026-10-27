@@ -116,7 +116,7 @@ ${Error.from(reason)}`);
 		context.drawImage(master, (width - placedWidth) / 2, (height - placedHeight) / 2, placedWidth, placedHeight);
 	}
 
-	#refit(master: ImageBitmap, colorText: string): OffscreenCanvas {
+	#refit(master: ImageBitmap): OffscreenCanvas {
 		const width = this.#width;
 		const height = this.#height;
 		let canvas = this.#canvas;
@@ -128,8 +128,6 @@ ${Error.from(reason)}`);
 		canvas.height = height;
 		const context = ReferenceError.suppress(this.#context, "The background layer has no 2D rendering context");
 		context.imageSmoothingQuality = "high";
-		context.fillStyle = colorText;
-		context.fillRect(0, 0, width, height);
 		this.#place(context, master);
 		this.#isStale = false;
 		return canvas;
@@ -157,29 +155,21 @@ ${Error.from(reason)}`);
 		colorText = color.toString();
 		this.#color = color;
 		this.#colorText = colorText;
-		this.#isStale = true;
 		return colorText;
 	}
 
 	underlay(stage: Stage, output: OffscreenCanvasRenderingContext2D): void {
-		output.globalAlpha = 1;
-		output.globalCompositeOperation = "destination-over";
 		output.fillStyle = this.#tint(stage);
 		output.fillRect(0, 0, this.#width, this.#height);
 	}
 
 	render(stage: Stage, output: OffscreenCanvasRenderingContext2D): void {
-		const colorText = this.#tint(stage);
+		const master = this.#master;
+		if (master === null) return;
 		output.globalAlpha = this.opacity;
 		output.globalCompositeOperation = this.blend;
-		const master = this.#master;
-		if (master === null) {
-			output.fillStyle = colorText;
-			output.fillRect(0, 0, this.#width, this.#height);
-			return;
-		}
 		let canvas = this.#canvas;
-		if (this.#isStale || canvas === null) canvas = this.#refit(master, colorText);
+		if (this.#isStale || canvas === null) canvas = this.#refit(master);
 		if (this.#kind === BackgroundEffectKind.none) {
 			output.drawImage(canvas, 0, 0);
 			return;

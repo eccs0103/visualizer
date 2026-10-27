@@ -346,7 +346,8 @@ Registry.attach("Stems", class Stems extends Visualization {
 	#travel: number = 0;
 	#flow: Flow;
 	#haze: number;
-	#color: Color | null = null;
+	#balance: Float32Array = new Float32Array(this.#stems.length).fill(1);
+	#color: Color;
 
 	constructor() {
 		super();
@@ -374,6 +375,7 @@ Registry.attach("Stems", class Stems extends Visualization {
 		this.#haze = dark ? 0.25 : 0.12;
 		mix.paint(dark);
 		for (const stem of stems) stem.paint(dark);
+		this.#mixAmbient();
 		const source = mix.color;
 		mix.fit(flow, source, dark);
 		for (const stem of stems) stem.fit(flow, source, dark);
@@ -381,7 +383,7 @@ Registry.attach("Stems", class Stems extends Visualization {
 	}
 	//#endregion
 	//#region Update
-	#runThreads(host: Host): void {
+	#runThreads(host: Host): number {
 		const { audioset, environment } = host;
 		const { delta } = environment;
 		const { dataFrequency, length } = audioset;
@@ -391,6 +393,7 @@ Registry.attach("Stems", class Stems extends Visualization {
 		this.#mix.update(audioset, total, delta);
 		for (const stem of this.#stems) stem.update(audioset, total, delta);
 		this.#backing.update(audioset, total, delta);
+		return total;
 	}
 
 	#runPulse(host: Host): void {
@@ -438,26 +441,38 @@ Registry.attach("Stems", class Stems extends Visualization {
 		for (const stem of this.#stems) stem.trace(phase, travel, wavelength);
 	}
 
-	#runAmbient(): void {
-		let color: Color | null = null;
+	#mixAmbient(): void {
+		const stems = this.#stems;
+		const balance = this.#balance;
+		let color = stems[0].color;
 		let weight = 0;
-		for (const stem of this.#stems) {
-			const { share } = stem;
+		for (let index = 0; index < stems.length; index++) {
+			const share = balance[index];
 			if (share <= 0) continue;
 			weight += share;
-			color = color === null ? stem.color : Color.mix(color, stem.color, share / weight);
+			color = Color.mix(color, stems[index].color, share / weight);
 		}
-		if (color === null) return;
 		this.#color = color;
+	}
+
+	#runAmbient(total: number): void {
+		const stems = this.#stems;
+		const balance = this.#balance;
+		if (total <= 0) return;
+		let weight = 0;
+		for (const stem of stems) weight += stem.share;
+		if (weight <= 0) return;
+		for (let index = 0; index < stems.length; index++) balance[index] = stems[index].share;
+		this.#mixAmbient();
 	}
 
 	update(host: Host): void {
 		if (host.audioset.length === 0) return;
-		this.#runThreads(host);
+		const total = this.#runThreads(host);
 		this.#runPulse(host);
 		this.#runPace(host);
 		this.#runTraces();
-		this.#runAmbient();
+		this.#runAmbient(total);
 	}
 	//#endregion
 	//#region Layers
@@ -465,7 +480,6 @@ Registry.attach("Stems", class Stems extends Visualization {
 		const color = this.#color;
 		const { context } = host;
 		const { width, height } = context.canvas;
-		if (color === null) return;
 
 		const gradient = context.createRadialGradient(0, 0, 0, 0, 0, max(width, height) * 0.75);
 		gradient.addColorStop(0, new Color(color).pass(this.#haze).toString());

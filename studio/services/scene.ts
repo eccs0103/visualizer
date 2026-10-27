@@ -98,10 +98,10 @@ export class Scene {
 		this.#update();
 		this.#stage.updateCamera(output.getTransform());
 		output.reset();
+		this.#background.underlay(this.#stage, output);
 		this.#draw(this.#background, output);
 		for (const layer of this.#layers) this.#draw(layer, output);
 		this.#draw(this.#lyrics, output);
-		this.#background.underlay(this.#stage, output);
 	}
 }
 //#endregion

@@ -17,8 +17,10 @@ export class InferenceBudget {
 	#others: number = 0;
 	#losses: number[] = [];
 	#cut: number | null = null;
+	#pending: number | null = null;
 	#before: number = 0;
 	#during: number[] = [];
+	#after: number[] = [];
 	#backoff: number = InferenceBudget.#rest;
 	#waiting: number = 0;
 
@@ -40,6 +42,8 @@ export class InferenceBudget {
 	adapt(loss: number, share: number | null): void {
 		const cut = this.#cut;
 		if (cut !== null) return this.#check(loss, cut);
+		const pending = this.#pending;
+		if (pending !== null) return this.#confirm(loss, pending);
 		const proof = InferenceBudget.#proof;
 		const losses = this.#losses;
 		losses.push(loss);
@@ -61,12 +65,26 @@ export class InferenceBudget {
 		const during = this.#during;
 		during.push(loss);
 		if (during.length < InferenceBudget.#trial) return;
-		const backoff = this.#backoff;
 		this.#cut = null;
+		if (this.#before - InferenceBudget.#mean(during) <= InferenceBudget.#proof) return this.#settle();
+		this.#pending = cut;
+		this.#after = [];
+	}
+
+	#confirm(loss: number, cut: number): void {
+		const after = this.#after;
+		after.push(loss);
+		if (after.length < InferenceBudget.#trial) return;
+		this.#pending = null;
+		if (InferenceBudget.#mean(after) - InferenceBudget.#mean(this.#during) > InferenceBudget.#proof) this.#others = cut;
+		this.#settle();
+	}
+
+	#settle(): void {
+		const backoff = this.#backoff;
 		this.#losses = [];
 		this.#waiting = backoff;
 		this.#backoff = min(backoff * 2, InferenceBudget.#patience);
-		if (this.#before - InferenceBudget.#mean(during) > InferenceBudget.#proof) this.#others = cut;
 	}
 }
 //#endregion

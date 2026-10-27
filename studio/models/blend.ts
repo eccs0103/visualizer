@@ -12,5 +12,14 @@ export enum Blend {
 	darken = "darken",
 	lighten = "lighten",
 	difference = "difference",
+	dodge = "color-dodge",
+	burn = "color-burn",
+	hardLight = "hard-light",
+	softLight = "soft-light",
+	exclusion = "exclusion",
+	hue = "hue",
+	saturation = "saturation",
+	color = "color",
+	luminosity = "luminosity",
 }
 //#endregion
