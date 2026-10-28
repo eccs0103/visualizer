@@ -21,8 +21,8 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 	#pathWave: Path2D = new Path2D();
 	#drift: HueDrift = new HueDrift(Color.fromHSL(0, 100, 60), 360 / 6);
 	#colorShadow: Color;
-	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1, 1, 1.03); // drums at half weight, the gain lets the ring's peaks reach the mix's height
-	#instruments: StemMix = new StemMix(0, 0, 0, 1, 1, 1, 1); // guitar + keys + other: everything but drums, bass and vocals, the "other" these levels were tuned on
+	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1, 1, 1.03);
+	#instruments: StemMix = new StemMix(0, 0, 0, 1, 1, 1, 1);
 	#kit: StemMix = new StemMix(1, 0, 0, 0, 0, 0, 1);
 	#bassline: StemMix = new StemMix(0, 1, 0, 0, 0, 0, 1);
 	#voice: StemMix = new StemMix(0, 0, 1, 0, 0, 0, 1);

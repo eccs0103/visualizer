@@ -28,8 +28,8 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 	#pathRidge: Path2D = new Path2D();
 	#hueBias: number = 0;
 	#normLightness: number = 0;
-	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1, 1, 1.03); // drums at half weight, the gain lets the ridge's peaks reach the mix's height
-	#instruments: StemMix = new StemMix(0, 0, 0, 1, 1, 1, 1); // guitar + keys + other: everything but drums, bass and vocals, the "other" these levels were tuned on
+	#silhouette: StemMix = new StemMix(0.5, 1, 1, 1, 1, 1, 1.03);
+	#instruments: StemMix = new StemMix(0, 0, 0, 1, 1, 1, 1);
 	#kit: StemMix = new StemMix(1, 0, 0, 0, 0, 0, 1);
 	#bassline: StemMix = new StemMix(0, 1, 0, 0, 0, 0, 1);
 	#voice: StemMix = new StemMix(0, 0, 1, 0, 0, 0, 1);

@@ -65,8 +65,9 @@ class Thread {
 	static #pulsing: number = 1;
 	static #swelling: number = 0.5;
 	static #thickening: number = 1.5;
-	static #glare: number = 5;
-	static #bloom: number = 0.35;
+	static #spreading: number = 4;
+	static #fading: number = 0.3;
+	static #coarse: number = 4;
 	static #shaper: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 	static #presence: Shaper = Shaper.smoothstep.between(0.1, 0.35);
 	static #bins: Shaper = Shaper.exponential(3);
@@ -84,13 +85,12 @@ class Thread {
 	#belt: Belt;
 	#color: Color;
 	#stroke: string;
-	#glow: string;
 	#shade: string;
 	#origin: string;
 	#gradient: CanvasGradient | null = null;
 	#flow: Flow;
 	#width: number;
-	#blur: number;
+	#blur: string;
 	#dot: number;
 	#level: number = 0;
 	#amplitude: number;
@@ -101,6 +101,7 @@ class Thread {
 	#envelopes: Float32Array = new Float32Array(0);
 	#distances: Float32Array = new Float32Array(0);
 	#line: Path2D = new Path2D();
+	#aura: Path2D = new Path2D();
 	#sleeve: Path2D = new Path2D();
 	#spots: Path2D = new Path2D();
 
@@ -129,10 +130,8 @@ class Thread {
 		const { hue, saturation, lightness } = base;
 
 		const color = this.#color = dark ? new Color(base) : Color.fromHSL(hue, saturation * 0.9, 100 - lightness);
-		const stroke = this.#stroke = color.toString();
-		this.#glow = dark ? stroke : Color.fromHSL(hue, saturation, 15, 0.45).toString();
+		this.#stroke = color.toString();
 		this.#shade = new Color(color).pass(dark ? 0.22 : 0.18).toString();
-		this.#gradient = null;
 	}
 
 	fit(flow: Flow, source: Color, dark: boolean): void {
@@ -155,7 +154,7 @@ class Thread {
 		this.#origin = source.toString();
 		this.#gradient = null;
 		this.#width = max(1, side >> 8);
-		this.#blur = dark ? side >> 6 : side >> 7;
+		this.#blur = `blur(${(dark ? side >> 6 : side >> 7) * 0.4}px)`;
 		this.#dot = max(1.5, side >> 8);
 		this.#amplitude = breadth * Thread.#spacing / 2;
 		this.#envelopes = new Float32Array(count);
@@ -214,8 +213,15 @@ class Thread {
 		const { length: count } = alongs;
 		const offset = direction * travel / alongs[count - 1];
 
+		const coarse = Thread.#coarse;
 		const line = this.#line = new Path2D();
-		for (let index = 0; index < count; index++) flow.lineTo(line, alongs[index] * direction, acrosses[index] + envelopes[index] * sin(2 * PI * belt.at(distances[index])));
+		const aura = this.#aura = new Path2D();
+		for (let index = 0; index < count; index++) {
+			const along = alongs[index] * direction;
+			const across = acrosses[index] + envelopes[index] * sin(2 * PI * belt.at(distances[index]));
+			flow.lineTo(line, along, across);
+			if (index % coarse === 0 || index === count - 1) flow.lineTo(aura, along, across);
+		}
 
 		const sleeve = this.#sleeve = new Path2D();
 		for (let index = 0; index < count; index++) flow.lineTo(sleeve, alongs[index] * direction, acrosses[index] + envelopes[index]);
@@ -235,6 +241,8 @@ class Thread {
 			const radius = dot * (1 + envelope / amplitude);
 			spots.moveTo(x + radius, y);
 			spots.arc(x, y, radius, 0, 2 * PI);
+			aura.moveTo(x + radius, y);
+			aura.arc(x, y, radius, 0, 2 * PI);
 		}
 	}
 
@@ -262,27 +270,26 @@ class Thread {
 
 	draw(host: Host): void {
 		const alpha = this.#alpha;
-		const line = this.#line;
+		const stroke = this.#stroke;
+		const heat = this.#heat.value;
 		const width = this.#width * (1 + Thread.#thickening * this.#level);
 		const { context } = host;
-		const halo = alpha * this.#heat.value * Thread.#bloom;
 
 		context.globalAlpha = alpha;
 		context.fillStyle = this.#shade;
 		context.fill(this.#sleeve);
 		context.lineJoin = "round";
+		context.globalAlpha = alpha * (1 - Thread.#fading * heat);
+		context.strokeStyle = stroke;
+		context.lineWidth = width * (1 + Thread.#spreading * heat);
+		context.filter = this.#blur;
+		context.stroke(this.#aura);
+		context.filter = "none";
+		context.globalAlpha = alpha;
 		context.strokeStyle = this.#obtainGradient(context);
-		context.shadowColor = this.#glow;
-		context.shadowBlur = this.#blur;
-		if (halo * 255 >= 1) {
-			context.globalAlpha = halo;
-			context.lineWidth = width * Thread.#glare;
-			context.stroke(line);
-			context.globalAlpha = alpha;
-		}
 		context.lineWidth = width;
-		context.stroke(line);
-		context.fillStyle = this.#stroke;
+		context.stroke(this.#line);
+		context.fillStyle = stroke;
 		context.fill(this.#spots);
 	}
 
@@ -477,8 +484,9 @@ Registry.attach("Stems", class Stems extends Visualization {
 		const { width, height } = context.canvas;
 
 		const gradient = context.createRadialGradient(0, 0, 0, 0, 0, max(width, height) * 0.75);
-		gradient.addColorStop(0, new Color(color).pass(this.#haze).toString());
-		gradient.addColorStop(1, new Color(color).pass(0).toString());
+		const stop = new Color(color);
+		gradient.addColorStop(0, stop.pass(this.#haze).toString());
+		gradient.addColorStop(1, stop.pass(0).toString());
 		context.fillStyle = gradient;
 		context.fillRect(-width, -height, width * 2, height * 2);
 	}

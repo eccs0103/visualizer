@@ -472,17 +472,14 @@ export class Belt {
 }
 //#endregion
 //#region Auto range
-/**
- * The quiet-to-loud range of one input in the song that is playing: its 5th and 95th percentiles over the last ~30 seconds, sampled on the clock so the window is the same at any frame rate. Until enough of the song has been heard it leans on a prior range (measured over MUSDB18HQ), and the span never shrinks below a fraction of the prior span, so a quiet passage is not blown up into noise.
- */
 export class AutoRange {
-	static #seconds: number = 32; // s of history
-	static #interval: number = 0.125; // s between samples
-	static #refresh: number = 0.5; // s between percentile updates
-	static #warmup: number = 40; // samples (~5 s) before the song's own range is fully trusted
-	static #floor: number = 0.3; // minimum span, as a fraction of the prior span
-	static #silence: number = 0.01; // volume below which the music counts as stopped
-	static #gap: number = 1.5; // s of silence that starts a fresh song
+	static #seconds: number = 32;
+	static #interval: number = 0.125;
+	static #refresh: number = 0.5;
+	static #warmup: number = 40;
+	static #floor: number = 0.3;
+	static #silence: number = 0.01;
+	static #gap: number = 1.5;
 
 	#lowPrior: number;
 	#highPrior: number;
