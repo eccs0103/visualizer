@@ -4,9 +4,9 @@ import "adaptive-extender/worker";
 import { Color } from "adaptive-extender/worker";
 import { Registry, Visualization } from "../../services/visualization-registry.js";
 import { type Audioset, type Host } from "../../models/visualization.js";
-import { Shaper, Smoother, SpectrumAnalysis, StemMix, Trail } from "../../services/visualization-tools.js";
+import { Belt, Shaper, Smoother, SpectrumAnalysis, StemMix, WaveformAnalysis } from "../../services/visualization-tools.js";
 
-const { min, max, abs, sin, trunc, PI } = Math;
+const { min, max, sin, trunc, PI } = Math;
 
 //#region Flow
 class Flow {
@@ -62,8 +62,9 @@ class Thread {
 	static #sparks: number = 5;
 	static #lag: number = 0.15;
 	static #ghost: number = 0.85;
-	static #journey: number = 1.2;
-	static #crest: number = 0.365;
+	static #pulsing: number = 1;
+	static #swelling: number = 0.5;
+	static #thickening: number = 1.5;
 	static #glare: number = 5;
 	static #bloom: number = 0.35;
 	static #shaper: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
@@ -80,7 +81,7 @@ class Thread {
 	#share: Smoother = new Smoother(Thread.#lag);
 	#heat: Smoother = new Smoother(Thread.#lag);
 	#analysis: SpectrumAnalysis = new SpectrumAnalysis();
-	#trail: Trail = new Trail(Thread.#journey);
+	#belt: Belt;
 	#color: Color;
 	#stroke: string;
 	#glow: string;
@@ -91,13 +92,14 @@ class Thread {
 	#width: number;
 	#blur: number;
 	#dot: number;
+	#level: number = 0;
 	#amplitude: number;
 	#alongs: Float32Array = new Float32Array(0);
 	#acrosses: Float32Array = new Float32Array(0);
 	#fractions: Float32Array = new Float32Array(0);
 	#tapers: Float32Array = new Float32Array(0);
 	#envelopes: Float32Array = new Float32Array(0);
-	#delays: Float32Array = new Float32Array(0);
+	#distances: Float32Array = new Float32Array(0);
 	#line: Path2D = new Path2D();
 	#sleeve: Path2D = new Path2D();
 	#spots: Path2D = new Path2D();
@@ -136,7 +138,6 @@ class Thread {
 	fit(flow: Flow, source: Color, dark: boolean): void {
 		const { side, breadth, bend, end } = flow;
 		const split = Thread.#split;
-		const journey = Thread.#journey;
 		const direction = this.#direction;
 		const plain = direction < 0 ? bend * split / (1 - split) : bend;
 		const across = this.#lane * breadth;
@@ -145,11 +146,12 @@ class Thread {
 		const acrosses = this.#acrosses = new Float32Array(count);
 		const fractions = this.#fractions = new Float32Array(count);
 		const tapers = this.#tapers = new Float32Array(count);
-		const delays = this.#delays = new Float32Array(count);
+		const distances = this.#distances = new Float32Array(count);
 		const smoothstep = Shaper.smoothstep;
 		const bins = Thread.#bins;
 
 		this.#flow = flow;
+		this.#belt = new Belt(2 * end, 0, 0);
 		this.#origin = source.toString();
 		this.#gradient = null;
 		this.#width = max(1, side >> 8);
@@ -163,7 +165,7 @@ class Thread {
 			acrosses[index] = across * smoothstep.apply(min(1, along / bend));
 			fractions[index] = bins.apply(lane / (end - plain));
 			tapers[index] = smoothstep.apply(min(1, lane / (plain / 4)));
-			delays[index] = journey * (end + direction * along) / (2 * end);
+			distances[index] = end + direction * along;
 		}
 	}
 
@@ -189,33 +191,31 @@ class Thread {
 		return weight > 0 ? sum / weight : 0;
 	}
 
-	listen(pulse: number, delta: number): void {
-		const trail = this.#trail;
-		const delays = this.#delays;
+	listen(pulse: number, distance: number, level: number): void {
+		const belt = this.#belt;
+		const distances = this.#distances;
 		const envelopes = this.#envelopes;
-		const crest = Thread.#crest;
+		const pulsing = Thread.#pulsing;
+		const swell = 1 + Thread.#swelling * level;
 
-		trail.push(pulse, delta);
-		for (let index = 0; index < envelopes.length; index++) envelopes[index] *= 1 + min(1, trail.at(delays[index]) / crest);
+		this.#level = level;
+		belt.advance(distance, pulse);
+		for (let index = 0; index < envelopes.length; index++) envelopes[index] *= swell + pulsing * belt.at(distances[index]);
 	}
 
-	trace(phase: number, travel: number, wavelength: number): void {
+	trace(belt: Belt, travel: number): void {
 		const flow = this.#flow;
 		const alongs = this.#alongs;
 		const acrosses = this.#acrosses;
 		const envelopes = this.#envelopes;
+		const distances = this.#distances;
 		const direction = this.#direction;
 		const amplitude = this.#amplitude;
 		const { length: count } = alongs;
-		const wavenumber = 2 * PI / wavelength;
-		const shift = direction * 2 * PI * phase;
 		const offset = direction * travel / alongs[count - 1];
 
 		const line = this.#line = new Path2D();
-		for (let index = 0; index < count; index++) {
-			const envelope = envelopes[index];
-			flow.lineTo(line, alongs[index] * direction, acrosses[index] + envelope * sin(wavenumber * alongs[index] - shift));
-		}
+		for (let index = 0; index < count; index++) flow.lineTo(line, alongs[index] * direction, acrosses[index] + envelopes[index] * sin(2 * PI * belt.at(distances[index])));
 
 		const sleeve = this.#sleeve = new Path2D();
 		for (let index = 0; index < count; index++) flow.lineTo(sleeve, alongs[index] * direction, acrosses[index] + envelopes[index]);
@@ -229,7 +229,7 @@ class Thread {
 			const index = trunc((offset + spark / sparks).mod(1) * (count - 1));
 			const envelope = envelopes[index];
 			const along = alongs[index] * direction;
-			const across = acrosses[index] + envelope * sin(wavenumber * alongs[index] - shift);
+			const across = acrosses[index] + envelope * sin(2 * PI * belt.at(distances[index]));
 			const x = flow.x(along, across);
 			const y = flow.y(along, across);
 			const radius = dot * (1 + envelope / amplitude);
@@ -263,7 +263,7 @@ class Thread {
 	draw(host: Host): void {
 		const alpha = this.#alpha;
 		const line = this.#line;
-		const width = this.#width;
+		const width = this.#width * (1 + Thread.#thickening * this.#level);
 		const { context } = host;
 		const halo = alpha * this.#heat.value * Thread.#bloom;
 
@@ -340,14 +340,14 @@ Registry.attach("Stems", class Stems extends Visualization {
 	];
 	#loudness: Smoother = new Smoother(1);
 	#peak: Smoother = new Smoother(60, Stems.#typical);
-	#baseline: Smoother = new Smoother(0.3);
+	#waveform: WaveformAnalysis = new WaveformAnalysis();
 	#tempo: number = 0;
 	#phase: number = 0;
 	#travel: number = 0;
 	#flow: Flow;
+	#belt: Belt;
 	#haze: number;
 	#balance: Float32Array = new Float32Array(this.#stems.length).fill(1);
-	#color: Color;
 
 	constructor() {
 		super();
@@ -372,10 +372,10 @@ Registry.attach("Stems", class Stems extends Visualization {
 		const dark = environment.colorBackground.lightness < 50;
 		const flow = this.#flow = new Flow(width, height);
 
+		this.#belt = new Belt(2 * flow.end, this.#phase, 1 / this.#wavelength);
 		this.#haze = dark ? 0.25 : 0.12;
 		mix.paint(dark);
 		for (const stem of stems) stem.paint(dark);
-		this.#mixAmbient();
 		const source = mix.color;
 		mix.fit(flow, source, dark);
 		for (const stem of stems) stem.fit(flow, source, dark);
@@ -396,52 +396,48 @@ Registry.attach("Stems", class Stems extends Visualization {
 		return total;
 	}
 
-	#runPulse(host: Host): void {
+	#runPulse(host: Host, distance: number): void {
 		const stems = this.#stems;
-		const baseline = this.#baseline;
-		const { audioset, environment } = host;
-		const { dataTemporal } = audioset;
-		const { delta } = environment;
+		const waveform = this.#waveform;
 
-		if (!Number.isFinite(delta) || delta <= 0) return;
-		let peak = 0;
-		for (let index = 0; index < dataTemporal.length; index++) peak = max(peak, abs(dataTemporal[index] * 2 - 1));
-		const pulse = max(0, peak - baseline.value);
-		baseline.push(peak, delta);
-		this.#mix.listen(pulse, delta);
+		waveform.analyze(host.audioset);
+		const { hit, level } = waveform;
+		this.#mix.listen(hit, distance, level);
 		let sum = 0;
 		for (const stem of stems) sum += stem.rise;
-		for (const stem of stems) stem.listen(sum > 0 ? pulse * stem.rise / sum : 0, delta);
+		for (const stem of stems) stem.listen(sum > 0 ? hit * stem.rise / sum : 0, distance, level);
 	}
 
-	#runPace(host: Host): void {
+	#runPace(host: Host): number {
 		const loudness = this.#loudness;
 		const peak = this.#peak;
 		const { audioset, environment } = host;
 		const { volume } = audioset;
 		const { delta } = environment;
 
-		if (!Number.isFinite(delta) || delta <= 0) return;
+		if (!Number.isFinite(delta) || delta <= 0) return 0;
 		const level = this.#backing.heat;
 		loudness.push(volume, delta);
 		peak.push(Stems.#typical, delta);
 		peak.raise(loudness.value);
 		this.#tempo = Stems.#swell.apply(loudness.value / peak.value);
 		const step = min(Stems.#stride, delta * level.lerp(0, 1, Stems.#calm, Stems.#rush));
-		this.#phase += step;
-		this.#travel += step * this.#wavelength;
+		const distance = step * this.#wavelength;
+		const phase = this.#phase += step;
+		this.#travel += distance;
+		this.#belt.advance(distance, phase);
+		return distance;
 	}
 
 	#runTraces(): void {
-		const phase = this.#phase;
+		const belt = this.#belt;
 		const travel = this.#travel;
-		const wavelength = this.#wavelength;
 
-		this.#mix.trace(phase, travel, wavelength);
-		for (const stem of this.#stems) stem.trace(phase, travel, wavelength);
+		this.#mix.trace(belt, travel);
+		for (const stem of this.#stems) stem.trace(belt, travel);
 	}
 
-	#mixAmbient(): void {
+	get #ambient(): Color {
 		const stems = this.#stems;
 		const balance = this.#balance;
 		let color = stems[0].color;
@@ -452,7 +448,7 @@ Registry.attach("Stems", class Stems extends Visualization {
 			weight += share;
 			color = Color.mix(color, stems[index].color, share / weight);
 		}
-		this.#color = color;
+		return color;
 	}
 
 	#runAmbient(total: number): void {
@@ -463,21 +459,20 @@ Registry.attach("Stems", class Stems extends Visualization {
 		for (const stem of stems) weight += stem.share;
 		if (weight <= 0) return;
 		for (let index = 0; index < stems.length; index++) balance[index] = stems[index].share;
-		this.#mixAmbient();
 	}
 
 	update(host: Host): void {
 		if (host.audioset.length === 0) return;
 		const total = this.#runThreads(host);
-		this.#runPulse(host);
-		this.#runPace(host);
+		const distance = this.#runPace(host);
+		this.#runPulse(host, distance);
 		this.#runTraces();
 		this.#runAmbient(total);
 	}
 	//#endregion
 	//#region Layers
 	#drawAmbient(host: Host): void {
-		const color = this.#color;
+		const color = this.#ambient;
 		const { context } = host;
 		const { width, height } = context.canvas;
 

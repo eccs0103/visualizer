@@ -5,7 +5,7 @@ import { Color } from "adaptive-extender/worker";
 import { SabLayout } from "../models/audio-features.js";
 import { type Audioset, type Host } from "../models/visualization.js";
 
-const { split, PI, exp, sqrt, asin, min, max, round, trunc } = Math;
+const { split, PI, exp, sqrt, asin, min, max, abs, log10, round, trunc } = Math;
 
 //#region Shaper
 export interface Curve {
@@ -289,6 +289,69 @@ export class SpectrumAnalysis {
 	}
 }
 //#endregion
+//#region Waveform analysis
+export class WaveformAnalysis {
+	static #onset: number = 0.15;
+	static #density: number = 1.5;
+	static #short: number = 0.4;
+	static #long: number = 8;
+	static #floor: number = 80;
+	static #silence: number = 0.01;
+	static #samples: number = 512;
+	static #typical: number = 67.55;
+	static #busy: number = 0.5802;
+	static #jump: number = 3.936;
+	static #loud: number = 0.4753;
+	static #punch: number = 0.4606;
+
+	#time: number | null = null;
+	#follower: Smoother = new Smoother(WaveformAnalysis.#onset, WaveformAnalysis.#typical);
+	#weight: Smoother = new Smoother(WaveformAnalysis.#density);
+	#near: Smoother = new Smoother(WaveformAnalysis.#short, WaveformAnalysis.#typical);
+	#far: Smoother = new Smoother(WaveformAnalysis.#long, WaveformAnalysis.#typical);
+	#level: number = 0;
+	#hit: number = 0;
+
+	get level(): number { return this.#level; }
+	get hit(): number { return this.#hit; }
+
+	analyze(audioset: Audioset): void {
+		const follower = this.#follower;
+		const weight = this.#weight;
+		const near = this.#near;
+		const far = this.#far;
+		const { time, sampleRate, dataTemporal } = audioset;
+		const { length } = dataTemporal;
+		const last = this.#time;
+
+		if (time === last) return;
+		this.#time = time;
+		if (last === null) return;
+		const delta = (time - last) / 1000;
+		if (!Number.isFinite(delta) || delta <= 0) return;
+		const count = min(length, max(WaveformAnalysis.#samples, round(delta * sampleRate)));
+		let sum = 0;
+		let peak = 0;
+		for (let index = length - count; index < length; index++) {
+			const sample = dataTemporal[index] * 2 - 1;
+			sum += sample * sample;
+			peak = max(peak, abs(sample));
+		}
+		const rms = sqrt(sum / count);
+		this.#level = 0;
+		this.#hit = 0;
+		if (rms < WaveformAnalysis.#silence) return;
+		const energy = 20 * log10(rms) + WaveformAnalysis.#floor;
+		follower.push(energy, delta);
+		weight.push(max(0, energy - follower.value) * rms, delta);
+		near.push(energy, delta);
+		far.push(energy, delta);
+		const context = min(1, weight.value / WaveformAnalysis.#busy + max(0, near.value - far.value) / WaveformAnalysis.#jump);
+		this.#level = min(1, context * rms / WaveformAnalysis.#loud);
+		this.#hit = min(1, context * peak * rms / WaveformAnalysis.#punch);
+	}
+}
+//#endregion
 //#region Trail
 export class Trail {
 	#interval: number;
@@ -351,6 +414,60 @@ export class Trail {
 		this.#count = 0;
 		this.#wait = 0;
 		this.#held = 0;
+	}
+}
+//#endregion
+//#region Belt
+export class Belt {
+	static #slots: number = 1024;
+
+	#spacing: number;
+	#values: Float64Array = new Float64Array(Belt.#slots);
+	#cursor: number = 0;
+	#rest: number = 0;
+	#value: number;
+
+	constructor(span: number, value: number, slope: number) {
+		const values = this.#values;
+		const { length } = values;
+		const spacing = this.#spacing = span / (length - 2);
+		this.#value = value;
+		for (let slot = 0; slot < length; slot++) values[(length - slot) % length] = value - slope * slot * spacing;
+	}
+
+	advance(distance: number, value: number): void {
+		const values = this.#values;
+		const spacing = this.#spacing;
+		const rest = this.#rest;
+		const start = this.#value;
+		const { length } = values;
+		const total = rest + distance;
+		const slots = trunc(total / spacing);
+		let cursor = this.#cursor;
+		for (let slot = max(1, slots - length + 1); slot <= slots; slot++) {
+			cursor = (cursor + 1) % length;
+			values[cursor] = start + (value - start) * (slot * spacing - rest) / distance;
+		}
+		this.#cursor = cursor;
+		this.#rest = total - slots * spacing;
+		this.#value = value;
+	}
+
+	at(distance: number): number {
+		const values = this.#values;
+		const cursor = this.#cursor;
+		const rest = this.#rest;
+		const { length } = values;
+		const newest = values[cursor];
+		if (distance < rest) {
+			const value = this.#value;
+			return value + (newest - value) * distance / rest;
+		}
+		const position = (distance - rest) / this.#spacing;
+		const step = trunc(position);
+		const newer = values[(cursor - step).mod(length)];
+		const older = values[(cursor - step - 1).mod(length)];
+		return newer + (older - newer) * (position - step);
 	}
 }
 //#endregion
