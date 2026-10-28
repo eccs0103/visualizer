@@ -3,6 +3,7 @@
 import "adaptive-extender/core";
 import { Model, Field } from "adaptive-extender/core";
 import { TextExpert } from "../services/text-expert.js";
+import { type StemGrid, type StemWeights } from "./stem-weights.js";
 
 //#region Splitter model
 export interface SplitterModelScheme {
@@ -22,6 +23,7 @@ export class SplitterModel extends Model {
 	description: string;
 
 	#size: number | null = null;
+	#grid: StemGrid | null = null;
 
 	constructor();
 	constructor(folder: string, name: string, description: string);
@@ -43,8 +45,11 @@ export class SplitterModel extends Model {
 		return `${this.name} (${TextExpert.formatMillions(size)})`;
 	}
 
-	weigh(size: number): void {
-		this.#size = size;
+	get grid(): StemGrid | null { return this.#grid; }
+
+	weigh(weights: StemWeights): void {
+		this.#size = weights.length;
+		this.#grid = weights.grid;
 	}
 }
 //#endregion

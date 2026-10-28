@@ -5,7 +5,7 @@ import { MaskChannel } from "../models/audio-features.js";
 import { Command, InitializeMaskCommand, ModelMaskCommand, PaceMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
 import { SplitterCatalog, type SplitterModel } from "../models/splitter-catalog.js";
 import { type SplitterStatus, LoadingStatus, OffStatus, ActiveStatus, UnavailableStatus } from "../models/splitter-status.js";
-import { StemWeights } from "../models/stem-weights.js";
+import { StemWeights, type StemGrid } from "../models/stem-weights.js";
 import { type FrameRate } from "./smoothness.js";
 
 const { baseURI } = document;
@@ -47,6 +47,7 @@ export class Splitter extends EventTarget {
 	get status(): SplitterStatus { return this.#status; }
 	get catalog(): Promise<SplitterCatalog> { return this.#catalog; }
 	get model(): SplitterModel | null { return this.#model; }
+	get grid(): StemGrid | null { return this.#model?.grid ?? null; }
 
 	set model(value: SplitterModel | null) {
 		if (value === this.#model) return;
@@ -76,7 +77,7 @@ export class Splitter extends EventTarget {
 	static async #weigh(model: SplitterModel): Promise<void> {
 		try {
 			const weights = StemWeights.import(await Splitter.#fetch(Splitter.#manifest(model)), "model");
-			model.weigh(weights.length);
+			model.weigh(weights);
 		} catch (reason) {
 			console.error(`Failed to read the size of the '${model.name}' model cause:\n${Error.from(reason)}`);
 		}

@@ -142,7 +142,7 @@ export class Visualizer extends EventTarget {
 	#update(): void {
 		const manager = this.#manager;
 		const splitter = this.#splitter;
-		manager.capture(splitter.model !== null);
+		manager.capture(splitter.grid);
 		splitter.tick();
 		const posted = this.#posted;
 		const fresh = this.#fresh = ((posted - manager.signal.drawn) | 0) < Visualizer.#depth;

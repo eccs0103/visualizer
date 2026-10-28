@@ -3,6 +3,8 @@
 import "adaptive-extender/core";
 import { Model, Field, Enum } from "adaptive-extender/core";
 
+const { round, max } = Math;
+
 //#region Stem tensor
 export class StemTensor {
 	#shape: readonly number[];
@@ -123,6 +125,64 @@ export class StemWeightGroup extends Model {
 	}
 }
 //#endregion
+//#region Stem grid
+export interface StemGridScheme {
+	size: number;
+	keep: number;
+	group: number;
+}
+
+export class StemGrid extends Model {
+	@Field(Number, { name: "size" })
+	size: number;
+
+	@Field(Number, { name: "keep" })
+	keep: number;
+
+	@Field(Number, { name: "group" })
+	group: number;
+
+	constructor();
+	constructor(size: number, keep: number, group: number);
+	constructor(size?: number, keep?: number, group?: number) {
+		if (size === undefined || keep === undefined || group === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.size = size;
+		this.keep = keep;
+		this.group = group;
+	}
+
+	static get standard(): StemGrid { return new StemGrid(1024, 512, 1); }
+
+	equals(other: StemGrid): boolean {
+		return this.size === other.size && this.keep === other.keep && this.group === other.group;
+	}
+
+	merge(bytes: Uint8Array, target: Float32Array): void {
+		const { keep, group } = this;
+		const { length } = bytes;
+		for (let index = 0; index < keep; index++) target[index] = bytes[index] / 255;
+		for (let start = keep, column = keep; start < length; start += group, column++) {
+			let sum = 0;
+			for (let index = start; index < start + group; index++) sum += bytes[index];
+			target[column] = round(sum / group) / 255;
+		}
+	}
+
+	position(index: number, length: number): number {
+		const { size, keep, group } = this;
+		const column = index * ((size / 2 - 1) / max(1, length - 1));
+		if (column <= keep - 1) return column;
+		const middle = keep + (group - 1) / 2;
+		if (column < middle) return keep - 1 + (column - keep + 1) / (middle - keep + 1);
+		return keep + (column - middle) / group;
+	}
+}
+//#endregion
 //#region Stem weights
 export enum StemArchitecture {
 	window = "window",
@@ -132,6 +192,7 @@ export enum StemArchitecture {
 export interface StemWeightsScheme {
 	weightsManifest: StemWeightGroupScheme[];
 	architecture: StemArchitecture;
+	grid: StemGridScheme;
 }
 
 export class StemWeights extends Model {
@@ -141,10 +202,13 @@ export class StemWeights extends Model {
 	@Field(Enum.Of(StemArchitecture), { name: "architecture" })
 	architecture: StemArchitecture = StemArchitecture.window;
 
+	@Field(StemGrid, { name: "grid" })
+	grid: StemGrid = StemGrid.standard;
+
 	constructor();
-	constructor(groups: StemWeightGroup[], architecture: StemArchitecture);
-	constructor(groups?: StemWeightGroup[], architecture?: StemArchitecture) {
-		if (groups === undefined || architecture === undefined) {
+	constructor(groups: StemWeightGroup[], architecture: StemArchitecture, grid: StemGrid);
+	constructor(groups?: StemWeightGroup[], architecture?: StemArchitecture, grid?: StemGrid) {
+		if (groups === undefined || architecture === undefined || grid === undefined) {
 			super();
 			return;
 		}
@@ -152,6 +216,7 @@ export class StemWeights extends Model {
 		super();
 		this.groups = groups;
 		this.architecture = architecture;
+		this.grid = grid;
 	}
 
 	get paths(): string[] {

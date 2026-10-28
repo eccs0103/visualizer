@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { StemArchitecture, StemWeights, type StemTensors } from "../models/stem-weights.js";
+import { StemArchitecture, StemWeights, type StemTensors, type StemGrid } from "../models/stem-weights.js";
 import { ConvolutionLayer, HeadLayer, PresenceLayer } from "../models/stem-layers.js";
 import { GpuGraph, type GpuActivation } from "./gpu-graph.js";
 import { ConvolutionPass, HeadPass, PresencePass } from "./stem-passes.js";
@@ -169,13 +169,15 @@ export class StemNetwork {
 	#result: Float32Array;
 	#duration: number | null = null;
 	#settled: boolean = false;
+	#grid: StemGrid;
 
-	constructor(device: GPUDevice, topology: StemTopology, stems: number, timer: PassTimer | null) {
+	constructor(device: GPUDevice, topology: StemTopology, stems: number, timer: PassTimer | null, grid: StemGrid) {
 		const { buffer, span } = topology.output;
 		const size = timer === null ? buffer.size : timer.end;
 		this.#device = device;
 		this.#topology = topology;
 		this.#timer = timer;
+		this.#grid = grid;
 		this.#readbacks = Array.from({ length: StemNetwork.#depth }, () => device.createBuffer({ size, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST }));
 		this.#stems = stems;
 		this.#result = new Float32Array(span * stems);
@@ -194,7 +196,7 @@ export class StemNetwork {
 		const { channels, buffer } = topology.output;
 		if (channels < stems) throw new TypeError(`The model splits into ${channels} stems, the visualizer needs at least ${stems}`);
 		const timer = device.features.has("timestamp-query") ? new PassTimer(device, buffer.size) : null;
-		return new StemNetwork(device, topology, stems, timer);
+		return new StemNetwork(device, topology, stems, timer, weights.grid);
 	}
 
 	static async #connect(): Promise<GPUDevice> {
@@ -231,6 +233,8 @@ export class StemNetwork {
 		const response = await StemNetwork.#fetch(url);
 		return await response.text();
 	}
+
+	get grid(): StemGrid { return this.#grid; }
 
 	get adapter(): string | null {
 		const { vendor, architecture } = this.#device.adapterInfo;

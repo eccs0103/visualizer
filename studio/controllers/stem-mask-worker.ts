@@ -81,10 +81,14 @@ class StemMaskWorker extends Controller {
 		try {
 			const shaders = this.#shaders;
 			if (shaders === null) throw new ReferenceError("The splitter has no shaders before it is initialized");
+			const masks = this.#masks;
+			if (masks === null) throw new ReferenceError("The splitter has no masks before it is initialized");
 			const network = await slot.load(url, shaders, SabLayout.bins, SabLayout.stems);
 			if (network === null) return;
 			this.#pace = new InferencePace(this.#budget);
-			if (this.#history?.frames !== network.frames) this.#history = new TapHistory(network.frames);
+			const { grid } = network;
+			if (this.#history?.frames !== network.frames || !grid.equals(masks.grid)) this.#history = new TapHistory(network.frames);
+			masks.grid = grid;
 			this.#report(true, null, network.adapter, null, null, false);
 			const loss = await slot.watch(network);
 			if (loss === null) return;

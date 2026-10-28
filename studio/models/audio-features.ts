@@ -2,6 +2,7 @@
 
 import "adaptive-extender/core";
 import { Stems } from "./stem.js";
+import { StemGrid } from "./stem-weights.js";
 
 const { min } = Math;
 
@@ -72,24 +73,42 @@ export class MaskChannel {
 	#timing: Float64Array;
 	#previous: Float32Array;
 	#current: Float32Array;
+	#grid: StemGrid | null = null;
 
 	constructor(sab: SharedArrayBuffer) {
 		const size = SabLayout.bins * SabLayout.stems;
 		this.#sab = sab;
-		this.#control = new Int32Array(sab, 0, 1);
-		this.#timing = new Float64Array(sab, 8, 2);
-		this.#previous = new Float32Array(sab, 24, size);
-		this.#current = new Float32Array(sab, 24 + size * 4, size);
+		this.#control = new Int32Array(sab, 0, 4);
+		this.#timing = new Float64Array(sab, 16, 2);
+		this.#previous = new Float32Array(sab, 32, size);
+		this.#current = new Float32Array(sab, 32 + size * 4, size);
 	}
 
 	static create(): MaskChannel {
-		const sab = new SharedArrayBuffer(24 + SabLayout.bins * SabLayout.stems * 4 * 2);
-		new Float32Array(sab, 24).fill(1 / SabLayout.stems);
-		return new MaskChannel(sab);
+		const sab = new SharedArrayBuffer(32 + SabLayout.bins * SabLayout.stems * 4 * 2);
+		new Float32Array(sab, 32).fill(1 / SabLayout.stems);
+		const channel = new MaskChannel(sab);
+		channel.grid = StemGrid.standard;
+		return channel;
 	}
 
 	get sab(): SharedArrayBuffer { return this.#sab; }
 	get version(): number { return Atomics.load(this.#control, 0); }
+
+	get grid(): StemGrid {
+		const control = this.#control;
+		const size = Atomics.load(control, 1), keep = Atomics.load(control, 2), group = Atomics.load(control, 3);
+		const grid = this.#grid;
+		if (grid !== null && grid.size === size && grid.keep === keep && grid.group === group) return grid;
+		return this.#grid = new StemGrid(size, keep, group);
+	}
+
+	set grid(value: StemGrid) {
+		const control = this.#control;
+		Atomics.store(control, 1, value.size);
+		Atomics.store(control, 2, value.keep);
+		Atomics.store(control, 3, value.group);
+	}
 	get previous(): Float32Array { return this.#previous; }
 	get current(): Float32Array { return this.#current; }
 

@@ -3,8 +3,9 @@
 import "adaptive-extender/worker";
 import { SabLayout, MaskChannel } from "../models/audio-features.js";
 import { Stems, StemGains, type Stem } from "../models/stem.js";
+import { type StemGrid } from "../models/stem-weights.js";
 
-const { min, max } = Math;
+const { min } = Math;
 
 //#region Mask blend
 class MaskBlend {
@@ -28,6 +29,8 @@ class MaskBlend {
 		this.#blend(weight);
 		return true;
 	}
+
+	get grid(): StemGrid { return this.#channel.grid; }
 
 	sample(stem: Stem, position: number): number {
 		const masks = this.#blended;
@@ -109,9 +112,9 @@ export class StemFrame {
 			spectra.set(stem, values);
 		}
 		const blend = this.#blend;
-		const scale = (SabLayout.bins - 1) / max(1, length - 1);
+		const { grid } = blend;
 		const gain = this.#gains.of(stem);
-		for (let index = 0; index < length; index++) values[index] = whole[index] * blend.sample(stem, index * scale) * gain;
+		for (let index = 0; index < length; index++) values[index] = whole[index] * blend.sample(stem, grid.position(index, length)) * gain;
 		fresh.add(stem);
 		return values;
 	}
@@ -148,10 +151,10 @@ export class StemFrame {
 			this.#level = 1;
 			return values;
 		}
-		const scale = (SabLayout.bins - 1) / max(1, length - 1);
+		const { grid } = blend;
 		let sum = 0, sum2 = 0;
 		for (let index = 0; index < length; index++) {
-			const position = index * scale;
+			const position = grid.position(index, length);
 			let weighted = 0, total = 0;
 			for (let stem = 0; stem < stems.length; stem++) {
 				const mask = blend.sample(stems[stem], position);

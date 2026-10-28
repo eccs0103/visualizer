@@ -1,6 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { type StemGrid } from "../models/stem-weights.js";
 
 //#region Model tap
 export class ModelTap {
@@ -22,10 +23,15 @@ export class ModelTap {
 		this.#bytes = new Uint8Array(analyser.frequencyBinCount);
 	}
 
-	capture(model: Float32Array): void {
-		const bytes = this.#bytes;
-		this.#analyser.getByteFrequencyData(bytes);
-		for (let index = 0; index < bytes.length; index++) model[index] = bytes[index] / 255;
+	capture(model: Float32Array, grid: StemGrid): void {
+		const analyser = this.#analyser;
+		let bytes = this.#bytes;
+		if (analyser.fftSize !== grid.size) {
+			analyser.fftSize = grid.size;
+			bytes = this.#bytes = new Uint8Array(analyser.frequencyBinCount);
+		}
+		analyser.getByteFrequencyData(bytes);
+		grid.merge(bytes, model);
 	}
 }
 //#endregion

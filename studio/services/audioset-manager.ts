@@ -4,6 +4,7 @@ import "adaptive-extender/web";
 import { Signal } from "../models/audio-features.js";
 import { type VisualizationSettings } from "../models/settings.js";
 import { ModelTap } from "./model-tap.js";
+import { type StemGrid } from "../models/stem-weights.js";
 
 const { trunc, sqrt, sqpw, log2, round } = Math;
 
@@ -189,7 +190,7 @@ export class AudiosetManager {
 		this.punch = configuration.punch;
 	}
 
-	capture(splitting: boolean): void {
+	capture(grid: StemGrid | null): void {
 		const signal = this.#signal;
 		const bytes = this.#bytes;
 		const { frequency, temporal, model } = signal;
@@ -207,7 +208,7 @@ export class AudiosetManager {
 			summary += sqpw(datum * 2 - 1);
 		}
 
-		if (splitting) this.#tap.capture(model);
+		if (grid !== null) this.#tap.capture(model, grid);
 
 		signal.publish(length, sqrt(summary / length), performance.timeOrigin + performance.now());
 	}
