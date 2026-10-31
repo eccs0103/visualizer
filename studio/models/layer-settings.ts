@@ -79,19 +79,8 @@ export class BackgroundSettings extends LayerSettings {
 	@Field(Number, { name: "intensity" })
 	intensity: number = 0.5;
 
-	constructor();
-	constructor(opacity: number, blend: Blend, fit: BackgroundFit, image: string | null, effect: BackgroundEffectKind, intensity: number);
-	constructor(opacity?: number, blend?: Blend, fit?: BackgroundFit, image?: string | null, effect?: BackgroundEffectKind, intensity?: number) {
-		if (opacity === undefined || blend === undefined || fit === undefined || image === undefined || effect === undefined || intensity === undefined) {
-			super();
-			return;
-		}
-
-		super("Background", opacity, blend);
-		this.fit = fit;
-		this.image = image;
-		this.effect = effect;
-		this.intensity = intensity;
+	constructor() {
+		super("Background", 1, Blend.normal);
 	}
 
 	get hasImage(): boolean { return this.image !== null; }

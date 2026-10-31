@@ -4,7 +4,7 @@ import "adaptive-extender/worker";
 import { Model, Field, Enum, Optional } from "adaptive-extender/worker";
 import { Registry } from "../services/visualization-registry.js";
 import { type Layer } from "../services/layers.js";
-import { LayerSettings, BackgroundEffectKind, BackgroundFit, BackgroundSettings, type LayerSettingsScheme, type BackgroundSettingsScheme } from "./layer-settings.js";
+import { LayerSettings, BackgroundSettings, type LayerSettingsScheme, type BackgroundSettingsScheme } from "./layer-settings.js";
 import { Blend } from "./blend.js";
 import { Playlist, type PlaylistScheme } from "./playlist.js";
 import { type Reorder } from "./reorder.js";
@@ -50,7 +50,7 @@ export class VisualizationSettings extends Model {
 	layers: LayerSettings[] = [];
 
 	@Field(BackgroundSettings, { name: "background" })
-	background: BackgroundSettings = new BackgroundSettings(1, Blend.normal, BackgroundFit.cover, null, BackgroundEffectKind.pulse, 0.5);
+	background: BackgroundSettings = new BackgroundSettings();
 
 	@Field(LayerSettings, { name: "lyrics" })
 	lyrics: LayerSettings = new LayerSettings("Lyrics", 1, Blend.normal);
