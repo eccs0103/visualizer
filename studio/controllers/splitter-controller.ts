@@ -70,7 +70,7 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 		});
 	}
 
-	#bindModel(sectionAiSplitter: HTMLElement): void {
+	#bindModel(sectionAiSplitter: HTMLElement, developer: boolean): void {
 		const cell = this.#cell;
 		const settings = cell.content;
 		const catalog = this.#catalog;
@@ -80,7 +80,7 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 			const option = selectSplitterModel.appendChild(document.createElement("option"));
 			option.translate = false;
 			option.value = model.folder;
-			option.innerText = model.label;
+			option.innerText = developer ? model.label : model.name;
 		}
 		selectSplitterModel.value = settings.choice(catalog).folder;
 		selectSplitterModel.addEventListener("change", async (event) => {
@@ -124,7 +124,7 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 		const sectionAiSplitter = dialogConfigurator.getElement(HTMLElement, "section#ai-splitter");
 		this.#bindStatus(sectionAiSplitter);
 		this.#bindToggle(sectionAiSplitter);
-		this.#bindModel(sectionAiSplitter);
+		this.#bindModel(sectionAiSplitter, developer);
 		if (developer) this.#bindStems(sectionAiSplitter);
 		this.#apply();
 	}

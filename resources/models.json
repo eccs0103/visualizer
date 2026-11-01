@@ -2,12 +2,12 @@
 	"models": [
 		{
 			"folder": "data/stem-mask-listening",
-			"name": "Deep listening",
+			"name": "Vega t6",
 			"description": "Follows how every sound changes over time."
 		},
 		{
 			"folder": "data/stem-mask",
-			"name": "Standard",
+			"name": "Lyra c2",
 			"description": "The first model."
 		}
 	]
