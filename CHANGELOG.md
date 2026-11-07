@@ -1,3 +1,12 @@
+## 3.8.1 (07.11.2026)
+- Added nine **Blend mode** choices for every layer: dodge, burn, hard light, soft light, exclusion, hue, saturation, color and luminosity.
+- Added `WaveformAnalysis` (how hard the music drives right now: `level` and `hit`) and `Belt` (values carried along a path like a conveyor) to [visualization-tools](./studio/services/visualization-tools.ts) — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+- The stem models are renamed: **Deep listening** is now **Vega t6** and **Standard** is now **Lyra c2**. The model list shows only the name; its size is shown when the address ends with `?for=developers`.
+- **Vega t6** is retrained and now listens to a spectrum twice as fine, keeping full detail in the low frequencies.
+- Stem separation now adapts how much of the graphics card it takes: it updates more often while the page has room, and steps back when the picture starts dropping frames.
+- **Stems**: the threads now swell and thicken with loud, busy passages and pulse on each hit, the pulse travels along each thread as a smooth wave, and the glow is a soft blur around the threads.
+- Saved settings and the playlist move to their new storage place on the first visit and are kept.
+
 ## 3.8.0 (27.10.2026)
 - Added the **Stems** visualization, shown when the address ends with `?for=developers`.
 - The browser console now shows the address with `?for=developers` that opens the developer settings.
