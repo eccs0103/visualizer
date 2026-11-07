@@ -2,145 +2,47 @@
 
 import "adaptive-extender/node";
 import { type URI } from "adaptive-extender/node";
-import { type InputOption, type OutputOptions, type PreRenderedChunk, type RollupOptions } from "rollup";
-import { type AppType, type BuildEnvironmentOptions, type EnvironmentOptions, type ESBuildOptions, type PreviewOptions, type ServerOptions, type UserConfig } from "vite";
-import { VitePlugin } from "../plugins/vite-plugin.js";
-import { RootEntryDevPlugin } from "../plugins/root-entry-dev-plugin.js";
-import { type OutgoingHttpHeaders } from "node:http";
-import Path from "node:path";
+import { type RollupOptions } from "rollup";
+import { type BuildEnvironmentOptions, type ESBuildOptions, type UserConfig } from "vite";
+import { type VitePlugin } from "../plugins/vite-plugin.js";
 
 //#region Vite config
 export class ViteConfig {
-	#inputs: readonly URI[];
-	#rootEntries: readonly URI[];
-	#pathEntries: readonly URI[];
 	#output: URI;
 	#plugins: readonly VitePlugin[];
-	#headers: Readonly<OutgoingHttpHeaders>;
+	#target: string;
+	#transform: string;
 
-	constructor(inputs: readonly URI[], rootEntries: readonly URI[], pathEntries: readonly URI[], output: URI, plugins: readonly VitePlugin[], headers: Readonly<OutgoingHttpHeaders>) {
-		this.#inputs = inputs;
-		this.#rootEntries = rootEntries;
-		this.#pathEntries = pathEntries;
+	constructor(output: URI, plugins: readonly VitePlugin[], target: string, transform: string) {
+		if (new.target === ViteConfig) throw new TypeError("Unable to create an instance of an abstract class");
 		this.#output = output;
 		this.#plugins = plugins;
-		this.#headers = headers;
+		this.#target = target;
+		this.#transform = transform;
 	}
 
-	#normalizeInputs(): Record<string, string> {
-		const root = `${process.cwd().replace(/\\/g, "/")}/`;
-		const inputs: Record<string, string> = {};
-		for (const uri of this.#inputs) {
-			const input = uri.toPath();
-			const path = input.replace(/\\/g, "/");
-			let name = path.replace(root, String.empty);
-			name = name.replace(/\.[^/.]+$/, String.empty);
-			if (name === "index") name = "main";
-			if (name.endsWith("/index")) name = name.slice(0, -6);
-			inputs[name] = input;
-		}
-		return inputs;
+	static relative(entry: URI, root: string): string {
+		const path = entry.toPath().replace(/\\/g, "/");
+		return path.replace(root, String.empty).replace(/\.[^/.]+$/, String.empty);
 	}
 
-	#normalizeServiceWorkers(): Record<string, string> {
-		const entries: Record<string, string> = {};
-		for (const uri of this.#rootEntries) {
-			const path = uri.toPath();
-			const { name } = Path.parse(path);
-			entries[name] = path;
-		}
-		return entries;
-	}
-
-	#normalizeServiceWorkerDevEntries(): Map<string, string> {
-		const root = `${process.cwd().replace(/\\/g, "/")}/`;
-		const entries = new Map<string, string>();
-		for (const uri of this.#rootEntries) {
-			const path = uri.toPath().replace(/\\/g, "/");
-			const { name } = Path.parse(path);
-			const relative = path.replace(root, String.empty);
-			entries.set(`/${name}.js`, `/${relative}`);
-		}
-		return entries;
-	}
-
-	#normalizeRelativeDirects(): Record<string, string> {
-		const root = `${process.cwd().replace(/\\/g, "/")}/`;
-		const entries: Record<string, string> = {};
-		for (const uri of this.#pathEntries) {
-			const input = uri.toPath();
-			const path = input.replace(/\\/g, "/");
-			const name = path.replace(root, String.empty).replace(/\.[^/.]+$/, String.empty);
-			entries[name] = input;
-		}
-		return entries;
-	}
-
-	#entryFileNames(names: Set<string>, chunk: PreRenderedChunk): string {
-		if (names.has(chunk.name)) return "[name].js";
-		return "assets/[name]-[hash].js";
-	}
-
-	#buildOutput(names: Set<string>): OutputOptions {
-		const entryFileNames = this.#entryFileNames.bind(this, names);
-		return { entryFileNames };
-	}
-
-	#buildRollupOptions(): RollupOptions {
-		const inputs = this.#normalizeInputs();
-		const workers = this.#normalizeServiceWorkers();
-		const directs = this.#normalizeRelativeDirects();
-		const input: InputOption = { ...inputs, ...workers, ...directs };
-		const names = new Set([...Object.keys(workers), ...Object.keys(directs)]);
-		const output: OutputOptions = this.#buildOutput(names);
-		return { input, output };
-	}
-
-	#buildEnvironment(): BuildEnvironmentOptions {
+	buildEnvironment(rollupOptions: RollupOptions): BuildEnvironmentOptions {
 		const outDir: string = this.#output.toPath();
 		const emptyOutDir: boolean = true;
-		const target: string = "ES2025";
-		const rollupOptions: RollupOptions = this.#buildRollupOptions();
+		const target: string = this.#target;
 		return { outDir, emptyOutDir, target, rollupOptions };
 	}
 
-	#buildServer(): ServerOptions {
-		const strictPort: boolean = true;
-		const headers: Readonly<OutgoingHttpHeaders> = this.#headers;
-		const preTransformRequests: boolean = false;
-		return { strictPort, headers, preTransformRequests };
-	}
-
 	#buildESBuild(): ESBuildOptions {
-		const target: string = "ES2025";
+		const target: string = this.#transform;
 		const keepNames: boolean = true;
 		return { target, keepNames };
 	}
 
-	#buildWorker(): NonNullable<UserConfig["worker"]> {
-		const format = "es" as const;
-		return { format };
-	}
-
-	#buildPreview(): PreviewOptions {
-		const headers: Readonly<OutgoingHttpHeaders> = this.#headers;
-		return { headers };
-	}
-
 	build(): UserConfig {
-		const base: string = "./";
-		const appType: AppType = "mpa";
-		const publicDir: string = "resources";
-		const build: BuildEnvironmentOptions = this.#buildEnvironment();
-		const client: EnvironmentOptions = { build };
-		const environments: Record<string, EnvironmentOptions> = { client };
-		const server: ServerOptions = this.#buildServer();
-		const preview: PreviewOptions = this.#buildPreview();
 		const esbuild: ESBuildOptions = this.#buildESBuild();
-		const worker = this.#buildWorker();
-		const devPlugin = new RootEntryDevPlugin(this.#normalizeServiceWorkerDevEntries());
-		const plugins = [...this.#plugins, devPlugin].map(plugin => plugin.build());
-		return { base, appType, publicDir, environments, server, preview, esbuild, worker, plugins };
+		const plugins = this.#plugins.map(plugin => plugin.build());
+		return { esbuild, plugins };
 	}
 }
 //#endregion
