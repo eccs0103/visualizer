@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Timespan } from "adaptive-extender/web";
+import { Timespan, URI } from "adaptive-extender/web";
 import { Command, ChunkCommand, DoneCommand, FinishCommand } from "../models/commands.js";
 
 const { baseURI } = document;
@@ -57,7 +57,7 @@ class ClipSession {
 		"video/webm"
 	]);
 
-	#worker: Worker = new Worker(new URL("./controllers/clip-accumulator-worker.js", baseURI), { type: "module" });
+	#worker: Worker = new Worker(new URI("./controllers/clip-accumulator-worker.js", baseURI).href, { type: "module" });
 	#recorder: MediaRecorder;
 	#streamVideo: MediaStream;
 	#streamAudio: MediaStream;

@@ -1,6 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
+import { type URI } from "adaptive-extender/worker";
 import { StemNetwork } from "./stem-network.js";
 
 //#region Network slot
@@ -11,10 +12,10 @@ export class NetworkSlot {
 
 	get network(): StemNetwork | null { return this.#network; }
 
-	async load(url: string, shaders: string, bins: number, stems: number): Promise<StemNetwork | null> {
+	async load(model: Readonly<URI>, shaders: Readonly<URI>, bins: number, stems: number): Promise<StemNetwork | null> {
 		const ticket = ++this.#loads;
 		try {
-			const network = await StemNetwork.create(new URL(url), new URL(shaders), bins, stems);
+			const network = await StemNetwork.create(model, shaders, bins, stems);
 			if (ticket !== this.#loads) {
 				network.destroy();
 				return null;

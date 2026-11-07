@@ -4,7 +4,7 @@ import "adaptive-extender/web";
 import { UserProfile } from "../models/user-profile.js";
 import { SessionContext } from "../models/session-context.js";
 import { AnalyticsService } from "../services/analytics-service.js";
-import { Controller } from "adaptive-extender/web";
+import { Controller, URI } from "adaptive-extender/web";
 
 const analytics = AnalyticsService.instance;
 
@@ -109,7 +109,7 @@ export class ProfileCollector extends Controller {
 	#resolveDomain(urlReferrer: string): string {
 		if (urlReferrer === "direct") return "direct";
 		try {
-			return new URL(urlReferrer).hostname;
+			return new URI(urlReferrer).hostname;
 		} catch {
 			return "unknown";
 		}

@@ -4,7 +4,7 @@ import "adaptive-extender/web";
 import { OutboundClick } from "../models/outbound-click.js";
 import { TextCopy } from "../models/text-copy.js";
 import { AnalyticsService } from "../services/analytics-service.js";
-import { Controller } from "adaptive-extender/web";
+import { Controller, URI } from "adaptive-extender/web";
 
 const analytics = AnalyticsService.instance;
 
@@ -20,8 +20,10 @@ export class InteractionCollector extends Controller {
 		if (anchor === undefined) return;
 		const { href } = anchor;
 		if (String.isWhitespace(href) || anchor.target !== "_blank") return;
+		const uri = URI.tryParse(href);
+		if (uri === null) return;
 		const text = anchor.textContent.trim();
-		analytics.dispatch("outbound_click", new OutboundClick(href, text));
+		analytics.dispatch("outbound_click", new OutboundClick(uri, text));
 	}
 
 	#onCopy(event: ClipboardEvent): void {

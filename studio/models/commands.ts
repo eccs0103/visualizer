@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { Any, Deferred, Descendant, Field, Model, Nullable } from "adaptive-extender/worker";
+import { Any, Deferred, Descendant, Field, Model, Nullable, URI } from "adaptive-extender/worker";
 import { LayerSettings, BackgroundSettings } from "./layer-settings.js";
 import { StemGains } from "./stem.js";
 
@@ -54,12 +54,12 @@ export class InitializeMaskCommand extends Command {
 	@Field(Any.ByReference(SharedArrayBuffer))
 	sabMask: SharedArrayBuffer;
 
-	@Field(String)
-	urlShaders: string;
+	@Field(URI)
+	urlShaders: URI;
 
 	constructor();
-	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, urlShaders: string);
-	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, urlShaders?: string) {
+	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, urlShaders: URI);
+	constructor(sabSignal?: SharedArrayBuffer, sabMask?: SharedArrayBuffer, urlShaders?: URI) {
 		if (sabSignal === undefined || sabMask === undefined || urlShaders === undefined) {
 			super();
 			return;
@@ -83,12 +83,12 @@ export interface ModelMaskCommandScheme extends CommandScheme {
 }
 
 export class ModelMaskCommand extends Command {
-	@Field(Nullable.Of(String))
-	urlModel: string | null;
+	@Field(Nullable.Of(URI))
+	urlModel: URI | null;
 
 	constructor();
-	constructor(urlModel: string | null);
-	constructor(urlModel?: string | null) {
+	constructor(urlModel: URI | null);
+	constructor(urlModel?: URI | null) {
 		if (urlModel === undefined) {
 			super();
 			return;

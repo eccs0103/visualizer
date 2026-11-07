@@ -1,6 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
+import { URI } from "adaptive-extender/worker";
 import { StemArchitecture, StemWeights, type StemTensors, type StemGrid } from "../models/stem-weights.js";
 import { ConvolutionLayer, HeadLayer, PresenceLayer } from "../models/stem-layers.js";
 import { GpuGraph, type GpuActivation } from "./gpu-graph.js";
@@ -183,11 +184,11 @@ export class StemNetwork {
 		this.#result = new Float32Array(span * stems);
 	}
 
-	static async create(model: Readonly<URL>, shaders: Readonly<URL>, bins: number, stems: number): Promise<StemNetwork> {
+	static async create(model: Readonly<URI>, shaders: Readonly<URI>, bins: number, stems: number): Promise<StemNetwork> {
 		const device = await StemNetwork.#connect();
 		const weights = await StemNetwork.#manifest(model);
 		const tensors = await StemNetwork.#download(weights, model);
-		const [code, code2, code3] = await Promise.all([ConvolutionPass.file, HeadPass.file, PresencePass.file].map(file => StemNetwork.#text(new URL(file, shaders))));
+		const [code, code2, code3] = await Promise.all([ConvolutionPass.file, HeadPass.file, PresencePass.file].map(file => StemNetwork.#text(new URI(file, shaders))));
 		device.pushErrorScope("validation");
 		const [convolution, softmax, presence] = await Promise.all([ConvolutionPass.compile(device, code), HeadPass.compile(device, code2), PresencePass.compile(device, code3)]);
 		const topology = StemTopology.create(weights.architecture, device, convolution, softmax, presence, tensors, bins);
@@ -208,29 +209,29 @@ export class StemNetwork {
 		return await adapter.requestDevice({ requiredFeatures: features });
 	}
 
-	static async #manifest(model: Readonly<URL>): Promise<StemWeights> {
+	static async #manifest(model: Readonly<URI>): Promise<StemWeights> {
 		const response = await StemNetwork.#fetch(model);
 		return StemWeights.import(await response.json(), "model");
 	}
 
-	static async #download(weights: StemWeights, model: Readonly<URL>): Promise<StemTensors> {
-		const parts = await Promise.all(weights.paths.map(path => StemNetwork.#blob(new URL(path, model))));
+	static async #download(weights: StemWeights, model: Readonly<URI>): Promise<StemTensors> {
+		const parts = await Promise.all(weights.paths.map(path => StemNetwork.#blob(new URI(path, model))));
 		return weights.tensors(await new Blob(parts).arrayBuffer());
 	}
 
-	static async #fetch(url: Readonly<URL>): Promise<Response> {
-		const response = await fetch(url);
-		if (!response.ok) throw new ReferenceError(`Unable to load '${url}': ${response.status} ${response.statusText}`);
+	static async #fetch(uri: Readonly<URI>): Promise<Response> {
+		const response = await fetch(uri.href);
+		if (!response.ok) throw new ReferenceError(`Unable to load '${uri}': ${response.status} ${response.statusText}`);
 		return response;
 	}
 
-	static async #blob(url: Readonly<URL>): Promise<Blob> {
-		const response = await StemNetwork.#fetch(url);
+	static async #blob(uri: Readonly<URI>): Promise<Blob> {
+		const response = await StemNetwork.#fetch(uri);
 		return await response.blob();
 	}
 
-	static async #text(url: Readonly<URL>): Promise<string> {
-		const response = await StemNetwork.#fetch(url);
+	static async #text(uri: Readonly<URI>): Promise<string> {
+		const response = await StemNetwork.#fetch(uri);
 		return await response.text();
 	}
 

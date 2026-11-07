@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { Controller } from "adaptive-extender/worker";
+import { Controller, type URI } from "adaptive-extender/worker";
 import { SabLayout, Signal, MaskChannel } from "../models/audio-features.js";
 import { Command, InitializeMaskCommand, ModelMaskCommand, PaceMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
 import { type StemNetwork } from "../services/stem-network.js";
@@ -14,7 +14,7 @@ import { InferenceBudget, InferencePace } from "../services/inference-pace.js";
 class StemMaskWorker extends Controller {
 	#signal: Signal | null = null;
 	#masks: MaskChannel | null = null;
-	#shaders: string | null = null;
+	#shaders: URI | null = null;
 	#slot: NetworkSlot = new NetworkSlot();
 	#history: TapHistory | null = null;
 	#smoother: MaskSmoother = new MaskSmoother();
@@ -76,14 +76,14 @@ class StemMaskWorker extends Controller {
 		}
 	}
 
-	async #load(url: string): Promise<void> {
+	async #load(uri: URI): Promise<void> {
 		const slot = this.#slot;
 		try {
 			const shaders = this.#shaders;
 			if (shaders === null) throw new ReferenceError("The splitter has no shaders before it is initialized");
 			const masks = this.#masks;
 			if (masks === null) throw new ReferenceError("The splitter has no masks before it is initialized");
-			const network = await slot.load(url, shaders, SabLayout.bins, SabLayout.stems);
+			const network = await slot.load(uri, shaders, SabLayout.bins, SabLayout.stems);
 			if (network === null) return;
 			this.#pace = new InferencePace(this.#budget);
 			const { grid } = network;

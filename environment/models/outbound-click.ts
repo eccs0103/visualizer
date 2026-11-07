@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
-import { Field, Model } from "adaptive-extender/core";
+import { Field, Model, URI } from "adaptive-extender/core";
 
 //#region Outbound click
 export interface OutboundClickScheme {
@@ -10,15 +10,15 @@ export interface OutboundClickScheme {
 }
 
 export class OutboundClick extends Model {
-	@Field(String, { name: "link_url" })
-	url: string;
+	@Field(URI, { name: "link_url" })
+	url: URI;
 
 	@Field(String, { name: "link_text" })
 	text: string;
 
 	constructor();
-	constructor(url: string, text: string);
-	constructor(url?: string, text?: string) {
+	constructor(url: URI, text: string);
+	constructor(url?: URI, text?: string) {
 		if (url === undefined || text === undefined) {
 			super();
 			return;

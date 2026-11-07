@@ -1,6 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { URI } from "adaptive-extender/web";
 import { LrclibResult } from "../models/lrclib-result.js";
 import { Lyrics } from "../models/lyrics.js";
 import { type Track } from "../models/playlist.js";
@@ -47,9 +48,9 @@ export class LyricsFinder extends EventTarget {
 		if (Date.now() < LyricsFinder.#untilRetry) throw new Error("lrclib search is cooling down after a recent failure");
 
 		try {
-			const url = new URL("https://lrclib.net/api/search");
-			url.searchParams.set("q", signature);
-			const response = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) });
+			const uri = new URI("https://lrclib.net/api/search");
+			uri.searchParams.set("q", signature);
+			const response = await fetch(uri.href, { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) });
 			if (!response.ok) throw new Error(`lrclib search failed with status ${response.status}`);
 
 			const results = Array.Of<LrclibResult, unknown>(LrclibResult).import(await response.json(), "results");

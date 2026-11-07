@@ -1,24 +1,24 @@
 "use strict";
 
 import "adaptive-extender/node";
+import { type URI } from "adaptive-extender/node";
 import { type InputOption, type OutputOptions, type PreRenderedChunk, type RollupOptions } from "rollup";
 import { type AppType, type BuildEnvironmentOptions, type EnvironmentOptions, type ESBuildOptions, type PreviewOptions, type ServerOptions, type UserConfig } from "vite";
 import { VitePlugin } from "../plugins/vite-plugin.js";
 import { RootEntryDevPlugin } from "../plugins/root-entry-dev-plugin.js";
 import { type OutgoingHttpHeaders } from "node:http";
-import URLUtilities from "node:url";
 import Path from "node:path";
 
 //#region Vite config
 export class ViteConfig {
-	#inputs: readonly URL[];
-	#rootEntries: readonly URL[];
-	#pathEntries: readonly URL[];
-	#output: URL;
+	#inputs: readonly URI[];
+	#rootEntries: readonly URI[];
+	#pathEntries: readonly URI[];
+	#output: URI;
 	#plugins: readonly VitePlugin[];
 	#headers: Readonly<OutgoingHttpHeaders>;
 
-	constructor(inputs: readonly URL[], rootEntries: readonly URL[], pathEntries: readonly URL[], output: URL, plugins: readonly VitePlugin[], headers: Readonly<OutgoingHttpHeaders>) {
+	constructor(inputs: readonly URI[], rootEntries: readonly URI[], pathEntries: readonly URI[], output: URI, plugins: readonly VitePlugin[], headers: Readonly<OutgoingHttpHeaders>) {
 		this.#inputs = inputs;
 		this.#rootEntries = rootEntries;
 		this.#pathEntries = pathEntries;
@@ -30,8 +30,8 @@ export class ViteConfig {
 	#normalizeInputs(): Record<string, string> {
 		const root = `${process.cwd().replace(/\\/g, "/")}/`;
 		const inputs: Record<string, string> = {};
-		for (const url of this.#inputs) {
-			const input = URLUtilities.fileURLToPath(url);
+		for (const uri of this.#inputs) {
+			const input = uri.toPath();
 			const path = input.replace(/\\/g, "/");
 			let name = path.replace(root, String.empty);
 			name = name.replace(/\.[^/.]+$/, String.empty);
@@ -44,8 +44,8 @@ export class ViteConfig {
 
 	#normalizeServiceWorkers(): Record<string, string> {
 		const entries: Record<string, string> = {};
-		for (const url of this.#rootEntries) {
-			const path = URLUtilities.fileURLToPath(url);
+		for (const uri of this.#rootEntries) {
+			const path = uri.toPath();
 			const { name } = Path.parse(path);
 			entries[name] = path;
 		}
@@ -55,8 +55,8 @@ export class ViteConfig {
 	#normalizeServiceWorkerDevEntries(): Map<string, string> {
 		const root = `${process.cwd().replace(/\\/g, "/")}/`;
 		const entries = new Map<string, string>();
-		for (const url of this.#rootEntries) {
-			const path = URLUtilities.fileURLToPath(url).replace(/\\/g, "/");
+		for (const uri of this.#rootEntries) {
+			const path = uri.toPath().replace(/\\/g, "/");
 			const { name } = Path.parse(path);
 			const relative = path.replace(root, String.empty);
 			entries.set(`/${name}.js`, `/${relative}`);
@@ -67,8 +67,8 @@ export class ViteConfig {
 	#normalizeRelativeDirects(): Record<string, string> {
 		const root = `${process.cwd().replace(/\\/g, "/")}/`;
 		const entries: Record<string, string> = {};
-		for (const url of this.#pathEntries) {
-			const input = URLUtilities.fileURLToPath(url);
+		for (const uri of this.#pathEntries) {
+			const input = uri.toPath();
 			const path = input.replace(/\\/g, "/");
 			const name = path.replace(root, String.empty).replace(/\.[^/.]+$/, String.empty);
 			entries[name] = input;
@@ -97,7 +97,7 @@ export class ViteConfig {
 	}
 
 	#buildEnvironment(): BuildEnvironmentOptions {
-		const outDir: string = URLUtilities.fileURLToPath(this.#output);
+		const outDir: string = this.#output.toPath();
 		const emptyOutDir: boolean = true;
 		const target: string = "ES2025";
 		const rollupOptions: RollupOptions = this.#buildRollupOptions();

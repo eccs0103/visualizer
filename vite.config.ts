@@ -1,5 +1,7 @@
 "use strict";
 
+import "adaptive-extender/node";
+import { URI } from "adaptive-extender/node";
 import { defineConfig } from "vite";
 import { type OutgoingHttpHeaders } from "node:http";
 import { type ViteConfig } from "./environment/configs/vite-config.js";
@@ -8,19 +10,19 @@ import { CloudflareVitePlugin } from "./environment/plugins/cloudflare-vite-plug
 import { type VitePlugin } from "./environment/plugins/vite-plugin.js";
 
 export default defineConfig(async (env) => {
-	const root: URL = new URL(import.meta.url);
-	const inputs: URL[] = [
-		new URL("./studio/index.html", root)
+	const root: URI = new URI(import.meta.url);
+	const inputs: URI[] = [
+		new URI("./studio/index.html", root)
 	];
-	const rootEntries: URL[] = [
-		new URL("./environment/controllers/coi-worker.ts", root)
+	const rootEntries: URI[] = [
+		new URI("./environment/controllers/coi-worker.ts", root)
 	];
-	const pathEntries: URL[] = [
-		new URL("./studio/controllers/visualization-worker.ts", root),
-		new URL("./studio/controllers/stem-mask-worker.ts", root),
-		new URL("./studio/controllers/clip-accumulator-worker.ts", root),
+	const pathEntries: URI[] = [
+		new URI("./studio/controllers/visualization-worker.ts", root),
+		new URI("./studio/controllers/stem-mask-worker.ts", root),
+		new URI("./studio/controllers/clip-accumulator-worker.ts", root),
 	];
-	const output: URL = new URL("./dist/client", root);
+	const output: URI = new URI("./dist/client", root);
 	const plugins: VitePlugin[] = [new CloudflareVitePlugin()];
 	const headers: OutgoingHttpHeaders = {
 		["Cross-Origin-Opener-Policy"]: "same-origin",

@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { FastEngine, Color, WebEngine } from "adaptive-extender/web";
+import { FastEngine, Color, WebEngine, URI } from "adaptive-extender/web";
 import { AudiosetManager } from "./audioset-manager.js";
 import { Splitter } from "./splitter.js";
 import { Registry } from "./visualization-registry.js";
@@ -24,7 +24,7 @@ export class Visualizer extends EventTarget {
 	static #depth: number = 2;
 	static #renderers: RegExp = /SwiftShader|Basic Render/i;
 	#accelerated: boolean = Visualizer.#detect();
-	#worker: Worker = new Worker(new URL("./controllers/visualization-worker.js", baseURI), { type: "module" });
+	#worker: Worker = new Worker(new URI("./controllers/visualization-worker.js", baseURI).href, { type: "module" });
 	#engine: WebEngine = new FastEngine();
 	#visualization: string;
 	#posted: number = 0;

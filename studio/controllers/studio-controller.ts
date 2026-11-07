@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller, BufferedCell, MetadataInjector, type Store, type PortableStore } from "adaptive-extender/web";
+import { Controller, BufferedCell, MetadataInjector, URI, type Store, type PortableStore } from "adaptive-extender/web";
 import { Settings, LegacySettings } from "../models/settings.js";
 import { Playlist } from "../models/playlist.js";
 import { FileRow, TextRow } from "../models/rows.js";
@@ -33,8 +33,8 @@ class StudioController extends Controller {
 		MetadataInjector.inject({
 			type: "Application",
 			name: "Visualizer",
-			webpage: new URL("https://visualizer.eccs.dev/"),
-			preview: new URL("../icons/equalizer.png", baseURI),
+			webpage: new URI("https://visualizer.eccs.dev/"),
+			preview: new URI("../icons/equalizer.png", baseURI),
 			category: "MultimediaApplication",
 			os: "Web Browser",
 			description: "AI-powered real-time music visualizer for browsers. An AI splits every song into instruments (drums, bass, vocals, guitar, keys and the rest) so the visuals react to each one, Canvas 2D rendering, and a simple API for custom visualizations.",
@@ -42,11 +42,11 @@ class StudioController extends Controller {
 		});
 		void AnalyticsController.launch();
 
-		const url = new URL(location.href);
-		const developer = url.searchParams.get("for") === "developers";
+		const uri = new URI(location.href);
+		const developer = uri.searchParams.get("for") === "developers";
 		if (developer) await import("../view/visualizations/stems.js");
-		url.searchParams.set("for", "developers");
-		if (!developer) console.log(`Are you a developer? Try ${url} for developer settings!`);
+		uri.searchParams.set("for", "developers");
+		if (!developer) console.log(`Are you a developer? Try ${uri} for developer settings!`);
 		LegacyCell.migrate("Visualizer\\Studio\\Settings", "Visualizer\\Settings");
 		LegacyCell.migrate("Visualizer\\Studio\\Playlist", "Visualizer\\Playlist");
 		const cell: BufferedCell<typeof Settings> = localStorage.openBufferedCell("Visualizer\\Settings", Settings, new Settings());

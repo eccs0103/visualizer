@@ -1,6 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { URI } from "adaptive-extender/web";
 import { MaskChannel } from "../models/audio-features.js";
 import { Command, InitializeMaskCommand, ModelMaskCommand, PaceMaskCommand, StatusMaskCommand, TickCommand } from "../models/commands.js";
 import { SplitterCatalog, type SplitterModel } from "../models/splitter-catalog.js";
@@ -16,8 +17,8 @@ export interface SplitterEventMap {
 }
 
 export class Splitter extends EventTarget {
-	static #source: URL = new URL("../models.json", baseURI);
-	#worker: Worker = new Worker(new URL("./controllers/stem-mask-worker.js", baseURI), { type: "module" });
+	static #source: URI = new URI("../models.json", baseURI);
+	#worker: Worker = new Worker(new URI("./controllers/stem-mask-worker.js", baseURI).href, { type: "module" });
 	#masks: MaskChannel = MaskChannel.create();
 	#status: SplitterStatus = new OffStatus();
 	#model: SplitterModel | null = null;
@@ -27,7 +28,7 @@ export class Splitter extends EventTarget {
 		super();
 		const worker = this.#worker;
 		worker.addEventListener("message", event => this.#onMessage(event));
-		worker.postMessage(Command.export(new InitializeMaskCommand(sabSignal, this.#masks.sab, new URL("../shaders/", baseURI).toString())));
+		worker.postMessage(Command.export(new InitializeMaskCommand(sabSignal, this.#masks.sab, new URI("../shaders/", baseURI))));
 		this.#catalog = Splitter.#open();
 	}
 
@@ -53,7 +54,7 @@ export class Splitter extends EventTarget {
 		if (value === this.#model) return;
 		this.#model = value;
 		this.#mark(value === null ? new OffStatus() : new LoadingStatus());
-		this.#worker.postMessage(Command.export(new ModelMaskCommand(value === null ? null : Splitter.#manifest(value).toString())));
+		this.#worker.postMessage(Command.export(new ModelMaskCommand(value === null ? null : Splitter.#manifest(value))));
 	}
 
 	tick(): void {
@@ -64,13 +65,13 @@ export class Splitter extends EventTarget {
 		this.#worker.postMessage(Command.export(new PaceMaskCommand(frames.loss)));
 	}
 
-	static #manifest(model: SplitterModel): URL {
-		return new URL(`${model.folder}/model.json`, Splitter.#source);
+	static #manifest(model: SplitterModel): URI {
+		return new URI(`${model.folder}/model.json`, Splitter.#source);
 	}
 
-	static async #fetch(url: Readonly<URL>): Promise<unknown> {
-		const response = await fetch(url);
-		if (!response.ok) throw new ReferenceError(`Unable to load '${url}': ${response.status} ${response.statusText}`);
+	static async #fetch(uri: Readonly<URI>): Promise<unknown> {
+		const response = await fetch(uri.href);
+		if (!response.ok) throw new ReferenceError(`Unable to load '${uri}': ${response.status} ${response.statusText}`);
 		return await response.json();
 	}
 

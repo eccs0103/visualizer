@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Controller } from "adaptive-extender/web";
+import { Controller, URI } from "adaptive-extender/web";
 
 const { baseURI } = document;
 
@@ -12,8 +12,8 @@ export class CrossOriginIsolationController extends Controller {
 	async run(): Promise<void> {
 		if (crossOriginIsolated) return;
 		const { serviceWorker } = navigator;
-		const url = new URL("../coi-worker.js", baseURI);
-		await serviceWorker.register(url, { type: "module" });
+		const uri = new URI("../coi-worker.js", baseURI);
+		await serviceWorker.register(uri.href, { type: "module" });
 		await serviceWorker.ready;
 		location.reload();
 		await Promise.asTimeout(CrossOriginIsolationController.#maxDelay);

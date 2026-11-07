@@ -1,6 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
+import { URI } from "adaptive-extender/core";
 
 //#region Visitor cookies
 export class VisitorCookies {
@@ -51,7 +52,7 @@ export class VisitorCookies {
 	static #attributes(request: Request): string[] {
 		const scope = ["Path=/", "SameSite=Lax", "Secure"];
 		const site = VisitorCookies.#site;
-		const { hostname } = new URL(request.url);
+		const { hostname } = new URI(request.url);
 		if (hostname === site || hostname.endsWith(`.${site}`)) scope.push(`Domain=${site}`);
 		return scope;
 	}
