@@ -1,19 +1,23 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { SessionIdentity } from "../models/session-identity.js";
 import { CookieJar } from "../services/cookie-jar.js";
 
 //#region Session collector
 export class SessionCollector {
-	static #keyUser = "_uaf";
-	static #keySession = "_saf";
-
-	userFingerprint: string;
-	sessionFingerprint: string;
+	static #keyUser: string = "_uaf";
+	static #keySession: string = "_saf";
+	#userFingerprint: string;
+	#sessionFingerprint: string;
 
 	constructor() {
-		this.userFingerprint = SessionCollector.#loadUser();
-		this.sessionFingerprint = SessionCollector.#loadKey(sessionStorage, SessionCollector.#keySession);
+		this.#userFingerprint = SessionCollector.#loadUser();
+		this.#sessionFingerprint = SessionCollector.#loadKey(sessionStorage, SessionCollector.#keySession);
+	}
+
+	identity(): SessionIdentity {
+		return new SessionIdentity(this.#userFingerprint, this.#sessionFingerprint);
 	}
 
 	static #loadKey(storage: Storage, key: string): string {

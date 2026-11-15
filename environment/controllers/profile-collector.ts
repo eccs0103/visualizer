@@ -1,10 +1,10 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { Controller, Optional, URI } from "adaptive-extender/web";
 import { UserProfile } from "../models/user-profile.js";
 import { SessionContext } from "../models/session-context.js";
 import { AnalyticsService } from "../services/analytics-service.js";
-import { Controller, URI } from "adaptive-extender/web";
 
 const analytics = AnalyticsService.instance;
 
@@ -62,22 +62,17 @@ export class ProfileCollector extends Controller {
 		this.#dispatchSessionContext();
 	}
 
-	static #nonEmpty(text: string | undefined): string | undefined {
-		if (text === undefined) return undefined;
-		return text.insteadEmpty(undefined);
-	}
-
-	async #resolveHighEntropy(): Promise<UADataValues> {
+	async #resolveHighEntropy(): Promise<UADataValues | null> {
 		const { userAgentData } = navigator;
-		if (userAgentData === undefined) return {};
+		if (userAgentData === undefined) return null;
 		try {
 			return await userAgentData.getHighEntropyValues(["architecture"]);
 		} catch { /* fall through to UA string */ }
-		return {};
+		return null;
 	}
 
-	#resolveArchitecture(data: UADataValues): string {
-		const { architecture } = data;
+	#resolveArchitecture(data: UADataValues | null): string {
+		const architecture = data?.architecture;
 		if (architecture === undefined || String.isEmpty(architecture)) return this.#fallbackArchitecture();
 		return architecture;
 	}
@@ -108,11 +103,7 @@ export class ProfileCollector extends Controller {
 
 	#resolveDomain(urlReferrer: string): string {
 		if (urlReferrer === "direct") return "direct";
-		try {
-			return new URI(urlReferrer).hostname;
-		} catch {
-			return "unknown";
-		}
+		return URI.tryParse(urlReferrer)?.hostname ?? "unknown";
 	}
 
 	#resolveNavigation(): string {
@@ -122,14 +113,13 @@ export class ProfileCollector extends Controller {
 	}
 
 	#dispatchSessionContext(): void {
-		const rawReferrer = document.referrer;
-		const urlReferrer = rawReferrer.insteadEmpty("direct");
+		const urlReferrer = document.referrer.insteadEmpty("direct");
 		const domainReferrer = this.#resolveDomain(urlReferrer);
 		const languages = navigator.languages.join(",");
 		const typeNavigation = this.#resolveNavigation();
 		const { connection } = navigator;
-		const typeConnection = ProfileCollector.#nonEmpty(connection?.type);
-		const effectiveConnection = ProfileCollector.#nonEmpty(connection?.effectiveType);
+		const typeConnection = Optional.map(connection?.type, type => type.insteadEmpty(undefined));
+		const effectiveConnection = Optional.map(connection?.effectiveType, type => type.insteadEmpty(undefined));
 		const downlink = connection?.downlink;
 		const roundTripTimeMs = connection?.rtt;
 		const dataSaver = connection?.saveData;

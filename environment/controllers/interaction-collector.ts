@@ -1,10 +1,10 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { Controller, URI } from "adaptive-extender/web";
 import { OutboundClick } from "../models/outbound-click.js";
 import { TextCopy } from "../models/text-copy.js";
 import { AnalyticsService } from "../services/analytics-service.js";
-import { Controller, URI } from "adaptive-extender/web";
 
 const analytics = AnalyticsService.instance;
 

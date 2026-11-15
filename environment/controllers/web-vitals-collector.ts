@@ -1,9 +1,9 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { Controller } from "adaptive-extender/web";
 import { PerformanceContext } from "../models/performance-context.js";
 import { AnalyticsService } from "../services/analytics-service.js";
-import { Controller } from "adaptive-extender/web";
 
 const { round } = Math;
 const analytics = AnalyticsService.instance;
@@ -21,18 +21,18 @@ declare global {
 }
 
 export class WebVitalsCollector extends Controller {
-	#fcpMs?: number;
-	#lcpMs?: number;
-	#ttfbMs?: number;
-	#clsTotal = 0;
-	#inpWorstMs = 0;
-	#longTasks = 0;
+	#fcpMs: number | undefined = undefined;
+	#lcpMs: number | undefined = undefined;
+	#ttfbMs: number | undefined = undefined;
+	#clsTotal: number = 0;
+	#inpWorstMs: number = 0;
+	#longTasks: number = 0;
 	#abort: AbortController = new AbortController();
 
 	async run(): Promise<void> {
-		const [navEntry] = performance.getEntriesByType("navigation");
-		if (navEntry instanceof PerformanceNavigationTiming) {
-			const ttfb = round(navEntry.responseStart);
+		const [navigation] = performance.getEntriesByType("navigation");
+		if (navigation instanceof PerformanceNavigationTiming) {
+			const ttfb = round(navigation.responseStart);
 			if (ttfb > 0) this.#ttfbMs = ttfb;
 		}
 

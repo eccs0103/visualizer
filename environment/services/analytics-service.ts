@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { type Model } from "adaptive-extender/web";
+import { Model } from "adaptive-extender/web";
 import { SessionCollector } from "../controllers/session-collector.js";
 import { SessionIdentity } from "../models/session-identity.js";
 import { TrafficContext } from "../models/traffic-context.js";
@@ -29,13 +29,12 @@ export class AnalyticsService {
 	constructor(id: string) {
 		if (AnalyticsService.#lock) throw new TypeError("Illegal constructor");
 
-		const session = this.#session;
-		const identity = new SessionIdentity(session.userFingerprint, session.sessionFingerprint);
+		const identity = this.#session.identity();
 		const exported = SessionIdentity.export(identity);
 		window.gtag("js", new Date());
 		window.gtag("config", id, exported);
 		window.gtag("set", exported);
-		window.gtag("set", TrafficContext.export(new TrafficContext(AnalyticsService.#resolveTraffic(), AnalyticsService.#resolveNetwork())));
+		window.gtag("set", TrafficContext.export(AnalyticsService.#traffic()));
 
 		const script = document.createElement("script");
 		script.async = true;
@@ -52,6 +51,9 @@ export class AnalyticsService {
 		}
 		return AnalyticsService.#instance;
 	}
+	static #traffic(): TrafficContext {
+		return new TrafficContext(AnalyticsService.#resolveTraffic(), AnalyticsService.#resolveNetwork());
+	}
 
 	static #resolveTraffic(): string | undefined {
 		if (location.hostname !== "localhost") return undefined;
@@ -63,9 +65,8 @@ export class AnalyticsService {
 	}
 
 	#event(name: string, params: object): void {
-		const session = this.#session;
-		const identity = new SessionIdentity(session.userFingerprint, session.sessionFingerprint);
-		const traffic = new TrafficContext(AnalyticsService.#resolveTraffic(), AnalyticsService.#resolveNetwork());
+		const identity = this.#session.identity();
+		const traffic = AnalyticsService.#traffic();
 		window.gtag("event", name, Object.assign(SessionIdentity.export(identity), TrafficContext.export(traffic), params));
 	}
 
@@ -73,11 +74,11 @@ export class AnalyticsService {
 	dispatch(name: string, instance: Model): void;
 	dispatch(name: string, instance?: Model): void {
 		if (instance === undefined) return this.#event(name, {});
-		return this.#event(name, (constructor(instance) as typeof Model).export(instance));
+		return this.#event(name, Model.export.call(constructor(instance), instance));
 	}
 
 	setProperties(instance: Model): void {
-		window.gtag("set", "user_properties", (constructor(instance) as typeof Model).export(instance));
+		window.gtag("set", "user_properties", Model.export.call(constructor(instance), instance));
 	}
 }
 //#endregion

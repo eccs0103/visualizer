@@ -1,9 +1,9 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { Controller } from "adaptive-extender/web";
 import { JavaScriptError } from "../models/javascript-error.js";
 import { AnalyticsService } from "../services/analytics-service.js";
-import { Controller } from "adaptive-extender/web";
 
 const analytics = AnalyticsService.instance;
 

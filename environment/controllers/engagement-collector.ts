@@ -1,17 +1,17 @@
 "use strict";
 
 import "adaptive-extender/web";
+import { Controller } from "adaptive-extender/web";
 import { PageLeave } from "../models/page-leave.js";
 import { AnalyticsService } from "../services/analytics-service.js";
-import { Controller } from "adaptive-extender/web";
 
 const { round, min } = Math;
 const analytics = AnalyticsService.instance;
 
 //#region Engagement collector
 export class EngagementCollector extends Controller {
-	#maxScrollPercent = 0;
-	#totalVisibleMilliseconds = 0;
+	#maxScrollPercent: number = 0;
+	#totalVisibleMilliseconds: number = 0;
 	#sinceVisible: number | null = null;
 
 	async run(): Promise<void> {
