@@ -343,6 +343,17 @@ span {
 	height: 1em !important;
 }
 
+span.icon.in-line {
+	flex-shrink: 0;
+	width: 1em !important;
+	position: relative;
+	inset-block-start: calc(0.5em - 0.5cap);
+}
+
+:has(> span.icon.in-line) {
+	align-items: baseline;
+}
+
 .font-smaller-5 {
 	font-size: 0.45em;
 }

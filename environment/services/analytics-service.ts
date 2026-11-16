@@ -1,7 +1,7 @@
 "use strict";
 
 import "adaptive-extender/web";
-import { Model } from "adaptive-extender/web";
+import { Model, URI } from "adaptive-extender/web";
 import { SessionCollector } from "../controllers/session-collector.js";
 import { SessionIdentity } from "../models/session-identity.js";
 import { TrafficContext } from "../models/traffic-context.js";
@@ -39,7 +39,9 @@ export class AnalyticsService {
 		const script = document.createElement("script");
 		script.async = true;
 		script.crossOrigin = "anonymous";
-		script.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
+		const source = new URI("https://www.googletagmanager.com/gtag/js");
+		source.searchParams.set("id", id);
+		script.src = source.href;
 		document.head.appendChild(script);
 	}
 
