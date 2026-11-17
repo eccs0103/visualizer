@@ -36,8 +36,7 @@ export class VisitorCookies {
 
 	static #identify(request: Request): string {
 		const existing = VisitorCookies.read(request, VisitorCookies.#keyUser);
-		if (existing === null) return crypto.randomUUID();
-		if (!VisitorCookies.#pattern.test(existing)) return crypto.randomUUID();
+		if (existing === null || !VisitorCookies.#pattern.test(existing)) return crypto.randomUUID();
 		return existing;
 	}
 
