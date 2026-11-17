@@ -21,11 +21,11 @@ declare global {
 }
 
 export class WebVitalsCollector extends Controller {
-	#fcpMs: number | undefined = undefined;
-	#lcpMs: number | undefined = undefined;
-	#ttfbMs: number | undefined = undefined;
+	#fcp: number | undefined = undefined;
+	#lcp: number | undefined = undefined;
+	#ttfb: number | undefined = undefined;
 	#clsTotal: number = 0;
-	#inpWorstMs: number = 0;
+	#inpWorst: number = 0;
 	#longTasks: number = 0;
 	#abort: AbortController = new AbortController();
 
@@ -33,7 +33,7 @@ export class WebVitalsCollector extends Controller {
 		const [navigation] = performance.getEntriesByType("navigation");
 		if (navigation instanceof PerformanceNavigationTiming) {
 			const ttfb = round(navigation.responseStart);
-			if (ttfb > 0) this.#ttfbMs = ttfb;
+			if (ttfb > 0) this.#ttfb = ttfb;
 		}
 
 		this.#observeFcp();
@@ -53,13 +53,13 @@ export class WebVitalsCollector extends Controller {
 
 	#onHidden(event: Event): void {
 		if (document.visibilityState !== "hidden") return;
-		const fcpMs = this.#fcpMs;
-		const lcpMs = this.#lcpMs;
-		const ttfbMs = this.#ttfbMs;
-		const clsScore = WebVitalsCollector.#measure(this.#clsTotal, 1000);
-		const inpMs = WebVitalsCollector.#measure(this.#inpWorstMs, 1);
+		const fcp = this.#fcp;
+		const lcp = this.#lcp;
+		const ttfb = this.#ttfb;
+		const cls = WebVitalsCollector.#measure(this.#clsTotal, 1000);
+		const inp = WebVitalsCollector.#measure(this.#inpWorst, 1);
 		const longTasks = WebVitalsCollector.#measure(this.#longTasks, 1);
-		analytics.dispatch("performance_context", new PerformanceContext(fcpMs, lcpMs, ttfbMs, clsScore, inpMs, longTasks));
+		analytics.dispatch("performance_context", new PerformanceContext(fcp, lcp, ttfb, cls, inp, longTasks));
 		this.#abort.abort();
 	}
 
@@ -71,7 +71,7 @@ export class WebVitalsCollector extends Controller {
 		const observer = new PerformanceObserver((list) => {
 			for (const entry of list.getEntries()) {
 				if (entry.name !== "first-contentful-paint") continue;
-				this.#fcpMs = round(entry.startTime);
+				this.#fcp = round(entry.startTime);
 			}
 			observer.disconnect();
 		});
@@ -82,7 +82,7 @@ export class WebVitalsCollector extends Controller {
 		const observer = new PerformanceObserver((list) => {
 			for (const entry of list.getEntries()) {
 				if (!(entry instanceof LargestContentfulPaint)) continue;
-				this.#lcpMs = round(entry.renderTime || entry.loadTime);
+				this.#lcp = round(entry.renderTime || entry.loadTime);
 			}
 		});
 		observer.observe({ type: "largest-contentful-paint", buffered: true });
@@ -105,7 +105,7 @@ export class WebVitalsCollector extends Controller {
 				for (const entry of list.getEntries()) {
 					if (!(entry instanceof PerformanceEventTiming)) continue;
 					const duration = round(entry.duration);
-					if (duration > this.#inpWorstMs) this.#inpWorstMs = duration;
+					if (duration > this.#inpWorst) this.#inpWorst = duration;
 				}
 			});
 			observer.observe({ type: "event", buffered: true, durationThreshold: 40 });

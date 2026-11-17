@@ -12,11 +12,11 @@ export class MPAConfig extends WebConfig {
 	static #lock: boolean = true;
 
 	constructor(inputs: readonly URI[], rootEntries: readonly URI[], pathEntries: readonly URI[], output: URI, plugins: readonly VitePlugin[], headers: Readonly<OutgoingHttpHeaders>) {
-		super(MPAConfig.#normalizeInputs(inputs), "mpa", rootEntries, pathEntries, output, plugins, headers);
+		super(MPAConfig.#inputs(inputs), "mpa", rootEntries, pathEntries, output, plugins, headers);
 		if (MPAConfig.#lock) throw new TypeError("Illegal constructor");
 	}
 
-	static #normalizeInputs(inputs: readonly URI[]): Record<string, string> {
+	static #inputs(inputs: readonly URI[]): Record<string, string> {
 		const { root } = WebConfig;
 		const pages: Record<string, string> = {};
 		for (const uri of inputs) {
