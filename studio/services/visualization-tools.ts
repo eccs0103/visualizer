@@ -139,8 +139,8 @@ export class SpectrumAnalysis {
 	#fluxCursor: number = 0;
 	#lastBeat: number = -Infinity;
 	#bins: [number, number][] | null = null;
-	#cachedLength: number = 0;
-	#cachedSampleRate: number = 0;
+	#length: number = 0;
+	#sampleRate: number = 0;
 	#time: number | null = null;
 	#values: Float32Array = new Float32Array(12);
 	#mean: number = 0;
@@ -184,9 +184,9 @@ export class SpectrumAnalysis {
 
 	#obtainBins(length: number, sampleRate: number): [number, number][] {
 		const bins = this.#bins;
-		if (bins !== null && length === this.#cachedLength && sampleRate === this.#cachedSampleRate) return bins;
-		this.#cachedLength = length;
-		this.#cachedSampleRate = sampleRate;
+		if (bins !== null && length === this.#length && sampleRate === this.#sampleRate) return bins;
+		this.#length = length;
+		this.#sampleRate = sampleRate;
 		return this.#bins = this.#computeBins(length, sampleRate);
 	}
 

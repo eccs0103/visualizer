@@ -6,10 +6,7 @@ import { FileRow, TextRow } from "../models/rows.js";
 import { type PlaylistPlayer } from "./playlist-player.js";
 
 //#region Legacy backgrounds
-/**
- * Moves the background images out of the separate `Visualizer\Backgrounds` database into the `Backgrounds` table of the `Visualizer` database.
- * @deprecated Migration only. Remove once no browser keeps the old database.
- */
+/** @deprecated Migration only. Remove once no browser keeps the old database. */
 export class LegacyBackgrounds {
 	static #database: string = "Visualizer\\Backgrounds";
 	static #table: string = "Images";
@@ -46,10 +43,7 @@ export class LegacyBackgrounds {
 }
 //#endregion
 //#region Legacy audio
-/**
- * Imports the single track of the one-track era, kept in the `Audiolist` table under the number key `0`, into the playlist.
- * @deprecated Migration only. Remove once no browser keeps a track under the key `0`.
- */
+/** @deprecated Migration only. Remove once no browser keeps a track under the key `0`. */
 export class LegacyAudio {
 	static #key: number = 0;
 
@@ -63,10 +57,7 @@ export class LegacyAudio {
 }
 //#endregion
 //#region Legacy lyrics
-/**
- * Moves the lyrics out of the `Audiolist` table, where they were kept under `<track id>.lrc`, into the `Lyrics` table under the track id.
- * @deprecated Migration only. Remove once no browser keeps lyrics in the `Audiolist` table.
- */
+/** @deprecated Migration only. Remove once no browser keeps lyrics in the `Audiolist` table. */
 export class LegacyLyrics {
 	static #suffix: string = ".lrc";
 
@@ -88,10 +79,7 @@ export class LegacyLyrics {
 }
 //#endregion
 //#region Legacy bare files
-/**
- * Wraps the files that the `Audiolist` and `Backgrounds` tables kept as bare values under their keys into rows.
- * @deprecated Migration only. Remove once no browser keeps a bare file in these tables.
- */
+/** @deprecated Migration only. Remove once no browser keeps a bare file in these tables. */
 export class LegacyBareFiles {
 	static async migrate(source: Store<string>, target: PortableStore<typeof FileRow, "id">): Promise<void> {
 		const rows: FileRow[] = [];
@@ -105,10 +93,7 @@ export class LegacyBareFiles {
 }
 //#endregion
 //#region Legacy cell
-/**
- * Moves a localStorage value from an old key to its two-part key. Call it before the new cell opens.
- * @deprecated Migration only. Remove once no browser keeps the old key.
- */
+/** @deprecated Migration only. Remove once no browser keeps the old key. */
 export class LegacyCell {
 	static migrate(source: string, target: string): void {
 		const text = localStorage.getItem(source);
@@ -119,10 +104,7 @@ export class LegacyCell {
 }
 //#endregion
 //#region Legacy bare texts
-/**
- * Wraps the lyrics that the `Lyrics` table kept as bare values under the track id into rows.
- * @deprecated Migration only. Remove once no browser keeps a bare text in the `Lyrics` table.
- */
+/** @deprecated Migration only. Remove once no browser keeps a bare text in the `Lyrics` table. */
 export class LegacyBareTexts {
 	static async migrate(source: Store<string>, target: PortableStore<typeof TextRow, "id">): Promise<void> {
 		const rows: TextRow[] = [];

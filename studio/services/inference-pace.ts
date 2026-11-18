@@ -45,15 +45,16 @@ export class InferenceBudget {
 		const pending = this.#pending;
 		if (pending !== null) return this.#confirm(loss, pending);
 		const proof = InferenceBudget.#proof;
+		const history = InferenceBudget.#history;
 		const losses = this.#losses;
 		losses.push(loss);
-		if (losses.length > InferenceBudget.#history) losses.shift();
+		if (losses.length > history) losses.shift();
 		if (this.#waiting > 0) {
 			this.#waiting--;
 			return;
 		}
 		if (loss < proof) this.#others = max(this.#others - InferenceBudget.#climb, 0);
-		if (losses.length < InferenceBudget.#history || share === null) return;
+		if (losses.length < history || share === null) return;
 		const before = InferenceBudget.#median(losses);
 		if (before < proof) return;
 		this.#cut = 1 - share;
@@ -137,7 +138,7 @@ export class InferencePace {
 	}
 
 	finish(spent: number, now: number): boolean {
-		if (this.#started === null) throw new ReferenceError("No inference was started");
+		ReferenceError.suppress(this.#started, "No inference was started");
 		const cost = this.#cost;
 		this.#cost = cost === null ? spent : cost + (spent - cost) * InferencePace.#learning;
 		this.#spent += spent;

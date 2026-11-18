@@ -81,8 +81,7 @@ export class PlaylistPlayer extends EventTarget {
 			return;
 		}
 
-		const row = await this.#store.select(track.id);
-		if (row === null) throw new ReferenceError(`Missing audio data for track '${track.signature}'`);
+		const row = ReferenceError.suppress(await this.#store.select(track.id), `Missing audio data for track '${track.signature}'`);
 		const url = URL.createObjectURL(row.file);
 		await Promise.withSignal((signal, resolve, reject) => {
 			audioPlayer.addEventListener("canplay", event => resolve(), { signal });
@@ -141,7 +140,6 @@ export class PlaylistPlayer extends EventTarget {
 		const row = await this.#lyrics.select(track.id);
 		if (row === null) return null;
 		const { text } = row;
-		// ponytail: repairs the lyrics badge for rows written before the flag existed, or poisoned by a past failed lookup
 		const hasLyrics = !String.isEmpty(text);
 		if (track.lyrics !== hasLyrics) {
 			track.lyrics = hasLyrics;

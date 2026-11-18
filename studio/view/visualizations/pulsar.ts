@@ -16,7 +16,7 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 
 	#radius: number;
 	#stopsHalo: string[] = [];
-	#gradientHalo: CanvasGradient | null = null;
+	#haloGradient: CanvasGradient | null = null;
 	#pathHalo: Path2D = new Path2D();
 	#pathWave: Path2D = new Path2D();
 	#drift: HueDrift = new HueDrift(Color.fromHSL(0, 100, 60), 360 / 6);
@@ -97,7 +97,7 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 		const hueBias = this.#centroid.level.lerp(0, 1, -30, 30);
 		const normIllumination = meanGeometric(volume.lerp(0, 1, 0.1, 1.0), bassLevel.clamp(0, 0.6).lerp(0, 0.6, 0.5, 1.0));
 
-		this.#gradientHalo = null;
+		this.#haloGradient = null;
 		stops.length = 0;
 		const { hue } = colorHaloOuter;
 		const colorStop = new Color(colorHaloOuter).illuminate(normIllumination);
@@ -145,16 +145,16 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 	}
 	//#endregion
 	//#region Layers
-	#obtainGradientHalo(context: OffscreenCanvasRenderingContext2D): CanvasGradient {
-		const shared = this.#gradientHalo;
+	#obtainHaloGradient(context: OffscreenCanvasRenderingContext2D): CanvasGradient {
+		const shared = this.#haloGradient;
 		if (shared !== null) return shared;
 		const stops = this.#stopsHalo;
 		const { length } = stops;
 
-		const gradientHalo = this.#gradientHalo = context.createConicGradient(PI / 2, 0, 0);
-		for (let index = 0; index < length; index++) gradientHalo.addColorStop(index.lerp(0, length), stops[index]);
-		gradientHalo.addColorStop(1, stops[0]);
-		return gradientHalo;
+		const haloGradient = this.#haloGradient = context.createConicGradient(PI / 2, 0, 0);
+		for (let index = 0; index < length; index++) haloGradient.addColorStop(index.lerp(0, length), stops[index]);
+		haloGradient.addColorStop(1, stops[0]);
+		return haloGradient;
 	}
 
 	#drawHalo(host: Host): void {
@@ -166,7 +166,7 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 		context.lineWidth = radius >> 7;
 		context.fillStyle = colorShadow.toString();
 		context.fill(pathHalo);
-		context.strokeStyle = this.#obtainGradientHalo(context);
+		context.strokeStyle = this.#obtainHaloGradient(context);
 		const blurHalo = trunc(this.#bassLevel.level.lerp(0, 1, radius >> 6, radius >> 3) / 2);
 		if (blurHalo >= 1) {
 			context.filter = `blur(${blurHalo}px)`;
@@ -183,10 +183,10 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 
 		context.lineWidth = radius >> 7;
 		context.clip(this.#pathHalo);
-		const gradientHalo = this.#obtainGradientHalo(context);
-		context.fillStyle = gradientHalo;
+		const haloGradient = this.#obtainHaloGradient(context);
+		context.fillStyle = haloGradient;
 		context.fill(pathWave);
-		context.strokeStyle = gradientHalo;
+		context.strokeStyle = haloGradient;
 		context.stroke(pathWave);
 	}
 
@@ -195,12 +195,12 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 		const colorShadow = this.#colorShadow;
 		const { context } = host;
 
-		const gradientShadow = context.createRadialGradient(0, 0, 0, 0, 0, radius);
+		const shadowGradient = context.createRadialGradient(0, 0, 0, 0, 0, radius);
 		const colorStop = new Color(colorShadow);
-		gradientShadow.addColorStop(0, colorStop.pass(1).toString());
-		gradientShadow.addColorStop(0.5, colorStop.pass(SQRT1_2).toString());
-		gradientShadow.addColorStop(1, colorStop.pass(0).toString());
-		context.fillStyle = gradientShadow;
+		shadowGradient.addColorStop(0, colorStop.pass(1).toString());
+		shadowGradient.addColorStop(0.5, colorStop.pass(SQRT1_2).toString());
+		shadowGradient.addColorStop(1, colorStop.pass(0).toString());
+		context.fillStyle = shadowGradient;
 		context.fill(this.#pathWave);
 	}
 	//#endregion

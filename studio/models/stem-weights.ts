@@ -38,8 +38,7 @@ export class StemTensors {
 	}
 
 	take(name: string): StemTensor {
-		const tensor = this.#tensors.get(name);
-		if (tensor === undefined) throw new ReferenceError(`The model has no weight '${name}' the network needs`);
+		const tensor = ReferenceError.suppress(this.#tensors.get(name), `The model has no weight '${name}' the network needs`);
 		this.#taken.add(name);
 		return tensor;
 	}

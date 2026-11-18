@@ -161,15 +161,15 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 		const { context } = host;
 		const { width } = context.canvas;
 
-		const gradientRidge = context.createLinearGradient(-width / 2, 0, width / 2, 0);
+		const ridgeGradient = context.createLinearGradient(-width / 2, 0, width / 2, 0);
 		const { hue } = colorRidgeSeed;
 		const colorStop = new Color(colorRidgeSeed).illuminate(normLightness);
 		for (let index = 0; index <= countStops; index++) {
 			const normProgress = index.lerp(0, countStops);
 			colorStop.hue = hue + (hueSpread * normProgress + hueBias);
-			gradientRidge.addColorStop(normProgress, colorStop.toString());
+			ridgeGradient.addColorStop(normProgress, colorStop.toString());
 		}
-		context.fillStyle = gradientRidge;
+		context.fillStyle = ridgeGradient;
 		const blurRidge = trunc(this.#bassLevel.level.lerp(0, 1, lineWidth * 2, lineWidth * 10) / 2);
 		if (blurRidge >= 1) {
 			context.filter = `blur(${blurRidge}px)`;
@@ -186,10 +186,10 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 		const bloomEnergy = meanGeometric(this.#subBass.level, bass.clamp(0, 0.8).lerp(0, 0.8, 0, 1));
 		const radius = this.#side * bloomEnergy.lerp(0, 1, 0.05, 0.22);
 
-		const gradientBloom = context.createRadialGradient(0, 0, 0, 0, 0, radius);
-		gradientBloom.addColorStop(0, new Color(colorRidgeMid).pass(this.#bassLevel.level.lerp(0, 1, 0.15, 0.45)).toString());
-		gradientBloom.addColorStop(1, new Color(colorRidgeMid).pass(0).toString());
-		context.fillStyle = gradientBloom;
+		const bloomGradient = context.createRadialGradient(0, 0, 0, 0, 0, radius);
+		bloomGradient.addColorStop(0, new Color(colorRidgeMid).pass(this.#bassLevel.level.lerp(0, 1, 0.15, 0.45)).toString());
+		bloomGradient.addColorStop(1, new Color(colorRidgeMid).pass(0).toString());
+		context.fillStyle = bloomGradient;
 		context.beginPath();
 		context.arc(0, 0, radius, 0, 2 * PI);
 		context.fill();
@@ -229,11 +229,11 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 		const { width, height } = context.canvas;
 
 		context.resetTransform();
-		const gradientVignette = context.createLinearGradient(0, 0, 0, height);
-		gradientVignette.addColorStop(0, colorShadow.pass(0.45).toString());
-		gradientVignette.addColorStop(0.5, colorShadow.pass(0).toString());
-		gradientVignette.addColorStop(1, colorShadow.pass(0.45).toString());
-		context.fillStyle = gradientVignette;
+		const vignetteGradient = context.createLinearGradient(0, 0, 0, height);
+		vignetteGradient.addColorStop(0, colorShadow.pass(0.45).toString());
+		vignetteGradient.addColorStop(0.5, colorShadow.pass(0).toString());
+		vignetteGradient.addColorStop(1, colorShadow.pass(0.45).toString());
+		context.fillStyle = vignetteGradient;
 		context.fillRect(0, 0, width, height);
 	}
 	//#endregion

@@ -136,8 +136,7 @@ export class Settings extends Model {
 	}
 
 	choice(catalog: SplitterCatalog): SplitterModel {
-		const { model } = this;
-		if (model === undefined) throw new ReferenceError("The splitter model is chosen only after the settings are reconciled");
+		const model = ReferenceError.suppress(this.model, "The splitter model is chosen only after the settings are reconciled");
 		return ReferenceError.suppress(catalog.find(model), `The splitter catalog has no '${model}' model`);
 	}
 }
@@ -147,10 +146,7 @@ export interface LegacySettingsScheme {
 	playlist: PlaylistScheme | undefined;
 }
 
-/**
- * Reads the playlist that the settings cell held before the playlist got its own cell.
- * @deprecated Migration only. Remove once no stored settings cell carries a playlist.
- */
+/** @deprecated Migration only. Remove once no stored settings cell carries a playlist. */
 export class LegacySettings extends Model {
 	@Field(Optional.Of(Playlist), { name: "playlist" })
 	playlist: Playlist | undefined = undefined;

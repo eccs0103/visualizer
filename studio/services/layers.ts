@@ -20,7 +20,7 @@ export abstract class Layer {
 
 	constructor(name: string, options: Partial<LayerOptions> = {}) {
 		if (new.target === Layer) throw new TypeError("Unable to create an instance of an abstract class");
-		if (name.length === 0) throw new TypeError("Layer name must not be empty");
+		if (String.isEmpty(name)) throw new TypeError("Layer name must not be empty");
 		const { opacity = 1, blend = Blend.normal } = options;
 		if (!Object.values(Blend).includes(blend)) throw new TypeError(`Layer '${name}' has an unknown blend '${blend}'`);
 		this.#name = name;

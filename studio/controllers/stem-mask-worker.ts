@@ -79,10 +79,8 @@ class StemMaskWorker extends Controller {
 	async #load(uri: URI): Promise<void> {
 		const slot = this.#slot;
 		try {
-			const shaders = this.#shaders;
-			if (shaders === null) throw new ReferenceError("The splitter has no shaders before it is initialized");
-			const masks = this.#masks;
-			if (masks === null) throw new ReferenceError("The splitter has no masks before it is initialized");
+			const shaders = ReferenceError.suppress(this.#shaders, "The splitter has no shaders before it is initialized");
+			const masks = ReferenceError.suppress(this.#masks, "The splitter has no masks before it is initialized");
 			const network = await slot.load(uri, shaders, SabLayout.bins, SabLayout.stems);
 			if (network === null) return;
 			this.#pace = new InferencePace(this.#budget);

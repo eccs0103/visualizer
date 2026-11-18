@@ -201,10 +201,8 @@ export class StemNetwork {
 	}
 
 	static async #connect(): Promise<GPUDevice> {
-		const { gpu } = navigator;
-		if (gpu === undefined) throw new ReferenceError("This browser can't run the AI.");
-		const adapter = await gpu.requestAdapter();
-		if (adapter === null) throw new ReferenceError("The browser blocks the graphics card. Turn on \"Use graphics acceleration when available\" in the browser settings and restart it");
+		const gpu = ReferenceError.suppress(navigator.gpu, "This browser can't run the AI.");
+		const adapter = ReferenceError.suppress(await gpu.requestAdapter(), "The browser blocks the graphics card. Turn on \"Use graphics acceleration when available\" in the browser settings and restart it");
 		const features: GPUFeatureName[] = adapter.features.has("timestamp-query") ? ["timestamp-query"] : [];
 		return await adapter.requestDevice({ requiredFeatures: features });
 	}
@@ -240,7 +238,7 @@ export class StemNetwork {
 	get adapter(): string | null {
 		const { vendor, architecture } = this.#device.adapterInfo;
 		const name = `${vendor} ${architecture}`.trim();
-		return name.length === 0 ? null : name;
+		return String.isEmpty(name) ? null : name;
 	}
 
 	get frames(): number { return this.#topology.frames; }
@@ -254,10 +252,11 @@ export class StemNetwork {
 
 	async infer(history: TapHistory): Promise<Float32Array> {
 		const topology = this.#topology;
+		const result = this.#result;
 		const settled = history.silent > topology.settle;
 		if (settled && this.#settled) {
 			history.pack();
-			return this.#result;
+			return result;
 		}
 		const device = this.#device;
 		const readbacks = this.#readbacks;
@@ -283,7 +282,7 @@ export class StemNetwork {
 		this.#duration = timer?.read(range) ?? null;
 		readback.unmap();
 		this.#settled = settled;
-		return this.#result;
+		return result;
 	}
 
 	#fold(shares: Float32Array): void {

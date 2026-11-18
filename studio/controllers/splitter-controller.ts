@@ -20,8 +20,7 @@ export class SplitterController extends Controller<[boolean, BufferedCell<typeof
 	#spanSplitterModelDescription: HTMLSpanElement;
 
 	#gain(stem: Stem): number {
-		const input = this.#inputs.get(stem);
-		if (input === undefined) throw new ReferenceError(`No slider for the '${Stem[stem]}' stem`);
+		const input = ReferenceError.suppress(this.#inputs.get(stem), `No slider for the '${Stem[stem]}' stem`);
 		return Number(input.value);
 	}
 

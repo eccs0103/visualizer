@@ -17,7 +17,6 @@ export class ConvolutionPass {
 	static #file: string = "convolution.wgsl";
 	static #lanes: number = 8;
 	static #reach: number = 5;
-	// Per inference, 2026-10-08: Intel UHD 630 2×4 29.4 ms, 4×4 33.7, 2×2 38.1; RTX 3050 2×4 5.71 ms, 2×2 5.37. 2×4 wins where it matters, on integrated GPUs.
 	static #rows: number = 2;
 	static #columns: number = 4;
 

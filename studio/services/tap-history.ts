@@ -44,8 +44,9 @@ export class TapHistory {
 		this.#advance(tap, count);
 		this.#steps = due;
 		const fresh = this.#fresh + count;
-		this.#fresh = min(fresh, this.#frames);
-		this.#silent = fresh <= this.#frames && tap.every(value => value === 0) ? this.#silent + 1 : 0;
+		const frames = this.#frames;
+		this.#fresh = min(fresh, frames);
+		this.#silent = fresh <= frames && tap.every(value => value === 0) ? this.#silent + 1 : 0;
 		return true;
 	}
 

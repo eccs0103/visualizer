@@ -50,7 +50,6 @@ class MaskBlend {
 			let sum = 1e-12;
 			for (let stem = 0; stem < stems; stem++) {
 				const mask = previous[base + stem] + (current[base + stem] - previous[base + stem]) * weight;
-				// Power 2: on MUSDB18HQ powers 2 to 6 cut the share of absent stems alike, and 2 costs the least correlation with the true stems.
 				blended[base + stem] = mask * mask;
 				sum += mask * mask;
 			}
@@ -102,8 +101,7 @@ export class StemFrame {
 	spectrum(stem: Stem): Float32Array {
 		const spectra = this.#spectra;
 		const fresh = this.#fresh;
-		let values = spectra.get(stem);
-		if (values === undefined) throw new ReferenceError(`No spectrum for the '${stem}' stem`);
+		let values = ReferenceError.suppress(spectra.get(stem), `No spectrum for the '${stem}' stem`);
 		if (fresh.has(stem)) return values;
 		const whole = this.#whole;
 		const { length } = whole;

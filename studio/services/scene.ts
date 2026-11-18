@@ -94,12 +94,14 @@ export class Scene {
 
 	render(): void {
 		const output = this.#host.context;
+		const stage = this.#stage;
+		const background = this.#background;
 		output.resetTransform();
 		this.#update();
-		this.#stage.updateCamera(output.getTransform());
+		stage.updateCamera(output.getTransform());
 		output.reset();
-		this.#background.underlay(this.#stage, output);
-		this.#draw(this.#background, output);
+		background.underlay(stage, output);
+		this.#draw(background, output);
 		for (const layer of this.#layers) this.#draw(layer, output);
 		this.#draw(this.#lyrics, output);
 	}

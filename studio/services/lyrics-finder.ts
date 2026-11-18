@@ -13,7 +13,6 @@ export interface LyricsFinderEventMap {
 	"lyrics": CustomEvent<Lyrics>;
 }
 
-// ponytail: matches on the bare filename and a duration window; add artist/title tag parsing if the hit rate is bad
 export class LyricsFinder extends EventTarget {
 	static #tolerance = 5;
 	static #cooldown = 5000;
