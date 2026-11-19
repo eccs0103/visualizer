@@ -6,13 +6,20 @@ import { Registry, Visualization } from "../../services/visualization-registry.j
 import { type Host } from "../../models/visualization.js";
 import { AutoRange, HueDrift, Shaper, SpectrumAnalysis, StemMix } from "../../services/visualization-tools.js";
 
-const { min, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
+const { min, max, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
 const random = Random.global;
 
 //#region Pulsar
 Registry.attach("Pulsar", class Pulsar extends Visualization {
 	static #countStops: number = 96;
 	static #shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
+	static #fadeIn: Shaper = Shaper.smoothstep.between(0, 0.05);
+	static #fadeOut: Shaper = Shaper.smoothstep.between(0.9, 1);
+	static #ring: number = 0.5;
+	static #size: number = 0.12;
+	static #span: number = 2.6;
+	static #pop: number = 0.12;
+	static #dim: number = 0.35;
 
 	#radius: number;
 	#stopsHalo: string[] = [];
@@ -40,6 +47,7 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 		this.newLayer("Halo", this.#drawHalo.bind(this));
 		this.newLayer("Wave", this.#drawWave.bind(this));
 		this.newLayer("Shadow", this.#drawShadow.bind(this));
+		this.newLyrics(this.#drawLyrics.bind(this));
 	}
 
 	//#region Rebuild
@@ -202,6 +210,45 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 		shadowGradient.addColorStop(1, colorStop.pass(0).toString());
 		context.fillStyle = shadowGradient;
 		context.fill(this.#pathWave);
+	}
+
+	#drawLyrics(host: Host): void {
+		const radius = this.#radius;
+		const stops = this.#stopsHalo;
+		const { context, environment } = host;
+		const { lyrics } = environment;
+		if (lyrics === null || lyrics.current === null || stops.length === 0) return;
+		const { current, progress } = lyrics;
+
+		const ring = radius * Pulsar.#ring;
+		const size = radius * Pulsar.#size * (1 + this.#percussiveness.level * Pulsar.#pop);
+		context.textAlign = "center";
+		context.textBaseline = "middle";
+		context.font = `600 ${size}px sans-serif`;
+		const fit = min(1, Pulsar.#span * ring / context.measureText(current).width);
+		context.font = `600 ${size * fit}px sans-serif`;
+		const length = context.measureText(current).width;
+		const reach = progress === null ? length : progress * length;
+		const presence = progress === null ? 1 : Pulsar.#fadeIn.apply(progress) * (1 - Pulsar.#fadeOut.apply(progress));
+		const dim = Pulsar.#dim;
+		context.shadowBlur = this.#bassLevel.level.lerp(0, 1, 0, radius >> 6);
+
+		let before = 0;
+		for (let index = 0; index < current.length; index++) {
+			const after = context.measureText(current.slice(0, index + 1)).width;
+			const angle = PI / 2 + (length - before - after) / (2 * ring);
+			const stop = ReferenceError.suppress(stops[trunc(((angle - PI / 2) / (2 * PI)).mod(1) * stops.length)], "The halo has no colour stop for the lyrics");
+			const lit = min(1, max(0, (reach - before) / (after - before)));
+			context.globalAlpha = presence * (dim + (1 - dim) * lit);
+			context.fillStyle = stop;
+			context.shadowColor = stop;
+			context.save();
+			context.translate(ring * cos(angle), ring * sin(angle));
+			context.rotate(angle - PI / 2);
+			context.fillText(current[index], 0, 0);
+			context.restore();
+			before = after;
+		}
 	}
 	//#endregion
 });

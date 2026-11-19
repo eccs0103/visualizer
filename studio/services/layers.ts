@@ -70,6 +70,12 @@ export abstract class PaintedLayer extends Layer {
 		return false;
 	}
 
+	place(context: OffscreenCanvasRenderingContext2D, stage: Stage): void {
+		const { width, height, camera } = stage;
+		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
+		context.transform(camera.a, camera.b, camera.c, camera.d, camera.e, camera.f);
+	}
+
 	resize(stage: Stage): void {
 		super.resize(stage);
 		this.#isDirty = false;
@@ -104,10 +110,8 @@ export abstract class PaintedLayer extends Layer {
 			this.#isDirty = false;
 			return;
 		}
-		const { width, height, camera } = stage;
 		context.reset();
-		context.setTransform(1, 0, 0, 1, width / 2, height / 2);
-		context.transform(camera.a, camera.b, camera.c, camera.d, camera.e, camera.f);
+		this.place(context, stage);
 		this.#isDirty = true;
 		this.paint(host, stage);
 		output.globalAlpha = this.opacity;
@@ -144,6 +148,10 @@ export class LyricsCodeLayer extends CodeLayer {
 
 	isIdle(stage: Stage): boolean {
 		return stage.lyrics === null;
+	}
+
+	place(context: OffscreenCanvasRenderingContext2D, stage: Stage): void {
+		stage.follow(context);
 	}
 }
 //#endregion

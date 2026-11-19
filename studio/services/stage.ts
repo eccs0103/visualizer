@@ -117,6 +117,12 @@ export class Stage implements Audioset, Environment {
 		this.#camera = camera;
 	}
 
+	follow(context: OffscreenCanvasRenderingContext2D): void {
+		const { width, height, camera } = this;
+		const { shake } = this.#lyrics;
+		context.setTransform(1 + (camera.a - 1) * shake, camera.b * shake, camera.c * shake, 1 + (camera.d - 1) * shake, width / 2 + camera.e * shake, height / 2 + camera.f * shake);
+	}
+
 	updateColor(hue: number, saturation: number, lightness: number): void {
 		this.#color = Color.fromHSL(hue, saturation, lightness);
 	}

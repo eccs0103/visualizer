@@ -118,7 +118,7 @@ The six stem arrays come from a small neural model that decides, for every bin, 
 | `colorBackground` | `Color`                | The theme colour, a copy of it.                                                                                            |
 | `lyrics`          | `LyricsWindow \| null` | `previous`, `current`, `next` (each `string \| null`), `shake` (`0`–`1`) and `progress` (below), or `null` without lyrics. |
 
-`lyrics.progress` is `0` when the current line starts and `1` when the next line starts, so an effect can span the whole line, such as a sweep. It is `null` on the last line, which has no next line.
+`lyrics.progress` is `0` when the current line starts and `1` when it ends, so an effect can span the whole line, such as a sweep. A file gives only start times, so the end is the next line, a marker line when the file has one, or an estimate from the text length when a long gap follows. It is `null` only when there is no current line.
 
 ### Layers
 
@@ -140,7 +140,7 @@ Every visualization also gets two layers that the engine adds and owns; the name
 
 Both are pinned: the user can change their opacity and blend mode but cannot move them.
 
-`this.newLyrics(painter, options?)` replaces the engine's `Lyrics` layer with your own painter, so the lyrics can look as the visualization needs. Call it once in the constructor. The layer keeps the name `Lyrics`, the top position and the user's opacity and blend; `options` sets their defaults. The painter runs only while there are lyrics, so `host.environment.lyrics` is not `null` inside it. Its context starts with the camera transform; follow `lyrics.shake` yourself if you want the shake. Without the call, the engine's default look is drawn.
+`this.newLyrics(painter, options?)` replaces the engine's `Lyrics` layer with your own painter, so the lyrics can look as the visualization needs. Call it once in the constructor. The layer keeps the name `Lyrics`, the top position and the user's opacity and blend; `options` sets their defaults. The painter runs only while there are lyrics, so `host.environment.lyrics` is not `null` inside it. Its context already follows the camera by `lyrics.shake`, like the default look. Without the call, the engine's default look is drawn.
 
 ### Rules
 

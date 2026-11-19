@@ -18,6 +18,11 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 	static #colorShadow: Color = Color.newBlack;
 	static #shaperFrequency: Shaper = Shaper.sigmoid(6, 0.55).then(Shaper.smoothstep);
 	static #bins: Shaper = Shaper.exponential(3);
+	static #fadeIn: Shaper = Shaper.smoothstep.between(0, 0.05);
+	static #fadeOut: Shaper = Shaper.smoothstep.between(0.9, 1);
+	static #size: number = 0.04;
+	static #floor: number = 0.44;
+	static #dim: number = 0.35;
 
 	#side: number;
 	#lineWidth: number;
@@ -53,6 +58,7 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 		this.newLayer("Bloom", this.#drawBloom.bind(this), { blend: Blend.lighter });
 		this.newLayer("Thread", this.#drawThread.bind(this), { blend: Blend.lighter });
 		this.newLayer("Vignette", this.#drawVignette.bind(this), { blend: Blend.multiply });
+		this.newLyrics(this.#drawLyrics.bind(this), { blend: Blend.lighter });
 	}
 
 	//#region Rebuild
@@ -235,6 +241,38 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 		vignetteGradient.addColorStop(1, colorShadow.pass(0.45).toString());
 		context.fillStyle = vignetteGradient;
 		context.fillRect(0, 0, width, height);
+	}
+
+	#drawLyrics(host: Host): void {
+		const side = this.#side;
+		const { context, environment } = host;
+		const { lyrics } = environment;
+		if (lyrics === null) return;
+		const { current, progress } = lyrics;
+		if (current === null) return;
+
+		const size = side * Spectrogram.#size;
+		const y = side * Spectrogram.#floor;
+		const reach = context.canvas.width * 0.9;
+		const stroke = this.#colorRidgeMid.toString();
+
+		context.textAlign = "center";
+		context.textBaseline = "middle";
+		context.fillStyle = stroke;
+		context.shadowColor = stroke;
+		context.shadowBlur = meanGeometric(this.#high.level, this.#highMid.level).lerp(0, 1, 0, this.#lineWidth * 6);
+		context.font = `600 ${size}px sans-serif`;
+		const presence = progress === null ? 1 : Spectrogram.#fadeIn.apply(progress) * (1 - Spectrogram.#fadeOut.apply(progress));
+		const opened = min(context.measureText(current).width, reach) * (progress === null ? 1 : progress);
+		context.globalAlpha = presence * Spectrogram.#dim;
+		context.fillText(current, 0, y, reach);
+		context.globalAlpha = presence;
+		context.save();
+		context.beginPath();
+		context.rect(-opened / 2, y - size, opened, size * 2);
+		context.clip();
+		context.fillText(current, 0, y, reach);
+		context.restore();
 	}
 	//#endregion
 });

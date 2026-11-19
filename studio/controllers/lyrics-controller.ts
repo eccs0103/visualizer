@@ -23,7 +23,7 @@ export class LyricsController extends Controller<[BufferedCell<typeof Settings>,
 		const lyrics = this.#lyrics;
 		if (!this.#enabled || lyrics === null) return visualizer.updateLyrics(null, null, null, null, null);
 		const index = this.#index;
-		visualizer.updateLyrics(lyrics.line(index - 1), lyrics.line(index), lyrics.line(index + 1), lyrics.time(index), lyrics.time(index + 1));
+		visualizer.updateLyrics(lyrics.line(index - 1), lyrics.line(index), lyrics.line(index + 1), lyrics.time(index), lyrics.end(index));
 	}
 
 	#sync(): void {

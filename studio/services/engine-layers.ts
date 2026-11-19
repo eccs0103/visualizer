@@ -188,11 +188,15 @@ export class LyricsLayer extends PaintedLayer {
 		return stage.lyrics === null;
 	}
 
+	place(context: OffscreenCanvasRenderingContext2D, stage: Stage): void {
+		stage.follow(context);
+	}
+
 	paint(host: Host, stage: Stage): void {
 		const { context } = host;
-		const { width, height, camera, lyrics } = stage;
+		const { width, height, lyrics } = stage;
 		if (lyrics === null) return;
-		const { previous, current, next, shake } = lyrics;
+		const { previous, current, next } = lyrics;
 
 		const side = min(width, height);
 		const sizeCurrent = side * 0.045;
@@ -200,14 +204,6 @@ export class LyricsLayer extends PaintedLayer {
 		const y = height * 0.3;
 		const maxWidth = width * 0.9;
 
-		context.setTransform(
-			1 + (camera.a - 1) * shake,
-			camera.b * shake,
-			camera.c * shake,
-			1 + (camera.d - 1) * shake,
-			width / 2 + camera.e * shake,
-			height / 2 + camera.f * shake
-		);
 		context.textAlign = "center";
 		context.textBaseline = "middle";
 		context.shadowColor = "black";

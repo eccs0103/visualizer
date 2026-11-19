@@ -3,6 +3,8 @@
 import "adaptive-extender/core";
 import { Nullable } from "adaptive-extender/core";
 
+const { min } = Math;
+
 //#region Lyric line
 export class LyricLine {
 	time: number;
@@ -19,11 +21,27 @@ export class Lyrics {
 	static #patternTimestamp = /\[(\d+):(\d+(?:\.\d+)?)\]/g;
 	static #patternOffset = /\[offset:\s*(-?\d+)\]/i;
 	static #patternWordTiming = /<\d+:\d+(?:\.\d+)?>/g;
+	static #gap: number = 8;
 
 	lines: LyricLine[];
+	#rate: number | null;
 
 	constructor(lines: LyricLine[]) {
 		this.lines = lines;
+		this.#rate = Lyrics.#measure(lines);
+	}
+
+	static #measure(lines: readonly LyricLine[]): number | null {
+		const rates: number[] = [];
+		for (const [index, line] of lines.entries()) {
+			const next = lines[index + 1];
+			if (next === undefined) break;
+			const slot = next.time - line.time;
+			if (line.text.length > 0 && slot > 0 && slot <= Lyrics.#gap) rates.push(line.text.length / slot);
+		}
+		if (rates.length === 0) return null;
+		rates.sort((rate, rate2) => rate - rate2);
+		return rates[rates.length >> 1] ?? null;
 	}
 
 	static parse(text: string): Lyrics {
@@ -58,6 +76,18 @@ export class Lyrics {
 
 	time(index: number): number | null {
 		return Nullable.map(this.lines[index] ?? null, line => line.time);
+	}
+
+	end(index: number): number | null {
+		const line = this.lines[index];
+		if (line === undefined) return null;
+		const next = this.lines[index + 1];
+		const rate = this.#rate;
+		if (line.text.length === 0 || rate === null) return Nullable.map(next ?? null, entry => entry.time);
+		if (next !== undefined && next.time - line.time <= Lyrics.#gap) return next.time;
+		const span = line.text.length / rate;
+		if (next === undefined) return line.time + span;
+		return line.time + min(next.time - line.time, span);
 	}
 }
 //#endregion
