@@ -12,18 +12,14 @@ import { BackgroundLayer, LyricsLayer } from "./engine-layers.js";
 export class Scene {
 	#name: string;
 	#visualization: Visualization;
-	#stage: Stage;
-	#host: Host;
 	#background: BackgroundLayer = new BackgroundLayer();
 	#lyrics: Layer;
 	#layers: Layer[];
 	#isBroken: boolean = false;
 
-	constructor(name: string, visualization: Visualization, stage: Stage, output: OffscreenCanvasRenderingContext2D) {
+	constructor(name: string, visualization: Visualization) {
 		this.#name = name;
 		this.#visualization = visualization;
-		this.#stage = stage;
-		this.#host = { context: output, audioset: stage, environment: stage };
 		this.#lyrics = Visualization.lyrics(visualization) ?? new LyricsLayer();
 		this.#layers = Array.from(Visualization.layers(visualization));
 	}
@@ -32,21 +28,21 @@ export class Scene {
 		console.error(`${subject} of visualization '${this.#name}' failed and was disabled until the next rebuild:\n${Error.from(reason)}`);
 	}
 
-	#update(): void {
+	#update(host: Host): void {
 		if (this.#isBroken) return;
 		try {
-			this.#visualization.update(this.#host);
+			this.#visualization.update(host);
 		} catch (reason) {
 			this.#isBroken = true;
 			this.#report("Update", reason);
 		}
 	}
 
-	#draw(layer: Layer, output: OffscreenCanvasRenderingContext2D): void {
+	#draw(layer: Layer, stage: Stage, output: OffscreenCanvasRenderingContext2D): void {
 		if (!layer.isVisible) return;
 		if (layer.isDependent && this.#isBroken) return;
 		try {
-			layer.render(this.#stage, output);
+			layer.render(stage, output);
 		} catch (reason) {
 			layer.fault();
 			this.#report(`Layer '${layer.name}'`, reason);
@@ -73,14 +69,13 @@ export class Scene {
 		await this.#background.setImage(image);
 	}
 
-	rebuild(): void {
-		const stage = this.#stage;
+	rebuild(stage: Stage, host: Host): void {
 		this.#isBroken = false;
 		this.#background.resize(stage);
 		this.#lyrics.resize(stage);
 		for (const layer of this.#layers) layer.resize(stage);
 		try {
-			this.#visualization.rebuild(this.#host);
+			this.#visualization.rebuild(host);
 		} catch (reason) {
 			this.#isBroken = true;
 			this.#report("Rebuild", reason);
@@ -93,18 +88,17 @@ export class Scene {
 		for (const layer of this.#layers) layer.release();
 	}
 
-	render(): void {
-		const output = this.#host.context;
-		const stage = this.#stage;
+	render(stage: Stage, host: Host): void {
+		const output = host.context;
 		const background = this.#background;
 		output.resetTransform();
-		this.#update();
+		this.#update(host);
 		stage.updateCamera(output.getTransform());
 		output.reset();
 		background.underlay(stage, output);
-		this.#draw(background, output);
-		for (const layer of this.#layers) this.#draw(layer, output);
-		this.#draw(this.#lyrics, output);
+		this.#draw(background, stage, output);
+		for (const layer of this.#layers) this.#draw(layer, stage, output);
+		this.#draw(this.#lyrics, stage, output);
 	}
 }
 //#endregion

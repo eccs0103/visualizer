@@ -16,6 +16,7 @@ const { baseURI } = document;
 export interface VisualizerEventMap {
 	"update": Event;
 	"rebuild": Event;
+	"select": Event;
 }
 
 export class Visualizer extends EventTarget {
@@ -29,8 +30,6 @@ export class Visualizer extends EventTarget {
 	#visualization: string;
 	#posted: number = 0;
 	#fresh: boolean = false;
-	#canvas: HTMLCanvasElement;
-	#media: HTMLMediaElement;
 	#manager: AudiosetManager;
 	#splitter: Splitter;
 
@@ -43,9 +42,7 @@ export class Visualizer extends EventTarget {
 		engine.launched = !document.hidden;
 		document.addEventListener("visibilitychange", event => engine.launched = !document.hidden);
 
-		this.#canvas = canvas;
-		this.#media = media;
-		this.#fixCanvasSize();
+		this.#fixCanvasSize(canvas);
 
 		const manager = this.#manager = new AudiosetManager(media);
 		const { sab } = manager.signal;
@@ -54,14 +51,15 @@ export class Visualizer extends EventTarget {
 		const offscreen = canvas.transferControlToOffscreen();
 		this.#worker.postMessage(Command.export(new InitializeRenderCommand(sab, splitter.masks.sab, manager.sampleRate, offscreen)), [offscreen]);
 
-		this.#rebuild();
-		window.addEventListener("resize", event => this.#rebuild());
-		engine.addEventListener("trigger", event => this.#update());
+		this.#rebuild(canvas);
+		this.addEventListener("select", event => this.#rebuild(canvas));
+		window.addEventListener("resize", event => this.#rebuild(canvas));
+		engine.addEventListener("trigger", event => this.#update(media));
 
 		const metaColorScheme = document.getElement(HTMLMetaElement, "meta[name=\"color-scheme\"]");
-		const observer = new MutationObserver(mutations => this.#rebuild());
+		const observer = new MutationObserver(mutations => this.#rebuild(canvas));
 		observer.observe(metaColorScheme, { attributes: true, attributeFilter: ["content"] });
-		window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", event => this.#rebuild());
+		window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", event => this.#rebuild(canvas));
 	}
 
 	addEventListener<K extends keyof VisualizerEventMap>(type: K, listener: (this: Visualizer, event: VisualizerEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
@@ -118,7 +116,7 @@ export class Visualizer extends EventTarget {
 	set visualization(value: string) {
 		if (!Registry.has(value)) throw new ReferenceError(`Visualization with name '${value}' is not attached`);
 		this.#visualization = value;
-		this.#rebuild();
+		this.dispatchEvent(new Event("select"));
 	}
 
 	set shake(value: number) {
@@ -126,22 +124,21 @@ export class Visualizer extends EventTarget {
 		this.#worker.postMessage(Command.export(new ShakeRenderCommand(value)));
 	}
 
-	#fixCanvasSize(): void {
-		const canvas = this.#canvas;
+	#fixCanvasSize(canvas: HTMLCanvasElement): void {
 		const { width, height } = canvas.getBoundingClientRect();
 		canvas.width = width;
 		canvas.height = height;
 	}
 
-	#rebuild(): void {
+	#rebuild(canvas: HTMLCanvasElement): void {
 		const color = Color.parse(window.getComputedStyle(document.documentElement).getPropertyValue("--color-heavy-main"));
-		const { width, height } = this.#canvas.getBoundingClientRect();
+		const { width, height } = canvas.getBoundingClientRect();
 		if (width === 0 || height === 0) return;
 		this.#worker.postMessage(Command.export(new RebuildRenderCommand(width, height, this.#visualization, color.hue, color.saturation, color.lightness)));
 		this.dispatchEvent(new Event("rebuild"));
 	}
 
-	#update(): void {
+	#update(media: HTMLMediaElement): void {
 		const manager = this.#manager;
 		const splitter = this.#splitter;
 		manager.capture(splitter.grid);
@@ -151,7 +148,7 @@ export class Visualizer extends EventTarget {
 		if (fresh) {
 			this.#posted = (posted + 1) | 0;
 			const worker = this.#worker;
-			worker.postMessage(Command.export(new ClockRenderCommand(this.#media.currentTime)));
+			worker.postMessage(Command.export(new ClockRenderCommand(media.currentTime)));
 			worker.postMessage(Command.export(new TickCommand()));
 		}
 		this.dispatchEvent(new Event("update"));

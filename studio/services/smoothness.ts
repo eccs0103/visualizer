@@ -41,7 +41,6 @@ export class Smoothness extends EventTarget {
 	static #warmup: number = 2000;
 	static #memory: number = 60;
 
-	#visualizer: Visualizer;
 	#screens: number[] = [];
 	#clock: number = 0;
 	#started: number | null = null;
@@ -55,8 +54,7 @@ export class Smoothness extends EventTarget {
 
 	constructor(visualizer: Visualizer) {
 		super();
-		this.#visualizer = visualizer;
-		visualizer.addEventListener("update", event => this.#onUpdate());
+		visualizer.addEventListener("update", event => this.#onUpdate(visualizer));
 		document.addEventListener("visibilitychange", event => this.#reset());
 	}
 
@@ -78,8 +76,8 @@ export class Smoothness extends EventTarget {
 		return intervals.toSorted((interval, interval2) => interval - interval2)[trunc(intervals.length / 2)];
 	}
 
-	#onUpdate(): void {
-		const { rate, interval, fresh } = this.#visualizer;
+	#onUpdate(visualizer: Visualizer): void {
+		const { rate, interval, fresh } = visualizer;
 		if (this.#started === null) return this.#start(rate);
 		const clock = this.#clock += interval;
 		if (rate !== this.#rate) this.#open(clock, rate);

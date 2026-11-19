@@ -6,6 +6,7 @@ import { Registry } from "../services/visualization-registry.js";
 import { Command, InitializeRenderCommand, TickCommand, ClockRenderCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, GainsRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { Stage } from "../services/stage.js";
 import { Scene } from "../services/scene.js";
+import { type Host } from "../models/visualization.js";
 import "../view/visualizations.js";
 import "../view/visualizations/stems.js";
 
@@ -14,6 +15,7 @@ class VisualizationWorker extends Controller {
 	#scenes: Map<string, Scene> = new Map();
 	#context: OffscreenCanvasRenderingContext2D;
 	#stage: Stage;
+	#host: Host;
 	#selection: string;
 	#width: number = 0;
 	#height: number = 0;
@@ -40,14 +42,15 @@ class VisualizationWorker extends Controller {
 		const height = this.#height;
 		if (width === 0 || height === 0) return;
 		const stage = this.#stage;
+		const host = this.#host;
 		const { canvas } = this.#context;
 		canvas.width = VisualizationWorker.#even(width);
 		canvas.height = VisualizationWorker.#even(height);
 		stage.sync();
 		stage.resize(canvas.width, canvas.height);
 		const scene = this.#findScene(this.#selection);
-		scene.rebuild();
-		scene.render();
+		scene.rebuild(stage, host);
+		scene.render(stage, host);
 		this.#rebuilt = true;
 	}
 
@@ -59,7 +62,7 @@ class VisualizationWorker extends Controller {
 		this.#frame = frame;
 		stage.sync();
 		stage.tick();
-		this.#findScene(this.#selection).render();
+		this.#findScene(this.#selection).render(stage, this.#host);
 	}
 
 	#onMessage(event: MessageEvent): void {
@@ -71,9 +74,10 @@ class VisualizationWorker extends Controller {
 
 			const context = this.#context = ReferenceError.suppress(canvas.getContext("2d"), "Failed to acquire 2D rendering context");
 			const stage = this.#stage = new Stage(sabSignal, sabMask, sampleRate);
+			this.#host = { context, audioset: stage, environment: stage };
 			let selection: string | null = null;
 			for (const [name, descriptor] of Registry.entries()) {
-				scenes.set(name, new Scene(name, Registry.create(descriptor), stage, context));
+				scenes.set(name, new Scene(name, Registry.create(descriptor)));
 				if (selection === null) selection = name;
 			}
 			this.#selection = ReferenceError.suppress(selection, "Failed to find any visualization");
