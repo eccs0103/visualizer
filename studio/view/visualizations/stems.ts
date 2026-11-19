@@ -337,7 +337,6 @@ Registry.attach("Stems", class Stems extends Visualization {
 	static #fadeIn: Shaper = Shaper.smoothstep.between(0, 0.05);
 	static #fadeOut: Shaper = Shaper.smoothstep.between(0.9, 1);
 	static #size: number = 0.05;
-	static #breath: number = 0.08;
 	static #room: number = 0.07;
 	static #lead: number = 1.5;
 	static #dim: number = 0.35;
@@ -549,8 +548,7 @@ Registry.attach("Stems", class Stems extends Visualization {
 		const size = side * Stems.#size;
 		const y = this.#flow.turned ? height * Stems.#low : side * Stems.#room - height / 2;
 		const reach = width * 0.9;
-		const vocals = this.#stems[0];
-		const lit = vocals.color;
+		const lit = this.#stems[0].color;
 		const stroke = lit.toString();
 		const dim = Stems.#dim;
 
@@ -566,7 +564,7 @@ Registry.attach("Stems", class Stems extends Visualization {
 		}
 		if (current === null) return;
 
-		context.font = `600 ${size * (1 + Stems.#breath * vocals.heat)}px sans-serif`;
+		context.font = `600 ${size}px sans-serif`;
 		context.globalAlpha = this.#presence(progress);
 		const half = min(context.measureText(current).width, reach) / 2;
 		const gradient = context.createLinearGradient(-half, 0, half, 0);

@@ -6,7 +6,7 @@ import { Registry, Visualization } from "../../services/visualization-registry.j
 import { type Host } from "../../models/visualization.js";
 import { AutoRange, HueDrift, Shaper, SpectrumAnalysis, StemMix } from "../../services/visualization-tools.js";
 
-const { min, max, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
+const { min, sin, cos, PI, abs, trunc, SQRT1_2, meanGeometric } = Math;
 const random = Random.global;
 
 //#region Pulsar
@@ -15,10 +15,11 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 	static #shaperFrequency: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 	static #fadeIn: Shaper = Shaper.smoothstep.between(0, 0.05);
 	static #fadeOut: Shaper = Shaper.smoothstep.between(0.9, 1);
-	static #ring: number = 0.5;
-	static #size: number = 0.12;
-	static #span: number = 2.6;
-	static #pop: number = 0.12;
+	static #size: number = 0.1;
+	static #limit: number = 1.7;
+	static #floor: number = 0.14;
+	static #light: number = 0.8;
+	static #turn: number = 40;
 	static #dim: number = 0.35;
 
 	#radius: number;
@@ -214,41 +215,39 @@ Registry.attach("Pulsar", class Pulsar extends Visualization {
 
 	#drawLyrics(host: Host): void {
 		const radius = this.#radius;
-		const stops = this.#stopsHalo;
 		const { context, environment } = host;
 		const { lyrics } = environment;
-		if (lyrics === null || lyrics.current === null || stops.length === 0) return;
+		if (lyrics === null || lyrics.current === null) return;
 		const { current, progress } = lyrics;
+		const { width, height } = context.canvas;
 
-		const ring = radius * Pulsar.#ring;
-		const size = radius * Pulsar.#size * (1 + this.#percussiveness.level * Pulsar.#pop);
+		const size = radius * Pulsar.#size;
 		context.textAlign = "center";
 		context.textBaseline = "middle";
 		context.font = `600 ${size}px sans-serif`;
-		const fit = min(1, Pulsar.#span * ring / context.measureText(current).width);
+		const fit = min(1, min(width * 0.9, radius * Pulsar.#limit) / context.measureText(current).width);
 		context.font = `600 ${size * fit}px sans-serif`;
-		const length = context.measureText(current).width;
-		const reach = progress === null ? length : progress * length;
+		const span = context.measureText(current).width;
+		const y = height * (0.5 - Pulsar.#floor);
+		const colorText = new Color(this.#drift.color).illuminate(Pulsar.#light);
+		const start = colorText.toString();
+		const gradient = context.createLinearGradient(-span / 2, 0, span / 2, 0);
+		gradient.addColorStop(0, start);
+		gradient.addColorStop(1, new Color(colorText).rotate(Pulsar.#turn).toString());
 		const presence = progress === null ? 1 : Pulsar.#fadeIn.apply(progress) * (1 - Pulsar.#fadeOut.apply(progress));
-		const dim = Pulsar.#dim;
-		context.shadowBlur = this.#bassLevel.level.lerp(0, 1, 0, radius >> 6);
 
-		let before = 0;
-		for (let index = 0; index < current.length; index++) {
-			const after = context.measureText(current.slice(0, index + 1)).width;
-			const angle = PI / 2 + (length - before - after) / (2 * ring);
-			const stop = ReferenceError.suppress(stops[trunc(((angle - PI / 2) / (2 * PI)).mod(1) * stops.length)], "The halo has no colour stop for the lyrics");
-			const lit = min(1, max(0, (reach - before) / (after - before)));
-			context.globalAlpha = presence * (dim + (1 - dim) * lit);
-			context.fillStyle = stop;
-			context.shadowColor = stop;
-			context.save();
-			context.translate(ring * cos(angle), ring * sin(angle));
-			context.rotate(angle - PI / 2);
-			context.fillText(current[index], 0, 0);
-			context.restore();
-			before = after;
-		}
+		context.fillStyle = gradient;
+		context.shadowColor = start;
+		context.shadowBlur = radius >> 7;
+		context.globalAlpha = presence * Pulsar.#dim;
+		context.fillText(current, 0, y);
+		context.globalAlpha = presence;
+		context.save();
+		context.beginPath();
+		context.rect(-span / 2, y - size, span * (progress === null ? 1 : progress), size * 2);
+		context.clip();
+		context.fillText(current, 0, y);
+		context.restore();
 	}
 	//#endregion
 });

@@ -8,7 +8,6 @@ import { Stage } from "../services/stage.js";
 import { Scene } from "../services/scene.js";
 import { type Host } from "../models/visualization.js";
 import "../view/visualizations.js";
-import "../view/visualizations/stems.js";
 
 //#region Visualization worker
 class VisualizationWorker extends Controller {

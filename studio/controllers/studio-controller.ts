@@ -44,7 +44,6 @@ class StudioController extends Controller {
 
 		const uri = new URI(location.href);
 		const developer = uri.searchParams.get("for") === "developers";
-		if (developer) await import("../view/visualizations/stems.js");
 		uri.searchParams.set("for", "developers");
 		if (!developer) console.log(`Are you a developer? Try ${uri} for developer settings!`);
 		LegacyCell.migrate("Visualizer\\Studio\\Settings", "Visualizer\\Settings");

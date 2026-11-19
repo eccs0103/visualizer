@@ -259,8 +259,6 @@ Registry.attach("Spectrogram", class Spectrogram extends Visualization {
 		context.textAlign = "center";
 		context.textBaseline = "middle";
 		context.fillStyle = stroke;
-		context.shadowColor = stroke;
-		context.shadowBlur = meanGeometric(this.#high.level, this.#highMid.level).lerp(0, 1, 0, this.#lineWidth * 6);
 		context.font = `600 ${size}px sans-serif`;
 		const presence = progress === null ? 1 : Spectrogram.#fadeIn.apply(progress) * (1 - Spectrogram.#fadeOut.apply(progress));
 		const opened = min(context.measureText(current).width, reach) * (progress === null ? 1 : progress);
