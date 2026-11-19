@@ -15,7 +15,7 @@ export class Scene {
 	#stage: Stage;
 	#host: Host;
 	#background: BackgroundLayer = new BackgroundLayer();
-	#lyrics: LyricsLayer = new LyricsLayer();
+	#lyrics: Layer;
 	#layers: Layer[];
 	#isBroken: boolean = false;
 
@@ -24,6 +24,7 @@ export class Scene {
 		this.#visualization = visualization;
 		this.#stage = stage;
 		this.#host = { context: output, audioset: stage, environment: stage };
+		this.#lyrics = Visualization.lyrics(visualization) ?? new LyricsLayer();
 		this.#layers = Array.from(Visualization.layers(visualization));
 	}
 

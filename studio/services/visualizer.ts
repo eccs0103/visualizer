@@ -5,7 +5,7 @@ import { FastEngine, Color, WebEngine, URI } from "adaptive-extender/web";
 import { AudiosetManager } from "./audioset-manager.js";
 import { Splitter } from "./splitter.js";
 import { Registry } from "./visualization-registry.js";
-import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, GainsRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
+import { Command, InitializeRenderCommand, TickCommand, ClockRenderCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, GainsRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { type StemGains } from "../models/stem.js";
 import { type LayerSettings, type BackgroundSettings } from "../models/layer-settings.js";
 
@@ -30,6 +30,7 @@ export class Visualizer extends EventTarget {
 	#posted: number = 0;
 	#fresh: boolean = false;
 	#canvas: HTMLCanvasElement;
+	#media: HTMLMediaElement;
 	#manager: AudiosetManager;
 	#splitter: Splitter;
 
@@ -43,6 +44,7 @@ export class Visualizer extends EventTarget {
 		document.addEventListener("visibilitychange", event => engine.launched = !document.hidden);
 
 		this.#canvas = canvas;
+		this.#media = media;
 		this.#fixCanvasSize();
 
 		const manager = this.#manager = new AudiosetManager(media);
@@ -148,7 +150,9 @@ export class Visualizer extends EventTarget {
 		const fresh = this.#fresh = ((posted - manager.signal.drawn) | 0) < Visualizer.#depth;
 		if (fresh) {
 			this.#posted = (posted + 1) | 0;
-			this.#worker.postMessage(Command.export(new TickCommand()));
+			const worker = this.#worker;
+			worker.postMessage(Command.export(new ClockRenderCommand(this.#media.currentTime)));
+			worker.postMessage(Command.export(new TickCommand()));
 		}
 		this.dispatchEvent(new Event("update"));
 	}
@@ -163,8 +167,8 @@ export class Visualizer extends EventTarget {
 		this.#worker.postMessage(Command.export(new ImageRenderCommand(visualization, image)));
 	}
 
-	updateLyrics(previous: string | null, current: string | null, next: string | null): void {
-		this.#worker.postMessage(Command.export(new LyricsRenderCommand(previous, current, next)));
+	updateLyrics(previous: string | null, current: string | null, next: string | null, begin: number | null, end: number | null): void {
+		this.#worker.postMessage(Command.export(new LyricsRenderCommand(previous, current, next, begin, end)));
 	}
 }
 //#endregion

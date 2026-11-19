@@ -1,13 +1,14 @@
 "use strict";
 
 import "adaptive-extender/worker";
-import { CodeLayer, type Layer, type LayerOptions, type LayerPainter } from "./layers.js";
+import { CodeLayer, LyricsCodeLayer, type Layer, type LayerOptions, type LayerPainter } from "./layers.js";
 import { type Host } from "../models/visualization.js";
 
 //#region Visualization
 export class Visualization {
 	static #reserved: ReadonlySet<string> = new Set(["Background", "Lyrics"]);
 	#layers: Layer[] = [];
+	#lyrics: Layer | null = null;
 
 	constructor() {
 		if (new.target === Visualization) throw new TypeError("Unable to create an instance of an abstract class");
@@ -15,6 +16,15 @@ export class Visualization {
 
 	static layers(visualization: Visualization): readonly Layer[] {
 		return visualization.#layers;
+	}
+
+	static lyrics(visualization: Visualization): Layer | null {
+		return visualization.#lyrics;
+	}
+
+	newLyrics(painter: LayerPainter, options: Partial<LayerOptions> = {}): void {
+		if (this.#lyrics !== null) throw new TypeError("The lyrics layer is declared more than once");
+		this.#lyrics = new LyricsCodeLayer(painter, options);
 	}
 
 	newLayer(name: string, painter: LayerPainter, options: Partial<LayerOptions> = {}): void {

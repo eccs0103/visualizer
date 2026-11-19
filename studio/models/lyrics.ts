@@ -1,6 +1,7 @@
 "use strict";
 
 import "adaptive-extender/core";
+import { Nullable } from "adaptive-extender/core";
 
 //#region Lyric line
 export class LyricLine {
@@ -52,9 +53,11 @@ export class Lyrics {
 	}
 
 	line(index: number): string | null {
-		const line = this.lines[index];
-		if (line === undefined) return null;
-		return line.text;
+		return Nullable.map(this.lines[index] ?? null, line => line.text);
+	}
+
+	time(index: number): number | null {
+		return Nullable.map(this.lines[index] ?? null, line => line.time);
 	}
 }
 //#endregion

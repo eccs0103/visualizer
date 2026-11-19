@@ -3,7 +3,7 @@
 import "adaptive-extender/worker";
 import { Controller } from "adaptive-extender/worker";
 import { Registry } from "../services/visualization-registry.js";
-import { Command, InitializeRenderCommand, TickCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, GainsRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
+import { Command, InitializeRenderCommand, TickCommand, ClockRenderCommand, RebuildRenderCommand, LyricsRenderCommand, ShakeRenderCommand, GainsRenderCommand, LayersRenderCommand, ImageRenderCommand } from "../models/commands.js";
 import { Stage } from "../services/stage.js";
 import { Scene } from "../services/scene.js";
 import "../view/visualizations.js";
@@ -93,6 +93,11 @@ class VisualizationWorker extends Controller {
 			return;
 		}
 
+		if (command instanceof ClockRenderCommand) {
+			stage.updateClock(command.position);
+			return;
+		}
+
 		if (command instanceof RebuildRenderCommand) {
 			const { width, height, visualization, hue, saturation, lightness } = command;
 			stage.updateColor(hue, saturation, lightness);
@@ -104,8 +109,8 @@ class VisualizationWorker extends Controller {
 		}
 
 		if (command instanceof LyricsRenderCommand) {
-			const { previous, current, next } = command;
-			stage.updateLyrics(previous, current, next);
+			const { previous, current, next, begin, end } = command;
+			stage.updateLyrics(previous, current, next, begin, end);
 			return;
 		}
 

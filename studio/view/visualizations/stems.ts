@@ -334,6 +334,14 @@ Registry.attach("Stems", class Stems extends Visualization {
 	static #stretch: number = 8;
 	static #typical: number = 0.274;
 	static #swell: Shaper = Shaper.smoothstep.between(0.6, 1);
+	static #fadeIn: Shaper = Shaper.smoothstep.between(0, 0.05);
+	static #fadeOut: Shaper = Shaper.smoothstep.between(0.9, 1);
+	static #size: number = 0.05;
+	static #room: number = 0.07;
+	static #lead: number = 1.5;
+	static #dim: number = 0.35;
+	static #low: number = 0.12;
+	static #halo: number = 0.3;
 
 	#mix: Thread = new Thread("Mix", Color.fromHSL(0, 0, 95), 0, -1, new StemMix(1, 1, 1, 1, 1, 1, 1), 1, 0.499, 0.776);
 	#backing: Thread = new Thread("Backing", Color.fromHSL(0, 0, 50), 0, 1, new StemMix(1, 1, 0, 1, 1, 1, 1), 1, 0.241, 0.744);
@@ -364,6 +372,7 @@ Registry.attach("Stems", class Stems extends Visualization {
 		for (const stem of this.#stems) this.newLayer(stem.name, stem.draw.bind(stem));
 		this.newLayer("Names", this.#drawNames.bind(this));
 		this.newLayer("Legend", this.#drawLegend.bind(this));
+		this.newLyrics(this.#drawLyrics.bind(this));
 	}
 
 	get #wavelength(): number {
@@ -522,6 +531,51 @@ Registry.attach("Stems", class Stems extends Visualization {
 			stem.caption(context, left + slot * (index + 0.5), top + side * 0.045);
 			x += segment;
 		}
+	}
+
+	#presence(progress: number | null): number {
+		if (progress === null) return 1;
+		return Stems.#fadeIn.apply(progress) * (1 - Stems.#fadeOut.apply(progress));
+	}
+
+	#drawLyrics(host: Host): void {
+		const { context, environment } = host;
+		const { lyrics } = environment;
+		if (lyrics === null) return;
+		const { current, next, progress } = lyrics;
+		const { width, height } = context.canvas;
+		const side = min(width, height);
+		const size = side * Stems.#size;
+		const y = this.#flow.turned ? height * Stems.#low : side * Stems.#room - height / 2;
+		const reach = width * 0.9;
+		const lit = this.#stems[0].color;
+		const stroke = lit.toString();
+		const dim = Stems.#dim;
+
+		context.textAlign = "center";
+		context.textBaseline = "middle";
+		context.shadowColor = "black";
+		context.shadowBlur = size * Stems.#halo;
+		context.fillStyle = stroke;
+		if (next !== null) {
+			context.font = `${size * 0.7}px sans-serif`;
+			context.globalAlpha = dim;
+			context.fillText(next, 0, y + size * Stems.#lead, reach);
+		}
+		if (current === null) return;
+
+		context.font = `600 ${size}px sans-serif`;
+		context.globalAlpha = this.#presence(progress);
+		const half = min(context.measureText(current).width, reach) / 2;
+		const gradient = context.createLinearGradient(-half, 0, half, 0);
+		const stop = progress === null ? 1 : progress;
+		const shade = new Color(lit).pass(dim).toString();
+		gradient.addColorStop(0, stroke);
+		gradient.addColorStop(stop, stroke);
+		gradient.addColorStop(stop, shade);
+		gradient.addColorStop(1, shade);
+		context.fillStyle = gradient;
+		context.fillText(current, 0, y, reach);
 	}
 	//#endregion
 });

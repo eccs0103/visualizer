@@ -20,6 +20,7 @@
 		"studio/services/gpu-graph.ts",
 		"studio/services/inference-pace.ts",
 		"studio/services/layers.ts",
+		"studio/services/lyrics-frame.ts",
 		"studio/services/mask-smoother.ts",
 		"studio/services/network-slot.ts",
 		"studio/services/scene.ts",

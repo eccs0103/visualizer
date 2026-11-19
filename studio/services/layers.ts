@@ -136,3 +136,14 @@ export class CodeLayer extends PaintedLayer {
 	}
 }
 //#endregion
+//#region Lyrics code layer
+export class LyricsCodeLayer extends CodeLayer {
+	constructor(painter: LayerPainter, options: Partial<LayerOptions> = {}) {
+		super("Lyrics", painter, options);
+	}
+
+	isIdle(stage: Stage): boolean {
+		return stage.lyrics === null;
+	}
+}
+//#endregion

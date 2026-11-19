@@ -37,6 +37,7 @@ export interface LyricsWindow {
 	get current(): string | null;
 	get next(): string | null;
 	get shake(): number;
+	get progress(): number | null;
 }
 
 export interface Environment {

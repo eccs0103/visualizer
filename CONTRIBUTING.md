@@ -112,11 +112,13 @@ The six stem arrays come from a small neural model that decides, for every bin, 
 
 ### `host.environment`
 
-| Property          | Type                   | Description                                                                                            |
-| :---------------- | :--------------------- | :----------------------------------------------------------------------------------------------------- |
-| `delta`           | `number`               | Seconds since the last frame.                                                                          |
-| `colorBackground` | `Color`                | The theme colour, a copy of it.                                                                        |
-| `lyrics`          | `LyricsWindow \| null` | `previous`, `current`, `next` (each `string \| null`) and `shake` (`0`–`1`), or `null` without lyrics. |
+| Property          | Type                   | Description                                                                                                                |
+| :---------------- | :--------------------- | :------------------------------------------------------------------------------------------------------------------------- |
+| `delta`           | `number`               | Seconds since the last frame.                                                                                              |
+| `colorBackground` | `Color`                | The theme colour, a copy of it.                                                                                            |
+| `lyrics`          | `LyricsWindow \| null` | `previous`, `current`, `next` (each `string \| null`), `shake` (`0`–`1`) and `progress` (below), or `null` without lyrics. |
+
+`lyrics.progress` is `0` when the current line starts and `1` when the next line starts, so an effect can span the whole line, such as a sweep. It is `null` on the last line, which has no next line.
 
 ### Layers
 
@@ -137,6 +139,8 @@ Every visualization also gets two layers that the engine adds and owns; the name
 | `Lyrics`     | Top      | Synced lyrics, following the camera by `lyrics.shake`. Drawn only while there are lyrics.                                                                                          |
 
 Both are pinned: the user can change their opacity and blend mode but cannot move them.
+
+`this.newLyrics(painter, options?)` replaces the engine's `Lyrics` layer with your own painter, so the lyrics can look as the visualization needs. Call it once in the constructor. The layer keeps the name `Lyrics`, the top position and the user's opacity and blend; `options` sets their defaults. The painter runs only while there are lyrics, so `host.environment.lyrics` is not `null` inside it. Its context starts with the camera transform; follow `lyrics.shake` yourself if you want the shake. Without the call, the engine's default look is drawn.
 
 ### Rules
 

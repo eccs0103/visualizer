@@ -6,7 +6,7 @@ import { LayerSettings, BackgroundSettings } from "./layer-settings.js";
 import { StemGains } from "./stem.js";
 
 //#region Command
-export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, PaceMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, GainsRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
+export interface CommandDiscriminator extends InitializeMaskCommandDiscriminator, ModelMaskCommandDiscriminator, PaceMaskCommandDiscriminator, StatusMaskCommandDiscriminator, InitializeRenderCommandDiscriminator, TickCommandDiscriminator, ClockRenderCommandDiscriminator, RebuildRenderCommandDiscriminator, LyricsRenderCommandDiscriminator, ShakeRenderCommandDiscriminator, GainsRenderCommandDiscriminator, LayersRenderCommandDiscriminator, ImageRenderCommandDiscriminator, ChunkCommandDiscriminator, FinishCommandDiscriminator, DoneCommandDiscriminator {
 }
 
 export interface CommandScheme {
@@ -19,6 +19,7 @@ export interface CommandScheme {
 @Descendant(Deferred(_ => StatusMaskCommand))
 @Descendant(Deferred(_ => InitializeRenderCommand))
 @Descendant(Deferred(_ => TickCommand))
+@Descendant(Deferred(_ => ClockRenderCommand))
 @Descendant(Deferred(_ => RebuildRenderCommand))
 @Descendant(Deferred(_ => LyricsRenderCommand))
 @Descendant(Deferred(_ => ShakeRenderCommand))
@@ -232,6 +233,33 @@ export interface TickCommandScheme extends CommandScheme {
 export class TickCommand extends Command {
 }
 //#endregion
+//#region Clock render command
+export interface ClockRenderCommandDiscriminator {
+	"ClockRenderCommand": ClockRenderCommand;
+}
+
+export interface ClockRenderCommandScheme extends CommandScheme {
+	$type: keyof ClockRenderCommandDiscriminator;
+	position: number;
+}
+
+export class ClockRenderCommand extends Command {
+	@Field(Number)
+	position: number;
+
+	constructor();
+	constructor(position: number);
+	constructor(position?: number) {
+		if (position === undefined) {
+			super();
+			return;
+		}
+
+		super();
+		this.position = position;
+	}
+}
+//#endregion
 //#region Rebuild render command
 export interface RebuildRenderCommandDiscriminator {
 	"RebuildRenderCommand": RebuildRenderCommand;
@@ -294,6 +322,8 @@ export interface LyricsRenderCommandScheme extends CommandScheme {
 	previous: string | null;
 	current: string | null;
 	next: string | null;
+	begin: number | null;
+	end: number | null;
 }
 
 export class LyricsRenderCommand extends Command {
@@ -306,10 +336,16 @@ export class LyricsRenderCommand extends Command {
 	@Field(Nullable.Of(String))
 	next: string | null;
 
+	@Field(Nullable.Of(Number))
+	begin: number | null;
+
+	@Field(Nullable.Of(Number))
+	end: number | null;
+
 	constructor();
-	constructor(previous: string | null, current: string | null, next: string | null);
-	constructor(previous?: string | null, current?: string | null, next?: string | null) {
-		if (previous === undefined || current === undefined || next === undefined) {
+	constructor(previous: string | null, current: string | null, next: string | null, begin: number | null, end: number | null);
+	constructor(previous?: string | null, current?: string | null, next?: string | null, begin?: number | null, end?: number | null) {
+		if (previous === undefined || current === undefined || next === undefined || begin === undefined || end === undefined) {
 			super();
 			return;
 		}
@@ -318,6 +354,8 @@ export class LyricsRenderCommand extends Command {
 		this.previous = previous;
 		this.current = current;
 		this.next = next;
+		this.begin = begin;
+		this.end = end;
 	}
 }
 //#endregion

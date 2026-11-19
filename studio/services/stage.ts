@@ -7,6 +7,7 @@ import { Stem, type StemGains } from "../models/stem.js";
 import { type Audioset, type Environment, type LyricsWindow } from "../models/visualization.js";
 import { SpectrumAnalysis } from "./visualization-tools.js";
 import { StemFrame } from "./stem-frame.js";
+import { LyricsFrame } from "./lyrics-frame.js";
 
 //#region Stage
 export class Stage implements Audioset, Environment {
@@ -25,11 +26,7 @@ export class Stage implements Audioset, Environment {
 	#lastTime: number | null = null;
 	#delta: number = NaN;
 	#color: Color = Color.newBlack;
-	#previous: string | null = null;
-	#current: string | null = null;
-	#next: string | null = null;
-	#shake: number = 0.2;
-	#lyrics: LyricsWindow | null = null;
+	#lyrics: LyricsFrame = new LyricsFrame();
 
 	constructor(sabSignal: SharedArrayBuffer, sabMask: SharedArrayBuffer, sampleRate: number) {
 		const signal = this.#signal = new Signal(sabSignal);
@@ -68,7 +65,12 @@ export class Stage implements Audioset, Environment {
 	//#region Environment
 	get delta(): number { return this.#delta; }
 	get colorBackground(): Color { return new Color(this.#color); }
-	get lyrics(): LyricsWindow | null { return this.#lyrics; }
+
+	get lyrics(): LyricsWindow | null {
+		const lyrics = this.#lyrics;
+		if (lyrics.isEmpty) return null;
+		return lyrics;
+	}
 	//#endregion
 	//#region Engine
 	get frame(): number { return this.#signal.frame; }
@@ -76,17 +78,6 @@ export class Stage implements Audioset, Environment {
 	get height(): number { return this.#height; }
 	get camera(): DOMMatrix { return this.#camera; }
 	get color(): Color { return this.#color; }
-
-	#refreshLyrics(): void {
-		const previous = this.#previous;
-		const current = this.#current;
-		const next = this.#next;
-		if (previous === null && current === null && next === null) {
-			this.#lyrics = null;
-			return;
-		}
-		this.#lyrics = { previous, current, next, shake: this.#shake };
-	}
 
 	sync(): void {
 		const signal = this.#signal;
@@ -130,16 +121,16 @@ export class Stage implements Audioset, Environment {
 		this.#color = Color.fromHSL(hue, saturation, lightness);
 	}
 
-	updateLyrics(previous: string | null, current: string | null, next: string | null): void {
-		this.#previous = previous;
-		this.#current = current;
-		this.#next = next;
-		this.#refreshLyrics();
+	updateClock(position: number): void {
+		this.#lyrics.tick(position);
+	}
+
+	updateLyrics(previous: string | null, current: string | null, next: string | null, begin: number | null, end: number | null): void {
+		this.#lyrics.update(previous, current, next, begin, end);
 	}
 
 	updateShake(value: number): void {
-		this.#shake = value;
-		this.#refreshLyrics();
+		this.#lyrics.shake = value;
 	}
 
 	updateGains(gains: StemGains): void {
