@@ -1,3 +1,12 @@
+## 3.9.0 (22.11.2026)
+- The **Stems** visualization is now available to everyone, without `?for=developers`.
+- Every built-in visualization now shows the lyrics in its own look, fading in and out with each line: **Pulsar** as a subtitle at the bottom in its drifting colours, **Spectrogram** as a line that lights up from the centre while it is sung, and **Stems** with the next line shown dimmed below the current one.
+- Added `this.newLyrics(painter, options?)`: a visualization can replace the engine's `Lyrics` layer with its own painter — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+- Added `lyrics.progress` to `host.environment`: `0` when the current line starts and `1` when it ends, estimated from the text length when a long gap follows.
+- Added `StemMix.separate(audioset)` to [visualization-tools](./studio/services/visualization-tools.ts): removes the cut stems in decibels, so a voice entering no longer dims the backing under it.
+- **Stems**: the backing threads stay calm when a voice comes in, and the threads move with the rhythm.
+- The **Vega t6** model is retrained and renamed **Vega t6.1**.
+
 ## 3.8.1 (07.11.2026)
 - Added nine **Blend mode** choices for every layer: dodge, burn, hard light, soft light, exclusion, hue, saturation, color and luminosity.
 - Added `WaveformAnalysis` (how hard the music drives right now: `level` and `hit`) and `Belt` (values carried along a path like a conveyor) to [visualization-tools](./studio/services/visualization-tools.ts) — see [CONTRIBUTING.md](./CONTRIBUTING.md).
