@@ -73,6 +73,11 @@ export class HueDrift {
 //#endregion
 //#region Stem mix
 export class StemMix {
+	static #range: number = 60;
+	static #tiny: number = 1e-6;
+	static #steps: number = 1024;
+	static #decibels: Float64Array = StemMix.#tabulate();
+
 	#drums: number;
 	#bass: number;
 	#vocals: number;
@@ -116,6 +121,51 @@ export class StemMix {
 		}
 		return spectrum;
 	}
+
+	static #tabulate(): Float64Array {
+		const steps = StemMix.#steps;
+		const range = StemMix.#range;
+		const tiny = StemMix.#tiny;
+		const decibels = new Float64Array(steps + 2);
+		for (let step = 0; step <= steps; step++) decibels[step] = 20 * log10(max(tiny, 1 - step / steps)) / range;
+		decibels[steps + 1] = decibels[steps];
+		return decibels;
+	}
+
+	separate(audioset: Audioset): Float32Array {
+		const whole = audioset.dataFrequency;
+		const drums = audioset.dataDrums;
+		const bass = audioset.dataBass;
+		const vocals = audioset.dataVocals;
+		const guitar = audioset.dataGuitar;
+		const keys = audioset.dataKeys;
+		const other = audioset.dataOther;
+		const decibels = StemMix.#decibels;
+		const steps = StemMix.#steps;
+		const { length } = whole;
+		let spectrum = this.#spectrum;
+		if (spectrum.length !== length) spectrum = this.#spectrum = new Float32Array(length);
+		const cutDrums = 1 - this.#drums;
+		const cutBass = 1 - this.#bass;
+		const cutVocals = 1 - this.#vocals;
+		const cutGuitar = 1 - this.#guitar;
+		const cutKeys = 1 - this.#keys;
+		const cutOther = 1 - this.#other;
+		const gain = this.#gain;
+		for (let index = 0; index < length; index++) {
+			const value = whole[index];
+			const cut = drums[index] * cutDrums + bass[index] * cutBass + vocals[index] * cutVocals + guitar[index] * cutGuitar + keys[index] * cutKeys + other[index] * cutOther;
+			if (value <= 0 || cut <= 0) {
+				spectrum[index] = min(1, max(0, value) * gain);
+				continue;
+			}
+			const position = min(steps, max(0, cut / value * steps));
+			const step = trunc(position);
+			const low = decibels[step];
+			spectrum[index] = min(1, max(0, value + low + (decibels[step + 1] - low) * (position - step)) * gain);
+		}
+		return spectrum;
+	}
 }
 //#endregion
 //#region Spectrum analysis
@@ -143,24 +193,39 @@ export class SpectrumAnalysis {
 	#sampleRate: number = 0;
 	#time: number | null = null;
 	#values: Float32Array = new Float32Array(12);
+	#pending: boolean = false;
+	#percussiveness: number = 0;
 	#mean: number = 0;
 	#deviation: number = 0;
 
 	get spectralFlux(): number { return this.#values[0]; }
-	get subBass(): number { return this.#values[1]; }
-	get bass(): number { return this.#values[2]; }
-	get lowMid(): number { return this.#values[3]; }
-	get mid(): number { return this.#values[4]; }
-	get highMid(): number { return this.#values[5]; }
-	get high(): number { return this.#values[6]; }
-	get spectralCentroid(): number { return this.#values[7]; }
+	get subBass(): number { return this.#resolved[1]; }
+	get bass(): number { return this.#resolved[2]; }
+	get lowMid(): number { return this.#resolved[3]; }
+	get mid(): number { return this.#resolved[4]; }
+	get highMid(): number { return this.#resolved[5]; }
+	get high(): number { return this.#resolved[6]; }
+	get spectralCentroid(): number { return this.#resolved[7]; }
 	get percussiveness(): number { return this.#values[8]; }
 	get beatDetected(): boolean { return this.#values[9] > 0.5; }
-	get dropIntensity(): number { return this.#values[10]; }
-	get bassLevel(): number { return this.#values[11]; }
+	get dropIntensity(): number { return this.#resolved[10]; }
+	get bassLevel(): number { return this.#resolved[11]; }
+
+	get #resolved(): Float32Array {
+		const values = this.#values;
+		if (!this.#pending) return values;
+		this.#pending = false;
+		const previous = this.#previous;
+		const length = this.#length;
+		this.#computeBandEnergies(previous, this.#obtainBins(length, this.#sampleRate));
+		values[7] = this.#computeSpectralCentroid(previous, length);
+		values[10] = min(1, this.#percussiveness * 3) * values[1];
+		values[11] = values[1] * 0.4 + values[2] * 0.6;
+		return values;
+	}
 
 	get energy(): number {
-		const values = this.#values;
+		const values = this.#resolved;
 		return values[1] + values[2] + values[3] + values[4] + values[5] + values[6];
 	}
 
@@ -270,22 +335,17 @@ export class SpectrumAnalysis {
 		this.#time = time;
 		if (length === 0) return;
 
-		const bins = this.#obtainBins(length, sampleRate);
+		this.#obtainBins(length, sampleRate);
 		const flux = this.#computeSpectralFlux(spectrum, length, time);
-		this.#computeBandEnergies(spectrum, bins);
-		const centroid = this.#computeSpectralCentroid(spectrum, length);
-
 		this.#computeFluxStats(time);
-		const percussiveness = min(1, flux / (this.#mean + 0.001));
+		const percussiveness = this.#percussiveness = min(1, flux / (this.#mean + 0.001));
 		const beatDetected = this.#detectBeat(flux, time);
 
 		const values = this.#values;
 		values[0] = flux;
-		values[7] = centroid;
 		values[8] = percussiveness;
 		values[9] = Number(beatDetected);
-		values[10] = min(1, percussiveness * 3) * values[1];
-		values[11] = values[1] * 0.4 + values[2] * 0.6;
+		this.#pending = true;
 	}
 }
 //#endregion

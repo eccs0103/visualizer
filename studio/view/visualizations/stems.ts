@@ -6,7 +6,7 @@ import { Registry, Visualization } from "../../services/visualization-registry.j
 import { type Audioset, type Host } from "../../models/visualization.js";
 import { Belt, Shaper, Smoother, SpectrumAnalysis, StemMix, WaveformAnalysis } from "../../services/visualization-tools.js";
 
-const { min, max, sin, trunc, PI } = Math;
+const { min, max, sin, trunc, exp, log, PI } = Math;
 
 //#region Flow
 class Flow {
@@ -71,6 +71,7 @@ class Thread {
 	static #shaper: Shaper = Shaper.sigmoid().then(Shaper.arcsinSaturate);
 	static #presence: Shaper = Shaper.smoothstep.between(0.1, 0.35);
 	static #bins: Shaper = Shaper.exponential(3);
+	static #silence: number = Thread.#shaper.apply(0);
 
 	#name: string;
 	#base: Color;
@@ -115,9 +116,10 @@ class Thread {
 		this.#warmth = Shaper.smoothstep.between(calm, loud);
 	}
 
+	static get silence(): number { return Thread.#silence; }
+
 	get name(): string { return this.#name; }
 	get share(): number { return this.#share.value; }
-	get heat(): number { return this.#heat.value; }
 	get rise(): number { return this.#analysis.spectralFlux; }
 	get color(): Color { return this.#color; }
 
@@ -188,6 +190,41 @@ class Thread {
 			weight += taper;
 		}
 		return weight > 0 ? sum / weight : 0;
+	}
+
+	level(spectrum: Float32Array): number {
+		const fractions = this.#fractions;
+		const tapers = this.#tapers;
+		const shaper = Thread.#shaper;
+		const { length } = spectrum;
+
+		let sum = 0;
+		let weight = 0;
+		for (let index = 0; index < fractions.length; index++) {
+			const taper = tapers[index];
+			sum += shaper.apply(min(1, spectrum[trunc(fractions[index] * (length - 1))])) * taper;
+			weight += taper;
+		}
+		return weight > 0 ? sum / weight : 0;
+	}
+
+	mean(spectrum: Float32Array): number {
+		const fractions = this.#fractions;
+		const tapers = this.#tapers;
+		const { length } = spectrum;
+
+		let sum = 0;
+		let weight = 0;
+		for (let index = 0; index < fractions.length; index++) {
+			const taper = tapers[index];
+			sum += spectrum[trunc(fractions[index] * (length - 1))] * taper;
+			weight += taper;
+		}
+		return weight > 0 ? sum / weight : 0;
+	}
+
+	separate(audioset: Audioset): Float32Array {
+		return this.#part.separate(audioset);
 	}
 
 	listen(pulse: number, distance: number, level: number): void {
@@ -328,9 +365,24 @@ class Thread {
 //#endregion
 //#region Stems
 Registry.attach("Stems", class Stems extends Visualization {
-	static #calm: number = 1;
-	static #rush: number = 40;
 	static #stride: number = 0.45;
+	static #knee: number = 4;
+	static #rate: number = 60;
+	static #reach: number = 0.8;
+	static #short: number = 0.5;
+	static #long: number = 8;
+	static #usual: number = 0.7385;
+	static #noise: number = 0.4753;
+	static #calm: number = 0.3716;
+	static #busy: number = 0.4072;
+	static #ceiling: number = 2;
+	static #drive: number = 0.5;
+	static #cruise: number = 3.5;
+	static #exponent: number = 1.6;
+	static #floor: number = 0.01;
+	static #quiet: number = 0.01;
+	static #ease: number = 0.07;
+	static #tiny: number = 1e-6;
 	static #stretch: number = 8;
 	static #typical: number = 0.274;
 	static #swell: Shaper = Shaper.smoothstep.between(0.6, 1);
@@ -356,6 +408,11 @@ Registry.attach("Stems", class Stems extends Visualization {
 	#loudness: Smoother = new Smoother(1);
 	#peak: Smoother = new Smoother(60, Stems.#typical);
 	#waveform: WaveformAnalysis = new WaveformAnalysis();
+	#rhythm: SpectrumAnalysis = new SpectrumAnalysis();
+	#quick: Smoother = new Smoother(Stems.#short);
+	#settled: Smoother = new Smoother(Stems.#long, Stems.#usual);
+	#glide: Smoother = new Smoother(Stems.#ease, log(Stems.#floor));
+	#glide2: Smoother = new Smoother(Stems.#ease, log(Stems.#floor));
 	#tempo: number = 0;
 	#phase: number = 0;
 	#travel: number = 0;
@@ -408,7 +465,6 @@ Registry.attach("Stems", class Stems extends Visualization {
 		for (let index = 0; index < length; index++) total += dataFrequency[index];
 		this.#mix.update(audioset, total, delta);
 		for (const stem of this.#stems) stem.update(audioset, total, delta);
-		this.#backing.update(audioset, total, delta);
 		return total;
 	}
 
@@ -424,6 +480,31 @@ Registry.attach("Stems", class Stems extends Visualization {
 		for (const stem of stems) stem.listen(sum > 0 ? hit * stem.rise / sum : 0, distance, level);
 	}
 
+	#runSpeed(audioset: Audioset, delta: number): number {
+		const backing = this.#backing;
+		const rhythm = this.#rhythm;
+		const quick = this.#quick;
+		const settled = this.#settled;
+		const glide = this.#glide;
+		const glide2 = this.#glide2;
+		const noise = Stems.#noise;
+		const tiny = Stems.#tiny;
+
+		const spectrum = backing.separate(audioset);
+		rhythm.analyze(spectrum, audioset);
+		quick.push(rhythm.spectralFlux / delta / (1 / delta / Stems.#rate) ** Stems.#reach, delta);
+		if (audioset.volume >= Stems.#quiet) settled.push(quick.value, delta);
+		const signal = settled.value;
+		const power = signal * signal;
+		const weight = power / (power + noise * noise);
+		const calm = max(0, backing.level(spectrum) - Thread.silence) / Stems.#calm;
+		const busy = backing.mean(spectrum) * min(Stems.#ceiling, quick.value / max(signal, tiny)) ** Stems.#drive / Stems.#busy;
+		const blend = (1 - weight) * log(max(calm, tiny)) + weight * log(max(busy, tiny));
+		glide.push(log(max(Stems.#floor, Stems.#cruise * exp(Stems.#exponent * blend))), delta);
+		glide2.push(glide.value, delta);
+		return exp(glide2.value) * this.#flow.side;
+	}
+
 	#runPace(host: Host): number {
 		const loudness = this.#loudness;
 		const peak = this.#peak;
@@ -432,13 +513,15 @@ Registry.attach("Stems", class Stems extends Visualization {
 		const { delta } = environment;
 
 		if (!Number.isFinite(delta) || delta <= 0) return 0;
-		const level = this.#backing.heat;
 		loudness.push(volume, delta);
 		peak.push(Stems.#typical, delta);
 		peak.raise(loudness.value);
 		this.#tempo = Stems.#swell.apply(loudness.value / peak.value);
-		const step = min(Stems.#stride, delta * level.lerp(0, 1, Stems.#calm, Stems.#rush));
-		const distance = step * this.#wavelength;
+		const knee = Stems.#knee;
+		const speed = this.#runSpeed(audioset, delta);
+		const frequency = speed / this.#wavelength;
+		const step = delta * frequency / (1 + (frequency * delta / Stems.#stride) ** knee) ** (1 / knee);
+		const distance = delta * speed;
 		const phase = this.#phase += step;
 		this.#travel += distance;
 		this.#belt.advance(distance, phase);
